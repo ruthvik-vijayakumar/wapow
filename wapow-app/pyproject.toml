@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "wapow-api"
+version = "1.0.0"
+description = "Combined WAPOW API: MongoDB content API + Neo4j recommendations (FastAPI)"
+authors = []
+readme = "README.md"
+packages = [{ include = "api" }]
+
+[tool.poetry.dependencies]
+python = ">=3.12"
+fastapi = ">=0.115.0,<1.0"
+uvicorn = { extras = ["standard"], version = ">=0.32.0" }
+pymongo = ">=4.10.0,<5.0"
+neo4j = ">=5.28.0,<6.0"
+python-dotenv = ">=1.0.0"
+# Auth (optional – for Auth0 JWT validation)
+pyjwt = { extras = ["crypto"], version = ">=2.10.0" }
+
+[build-system]
+requires = ["poetry-core>=2.0.0"]
+build-backend = "poetry.core.masonry.api"

@@ -1,0 +1,164 @@
+@import './fonts.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    overflow-y: auto;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: 'Franklin ITC Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #000000;
+    color: #ffffff;
+    overflow-y: auto;
+    min-height: 100vh;
+    /* Mobile browser navigation bar handling */
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
+    /* Prevent overscroll bounce on iOS */
+    overscroll-behavior: none;
+    /* Safe area insets */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
+#app {
+    min-height: 100vh;
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
+    overflow-y: auto;
+    /* Mobile browser navigation bar handling */
+    height: 100vh;
+    height: 100dvh;
+    /* Safe area insets */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+}
+
+  /* Prevent zoom on input focus */
+  input, textarea, select {
+    font-size: 16px;
+  }
+
+  /* Hide scrollbars but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Mac-style slim overlay scrollbar - webkit only (overlay by default) */
+  /* Firefox: hide scrollbar to prevent space reservation, webkit handles overlay */
+  * {
+    scrollbar-width: none; /* Hide Firefox scrollbar - webkit overlay doesn't take space */
+    scrollbar-color: transparent transparent;
+  }
+
+  /* Webkit scrollbars are overlay by default - style them */
+  *::-webkit-scrollbar {
+    width: 7px;
+    height: 7px;
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    border: none;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.25);
+  }
+
+  *::-webkit-scrollbar-thumb:active {
+    background-color: rgba(255, 255, 255, 0.35);
+  }
+}
+
+@layer components {
+  .video-tile {
+    @apply relative overflow-hidden rounded-lg bg-secondary;
+}
+
+  .bottom-nav {
+    @apply fixed bottom-0 left-0 right-0 bg-black border-t border-gray-800;
+  }
+
+  .nav-item {
+    @apply flex flex-col items-center justify-center py-2 px-4 text-gray-400 hover:text-white transition-colors;
+  }
+
+  .nav-item.active {
+    @apply text-accent;
+  }
+
+  /* Font utility classes */
+  .font-postoni {
+    font-family: 'Postoni', serif;
+  }
+
+  .font-postoni-display {
+    font-family: 'Postoni Display', serif;
+  }
+
+  .font-postoni-titling {
+    font-family: 'Postoni Titling', serif;
+  }
+
+  .font-franklin {
+    font-family: 'Franklin ITC Pro', sans-serif;
+  }
+
+  /* Story specific styles - only hide scrollbars for story components */
+  .story-container {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .story-container::-webkit-scrollbar {
+    display: none;
+  }
+
+  .story-feed-container {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .story-feed-container::-webkit-scrollbar {
+    display: none;
+  }
+
+  .stories-container {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .stories-container::-webkit-scrollbar {
+    display: none;
+  }
+
+  .story-wrapper {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .story-wrapper::-webkit-scrollbar {
+    display: none;
+  }
+}

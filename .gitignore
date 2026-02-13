@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+wapow-app/.env/
+
+# Build output
+dist/
+dist-ssr/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+wapow-app/.env.dev
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+*.egg
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Coverage & testing
+coverage/
+*.local
+/cypress/videos/
+/cypress/screenshots/
+
+# TypeScript
+*.tsbuildinfo
+
+# Cursor
+.cursor/
