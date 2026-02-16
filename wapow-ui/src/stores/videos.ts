@@ -1003,49 +1003,21 @@ export const useContentStore = defineStore('content', () => {
   }
 
   const getSectionData = async (category_id: string) => {
-    const website = 'washpost'
-    const body = {
-      query: {
-        bool: {
-          must: [
-            {
-              term: {
-                'revision.published': 'true',
-              },
-            },
-            {
-              nested: {
-                path: 'taxonomy.sections',
-                query: {
-                  bool: {
-                    must: [
-                      {
-                        terms: {
-                          'taxonomy.sections._id': [category_id],
-                        },
-                      },
-                      {
-                        term: {
-                          'taxonomy.sections._website': website,
-                        },
-                      },
-                    ],
-                  },
-                },
-              },
-            },
-          ],
-        },
-      },
+    const baseUrl = import.meta.env.VITE_ARTICLES_API || 'http://localhost:3001'
+
+    // For videos and podcasts, keep the old path-based routing
+    if (category_id === '/videos' || category_id === '/podcasts') {
+      const response = await fetch(`${baseUrl}/api${category_id}`, { method: 'GET' })
+      const data = await response.json()
+      return data
     }
-    //`https://prism.wpit.nile.works/content/v4/search/published?body=${encodedBody}&size=${feedSize}&website=${website}&sort=display_date:desc`
-    const encodedBody = encodeURI(JSON.stringify(body))
-    const response = await fetch(
-              `${import.meta.env.VITE_ARTICLES_API || 'http://localhost:3001'}/api${category_id}`,
-      {
-        method: 'GET',
-      },
-    )
+
+    // For articles, use the unified /api/articles?category= endpoint
+    const category = category_id.replace(/^\//, '')
+    const url = category
+      ? `${baseUrl}/api/articles?category=${encodeURIComponent(category)}`
+      : `${baseUrl}/api/articles`
+    const response = await fetch(url, { method: 'GET' })
     const data = await response.json()
     return data
   }

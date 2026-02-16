@@ -1,5 +1,5 @@
 <template>
-  <div 
+  <div
     class="story-feed-container"
     @touchstart="handleTouchStart"
     @touchmove="handleTouchMove"
@@ -8,13 +8,13 @@
     tabindex="0"
   >
     <!-- Stories Container -->
-    <div 
+    <div
       class="stories-container"
       :class="{ 'swiping': isSwiping }"
       :style="{ transform: `translateY(${(currentStoryIndex * -100) + swipeOffset}vh)` }"
     >
-      <div 
-        v-for="(story, index) in stories" 
+      <div
+        v-for="(story, index) in stories"
         :key="story.id"
         class="story-wrapper"
       >
@@ -44,7 +44,7 @@
           @follow="handleFollow"
           @next-story="nextStory"
           @prev-story="prevStory"
-          @comments="toggleComments"
+          @comments="toggleComments(story)"
           @save="handleSaveArticle"
         />
         <PodcastView
@@ -58,10 +58,10 @@
           @follow="handleFollow"
           @next-story="nextStory"
           @prev-story="prevStory"
-          @comments="toggleComments"
+          @comments="toggleComments(story)"
           @save="handleSaveArticle"
         />
-        <div 
+        <div
           v-else-if="story.mediaType === 'game' && story.content?.type === 'game'"
           class="game-wrapper"
         >
@@ -77,12 +77,12 @@
     </div>
 
     <!-- Comments Bottom Sheet -->
-    <div 
-      v-if="showComments" 
+    <div
+      v-if="showComments"
       class="comments-overlay"
       @click="closeComments"
     >
-      <div 
+      <div
         class="comments-sheet"
         @click.stop
         @touchstart.stop
@@ -97,11 +97,11 @@
             </svg>
           </button>
         </div>
-        
+
         <!-- Tabs -->
         <div class="tabs-container">
-          <button 
-            @click="switchTab('comments')" 
+          <button
+            @click="switchTab('comments')"
             class="tab-button"
             :class="{ 'active': activeTab === 'comments' }"
           >
@@ -110,8 +110,8 @@
             </svg>
             <span class="tab-text">Comments</span>
           </button>
-          <button 
-            @click="switchTab('chatbot')" 
+          <button
+            @click="switchTab('chatbot')"
             class="tab-button"
             :class="{ 'active': activeTab === 'chatbot' }"
           >
@@ -121,40 +121,46 @@
             <span class="tab-text">AI Assistant</span>
           </button>
         </div>
-        
+
         <!-- Comments Tab -->
         <div v-if="activeTab === 'comments'" class="comments-list" @touchstart.stop @touchmove.stop @touchend.stop>
-          <div 
-            v-for="comment in comments" 
-            :key="comment.id"
+          <!-- Loading state -->
+          <div v-if="commentsLoading" class="comments-loading">
+            <span>Loading comments...</span>
+          </div>
+          <!-- Empty state -->
+          <div v-else-if="comments.length === 0" class="comments-empty">
+            <span>No comments yet. Be the first to discuss!</span>
+          </div>
+          <div
+            v-for="comment in comments"
+            :key="comment._id"
             class="comment-item"
           >
             <div class="comment-content">
               <div class="comment-header">
                 <div class="comment-author">
-                  {{ comment.author }}
-                  <!-- <span v-if="comment.verified" class="verified-badge">verified</span> -->
-                  <span v-if="comment.flair" class="flair-badge">{{ comment.flair }}</span>
+                  {{ comment.user_name }}
                 </div>
-                <div class="comment-time">{{ comment.time }}</div>
+                <div class="comment-time">{{ formatTime(comment.created_at) }}</div>
               </div>
               <div class="comment-text">{{ comment.text }}</div>
               <div class="comment-actions">
                 <div class="vote-buttons">
-                  <button 
-                    @click="upvoteComment(comment.id)" 
+                  <button
+                    @click="voteComment(comment._id, 'up')"
                     class="vote-button upvote"
-                    :class="{ 'voted': comment.userVote === 'up' }"
+                    :class="{ 'voted': comment.user_vote === 'up' }"
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
                     </svg>
                     <span>{{ comment.upvotes }}</span>
                   </button>
-                  <button 
-                    @click="downvoteComment(comment.id)" 
+                  <button
+                    @click="voteComment(comment._id, 'down')"
                     class="vote-button downvote"
-                    :class="{ 'voted': comment.userVote === 'down' }"
+                    :class="{ 'voted': comment.user_vote === 'down' }"
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
@@ -162,42 +168,40 @@
                     <span>{{ comment.downvotes }}</span>
                   </button>
                 </div>
-                <button class="comment-reply">Reply</button>
+                <button class="comment-reply" @click="startReply(comment._id, comment.user_name)">Reply</button>
               </div>
-              
+
               <!-- Replies -->
               <div v-if="comment.replies && comment.replies.length > 0" class="replies-container">
-                <div 
-                  v-for="reply in comment.replies" 
-                  :key="reply.id"
+                <div
+                  v-for="reply in comment.replies"
+                  :key="reply._id"
                   class="reply-item"
                 >
                   <div class="reply-content">
                     <div class="reply-header">
                       <div class="reply-author">
-                        {{ reply.author }}
-                        <!-- <span v-if="reply.verified" class="verified-badge">verified</span> -->
-                        <span v-if="reply.flair" class="flair-badge">{{ reply.flair }}</span>
+                        {{ reply.user_name }}
                       </div>
-                      <div class="reply-time">{{ reply.time }}</div>
+                      <div class="reply-time">{{ formatTime(reply.created_at) }}</div>
                     </div>
                     <div class="reply-text">{{ reply.text }}</div>
                     <div class="reply-actions">
                       <div class="vote-buttons">
-                        <button 
-                          @click="upvoteComment(reply.id)" 
+                        <button
+                          @click="voteComment(reply._id, 'up')"
                           class="vote-button upvote"
-                          :class="{ 'voted': reply.userVote === 'up' }"
+                          :class="{ 'voted': reply.user_vote === 'up' }"
                         >
                           <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
                           </svg>
                           <span>{{ reply.upvotes }}</span>
                         </button>
-                        <button z
-                          @click="downvoteComment(reply.id)" 
+                        <button
+                          @click="voteComment(reply._id, 'down')"
                           class="vote-button downvote"
-                          :class="{ 'voted': reply.userVote === 'down' }"
+                          :class="{ 'voted': reply.user_vote === 'down' }"
                         >
                           <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
@@ -212,11 +216,11 @@
             </div>
           </div>
         </div>
-        
+
         <!-- Chatbot Tab -->
         <div v-if="activeTab === 'chatbot'" class="chatbot-list" @touchstart.stop @touchmove.stop @touchend.stop>
-          <div 
-            v-for="message in chatbotMessages" 
+          <div
+            v-for="message in chatbotMessages"
             :key="message.id"
             class="chatbot-message"
             :class="{ 'user-message': message.type === 'user', 'bot-message': message.type === 'bot' }"
@@ -227,30 +231,37 @@
             </div>
           </div>
         </div>
-        
+
         <!-- Input Section -->
         <div class="input-section">
           <!-- Comments Input -->
           <div v-if="activeTab === 'comments'" class="comment-input">
-            <input 
-              type="text" 
-              placeholder="Add a comment..." 
-              class="comment-field"
-              v-model="newComment"
-              @keyup.enter="addComment"
-            />
-            <button @click="addComment" class="send-button">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-              </svg>
-            </button>
+            <div v-if="replyingTo" class="reply-indicator">
+              <span>Replying to {{ replyingToName }}</span>
+              <button @click="cancelReply" class="cancel-reply">&times;</button>
+            </div>
+            <div class="comment-input-row">
+              <input
+                ref="commentInputRef"
+                type="text"
+                :placeholder="replyingTo ? 'Write a reply...' : 'Add a comment...'"
+                class="comment-field"
+                v-model="newComment"
+                @keyup.enter="addComment"
+              />
+              <button @click="addComment" class="send-button" :disabled="!newComment.trim()">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
+              </button>
+            </div>
           </div>
-          
+
           <!-- Chatbot Input -->
           <div v-if="activeTab === 'chatbot'" class="chatbot-input">
-            <input 
-              type="text" 
-              placeholder="Ask me anything..." 
+            <input
+              type="text"
+              placeholder="Ask me anything..."
               class="chatbot-field"
               v-model="chatbotMessage"
               @keyup.enter="sendChatbotMessage"
@@ -268,17 +279,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import StoryView from './StoryView.vue'
 import { apiFetch } from '@/lib/api'
 import VerticalVideoView from './VerticalVideoView.vue'
 import PodcastView from './PodcastView.vue'
 import Game from '@/views/wordle/Game.vue'
 import { useContentStore } from '@/stores/videos'
-import type { Video, StoryContent, MediaItem, Article } from '@/stores/videos'
+import { useAuthStore } from '@/stores/auth'
+import { useAnalytics } from '@/composables/useAnalytics'
+import type { Video, StoryContent, Article } from '@/stores/videos'
 
 // Add a watcher to debug store changes
 const contentStore = useContentStore()
+const authStore = useAuthStore()
+const { trackView, trackSave, trackNavigate, startDwell, stopDwell } = useAnalytics()
 watch(() => contentStore.videos, (newVideos) => {
   console.log('Videos changed in store:', newVideos.length)
 }, { immediate: true })
@@ -346,6 +361,11 @@ const handleSaveArticle = (payload: { id: string; collection?: string; saved: bo
     set.delete(id)
   }
   savedArticleIds.value = set
+
+  // Analytics: track save/unsave
+  const story = currentStory.value
+  const type = story?.mediaType === 'story' ? 'article' : (story?.mediaType || '')
+  trackSave(id, saved, type, story?.category || '')
 }
 
 onMounted(() => {
@@ -358,6 +378,11 @@ const newComment = ref('')
 const activeTab = ref('comments') // 'comments' or 'chatbot'
 const chatbotMessage = ref('')
 const currentArticleContent = ref<any>(null)
+const currentArticleId = ref<string | null>(null)
+const commentsLoading = ref(false)
+const replyingTo = ref<string | null>(null)
+const replyingToName = ref('')
+const commentInputRef = ref<HTMLInputElement | null>(null)
 const chatbotMessages = ref([
   {
     id: 1,
@@ -367,164 +392,8 @@ const chatbotMessages = ref([
   }
 ])
 
-// Sample comments data
-const comments = ref([
-  {
-    id: 1,
-    author: 'Sarah Johnson',
-    text: 'This is really interesting! Thanks for sharing.',
-    time: '2h ago',
-    upvotes: 12,
-    downvotes: 2,
-    userVote: null as 'up' | 'down' | null,
-    verified: true,
-    flair: 'Climate Expert',
-    replies: [
-      {
-        id: 11,
-        author: 'Mike Chen',
-        text: 'I agree, this is fascinating content.',
-        time: '1h ago',
-        upvotes: 5,
-        downvotes: 0,
-        userVote: null as 'up' | 'down' | null,
-        verified: false,
-        flair: 'Subscriber for 5 years'
-      },
-      {
-        id: 12,
-        author: 'Emma Rodriguez',
-        text: 'Great insights on this topic.',
-        time: '30m ago',
-        upvotes: 3,
-        downvotes: 1,
-        userVote: null as 'up' | 'down' | null,
-        verified: true,
-        flair: 'Policy Researcher'
-      }
-    ]
-  },
-  {
-    id: 2,
-    author: 'Mike Chen',
-    text: 'Great insights on this topic.',
-    time: '1h ago',
-    upvotes: 8,
-    downvotes: 1,
-    userVote: null as 'up' | 'down' | null,
-    verified: false,
-    flair: 'Tech Analyst',
-    replies: []
-  },
-  {
-    id: 3,
-    author: 'Emma Rodriguez',
-    text: 'I learned so much from this story!',
-    time: '30m ago',
-    upvotes: 15,
-    downvotes: 3,
-    userVote: null as 'up' | 'down' | null,
-    verified: true,
-    flair: 'Policy Researcher',
-    replies: [
-      {
-        id: 31,
-        author: 'John Doe',
-        text: 'Same here, very informative.',
-        time: '15m ago',
-        upvotes: 2,
-        downvotes: 0,
-        userVote: null as 'up' | 'down' | null,
-        verified: false,
-        flair: 'Subscriber for 2 years'
-      }
-    ]
-  },
-  {
-    id: 4,
-    author: 'Dr. Maria Garcia',
-    text: 'As a climate scientist, I can confirm these findings align with recent research.',
-    time: '45m ago',
-    upvotes: 23,
-    downvotes: 1,
-    userVote: null as 'up' | 'down' | null,
-    verified: true,
-    flair: 'Climate Scientist',
-    replies: [
-      {
-        id: 41,
-        author: 'Alex Thompson',
-        text: 'Thank you for the expert insight!',
-        time: '20m ago',
-        upvotes: 7,
-        downvotes: 0,
-        userVote: null as 'up' | 'down' | null,
-        verified: false,
-        flair: 'Environmental Advocate'
-      }
-    ]
-  },
-  {
-    id: 5,
-    author: 'Alex Thompson',
-    text: 'This is exactly what we need more of in the media.',
-    time: '15m ago',
-    upvotes: 18,
-    downvotes: 2,
-    userVote: null as 'up' | 'down' | null,
-    verified: false,
-    flair: 'Environmental Advocate',
-    replies: []
-  },
-  {
-    id: 6,
-    author: 'David Wilson',
-    text: 'Been following this topic for years. Great coverage!',
-    time: '10m ago',
-    upvotes: 9,
-    downvotes: 1,
-    userVote: null as 'up' | 'down' | null,
-    verified: false,
-    flair: 'Subscriber for 8 years',
-    replies: []
-  },
-  {
-    id: 7,
-    author: 'Lisa Park',
-    text: 'This reporting is top-notch as always.',
-    time: '5m ago',
-    upvotes: 14,
-    downvotes: 0,
-    userVote: null as 'up' | 'down' | null,
-    verified: false,
-    flair: 'Premium Member',
-    replies: [
-      {
-        id: 71,
-        author: 'Robert Kim',
-        text: 'Agreed! The quality is consistently excellent.',
-        time: '2m ago',
-        upvotes: 4,
-        downvotes: 0,
-        userVote: null as 'up' | 'down' | null,
-        verified: false,
-        flair: 'Subscriber for 3 years'
-      }
-    ]
-  },
-  {
-    id: 8,
-    author: 'Dr. James Miller',
-    text: 'From an academic perspective, this analysis is spot-on.',
-    time: '3m ago',
-    upvotes: 21,
-    downvotes: 1,
-    userVote: null as 'up' | 'down' | null,
-    verified: true,
-    flair: 'Research Fellow',
-    replies: []
-  }
-])
+// Comments data (fetched from API)
+const comments = ref<any[]>([])
 
 
 
@@ -537,9 +406,29 @@ const isSwiping = ref(false)
 // Generate stories from initial article, related articles, and videos
 const stories = computed((): Story[] => {
   const baseStories: Story[] = []
-  
-  // Always add the initial article as the first story
-  if (props.initialArticle && props.initialArticle.headlines?.basic) {
+
+  // Always add the initial article/video/podcast as the first story
+  if (props.initialArticle && (props.initialArticle as any)._videoRef) {
+    // Initial item is a video passed from saved content
+    const videoData = (props.initialArticle as any)._videoRef
+    console.log('Adding initial item as VIDEO story:', videoData.tracking?.page_title || videoData.title)
+    baseStories.push({
+      id: `video-${props.initialArticle._id}`,
+      mediaType: 'video',
+      video: videoData,
+      category: props.category
+    })
+  } else if (props.initialArticle && (props.initialArticle as any)._podcastRef) {
+    // Initial item is a podcast passed from saved content
+    const podcastData = (props.initialArticle as any)._podcastRef
+    console.log('Adding initial item as PODCAST story:', podcastData.title)
+    baseStories.push({
+      id: `podcast-${props.initialArticle._id}`,
+      mediaType: 'podcast',
+      podcast: podcastData,
+      category: props.category
+    })
+  } else if (props.initialArticle && props.initialArticle.headlines?.basic) {
     // console.log('Adding initial article as story:', props.initialArticle.headlines.basic)
     baseStories.push({
       id: `story-${props.initialArticle._id}`,
@@ -582,42 +471,42 @@ const stories = computed((): Story[] => {
   // Create a healthy mix of articles and videos for up to 20 scrolls
   const targetStories = 20
   const currentStories = baseStories.length
-  
+
   // Debug: Check if store is still loading
   console.log('Store loading state:', contentStore.isLoading)
-  
+
   console.log('ContentStore state:', {
     articlesCount: contentStore.articles.length,
     videosCount: contentStore.videos.length,
     podcastClipsCount: contentStore.podcastClips.length
   })
-  
+
   // Debug: Check if videos are actually in the store
   if (contentStore.videos.length > 0) {
     console.log('First video in store:', contentStore.videos[0])
   } else {
     console.log('No videos in store!')
   }
-  
+
   if (currentStories < targetStories) {
     console.log(`Adding mixed content to reach ${targetStories} stories (currently have ${currentStories})`)
-    
+
     // Get all available articles, videos, and podcast clips
-    const allArticles = contentStore.articles.filter(article => 
-      article && article.headlines?.basic && 
+    const allArticles = contentStore.articles.filter(article =>
+      article && article.headlines?.basic &&
       !baseStories.some(story => story.id === `story-${article._id}`)
     )
-    
-    const allVideos = contentStore.videos.filter(video => 
-      video && video.content_id && 
+
+    const allVideos = contentStore.videos.filter(video =>
+      video && video.content_id &&
       !baseStories.some(story => story.id === `video-${video.content_id}`)
     )
-    
-    const allPodcastClips = contentStore.podcastClips.filter(podcast => 
-      podcast && podcast.id && 
+
+    const allPodcastClips = contentStore.podcastClips.filter(podcast =>
+      podcast && podcast.id &&
       !baseStories.some(story => story.id === `podcast-${podcast.id}`)
     )
-    
+
     console.log(`Available articles: ${allArticles.length}, Available videos: ${allVideos.length}, Available podcast clips: ${allPodcastClips.length}`)
     if (allVideos.length > 0) {
       console.log('Sample video:', allVideos[0])
@@ -625,23 +514,23 @@ const stories = computed((): Story[] => {
     if (allPodcastClips.length > 0) {
       console.log('Sample podcast clip:', allPodcastClips[0])
     }
-    
+
     // Shuffle arrays for randomization
     const shuffledArticles = [...allArticles].sort(() => Math.random() - 0.5)
     const shuffledVideos = [...allVideos].sort(() => Math.random() - 0.5)
     const shuffledPodcastClips = [...allPodcastClips].sort(() => Math.random() - 0.5)
-    
+
     // Create a pattern: article, video, podcast, article, video, podcast, etc.
     let articleIndex = 0
     let videoIndex = 0
     let podcastIndex = 0
-    
+
     for (let i = currentStories; i < targetStories; i++) {
       const cycle = i % 3 // 0 = article, 1 = video, 2 = podcast
       const shouldAddVideo = cycle === 1 && videoIndex < shuffledVideos.length
       const shouldAddPodcast = cycle === 2 && podcastIndex < shuffledPodcastClips.length
       const shouldAddArticle = (cycle === 0 || (cycle === 1 && videoIndex >= shuffledVideos.length) || (cycle === 2 && podcastIndex >= shuffledPodcastClips.length)) && articleIndex < shuffledArticles.length
-      
+
       if (shouldAddVideo) {
         const video = shuffledVideos[videoIndex]
         console.log(`Adding video ${videoIndex + 1}:`, video.tracking?.page_title || video.content_id)
@@ -682,9 +571,9 @@ const stories = computed((): Story[] => {
         break
       }
     }
-    
+
     console.log(`Final story count: ${baseStories.length}`)
-    
+
     // Debug: Force add a video if we have videos but none were added
     if (contentStore.videos.length > 0 && !baseStories.some(story => story.mediaType === 'video')) {
       console.log('Forcing addition of a video story')
@@ -699,34 +588,34 @@ const stories = computed((): Story[] => {
     }
   }
 
-  console.log('Final stories array:', baseStories.length, baseStories.map(s => ({ 
-    id: s.id, 
+  console.log('Final stories array:', baseStories.length, baseStories.map(s => ({
+    id: s.id,
     mediaType: s.mediaType,
     title: s.video?.tracking?.page_title || s.podcast?.title || s.content?.title
   })))
-  
+
   // Randomize the stories array (except the first story which is the initial article)
   if (baseStories.length > 2) {
     const initialStory = baseStories[0]
     const remainingStories = baseStories.slice(1)
-    
+
     // Shuffle the remaining stories
     for (let i = remainingStories.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1))
       ;[remainingStories[i], remainingStories[j]] = [remainingStories[j], remainingStories[i]]
     }
-    
+
     // Reconstruct the array with initial story first, then shuffled remaining stories
     const shuffledStories = [initialStory, ...remainingStories]
-    console.log('Stories after randomization:', shuffledStories.map(s => ({ 
-      id: s.id, 
+    console.log('Stories after randomization:', shuffledStories.map(s => ({
+      id: s.id,
       mediaType: s.mediaType,
       title: s.video?.tracking?.page_title || s.podcast?.title || s.content?.title
     })))
-    
+
     return shuffledStories
   }
-  
+
   return baseStories
 })
 
@@ -735,6 +624,22 @@ const currentStory = computed(() => {
   console.log('Current story:', currentStoryIndex.value, story?.mediaType, story?.video?.tracking?.page_title || story?.podcast?.title)
   return story
 })
+
+// ── Analytics: track view + dwell on story change ──────────────────────────
+watch(currentStory, (newStory, oldStory) => {
+  // Stop dwell for the previous story
+  if (oldStory) {
+    stopDwell(getStoryArticleId(oldStory))
+  }
+  // Start dwell + fire view for the new story
+  if (newStory) {
+    const id = getStoryArticleId(newStory)
+    const type = newStory.mediaType === 'story' ? 'article' : newStory.mediaType
+    const cat = newStory.category || ''
+    trackView(id, type, cat)
+    startDwell(id, type, cat)
+  }
+}, { immediate: true })
 
 const handleTouchStart = (event: TouchEvent) => {
   console.log('Touch start detected')
@@ -751,20 +656,20 @@ const handleTouchMove = (event: TouchEvent) => {
   const currentX = event.touches[0].clientX
   const deltaY = currentY - touchStart.value.y
   const deltaX = currentX - touchStart.value.x
-  
+
   // Only start swiping if we've moved enough vertically and not horizontally
   if (Math.abs(deltaY) > 10 && Math.abs(deltaY) > Math.abs(deltaX)) {
     isSwiping.value = true
     console.log('Swiping detected, deltaY:', deltaY)
-    
+
     // Calculate swipe offset as percentage of screen height
     const screenHeight = window.innerHeight
     const swipePercentage = deltaY / screenHeight
     swipeOffset.value = swipePercentage * 100 // Convert to percentage
-    
+
     console.log('Swipe offset:', swipeOffset.value)
   }
-  
+
   touchEnd.value = {
     x: event.touches[0].clientX,
     y: currentY
@@ -773,9 +678,9 @@ const handleTouchMove = (event: TouchEvent) => {
 
 const handleTouchEnd = () => {
   console.log('Touch end detected, isSwiping:', isSwiping.value)
-  
+
   if (!isSwiping.value) return
-  
+
   const deltaX = touchEnd.value.x - touchStart.value.x
   const deltaY = touchEnd.value.y - touchStart.value.y
   const minSwipeDistance = 80 // Increased threshold for better detection
@@ -796,7 +701,7 @@ const handleTouchEnd = () => {
   } else {
     console.log('Swipe not significant enough or not vertical')
   }
-  
+
   // Reset swipe state
   isSwiping.value = false
   swipeOffset.value = 0
@@ -821,12 +726,15 @@ const handleKeyDown = (event: KeyboardEvent) => {
 
 const nextStory = () => {
   console.log('Attempting next story. Current:', currentStoryIndex.value, 'Total:', stories.value.length)
-  
+
   if (currentStoryIndex.value < stories.value.length - 1) {
+    const fromId = getStoryArticleId(stories.value[currentStoryIndex.value])
     currentStoryIndex.value++
+    const toId = getStoryArticleId(stories.value[currentStoryIndex.value])
+    trackNavigate(fromId, toId, 'next')
     const nextStory = stories.value[currentStoryIndex.value]
     console.log('Next story:', currentStoryIndex.value, nextStory?.mediaType, nextStory?.video?.tracking?.page_title || nextStory?.podcast?.title)
-    
+
     // Validate the next story has content
     if (!nextStory || (!nextStory.video && !nextStory.podcast && !nextStory.content)) {
       console.error('Invalid story at index:', currentStoryIndex.value)
@@ -844,12 +752,15 @@ const nextStory = () => {
 
 const prevStory = () => {
   console.log('Attempting prev story. Current:', currentStoryIndex.value)
-  
+
   if (currentStoryIndex.value > 0) {
+    const fromId = getStoryArticleId(stories.value[currentStoryIndex.value])
     currentStoryIndex.value--
+    const toId = getStoryArticleId(stories.value[currentStoryIndex.value])
+    trackNavigate(fromId, toId, 'prev')
     const prevStory = stories.value[currentStoryIndex.value]
     console.log('Previous story:', currentStoryIndex.value, prevStory?.mediaType, prevStory?.video?.tracking?.page_title || prevStory?.podcast?.title)
-    
+
     // Validate the previous story has content
     if (!prevStory || (!prevStory.video && !prevStory.podcast && !prevStory.content)) {
       console.error('Invalid story at index:', currentStoryIndex.value)
@@ -874,92 +785,180 @@ const handleFollow = (authorId: string) => {
   emit('follow', authorId)
 }
 
-const toggleComments = (articleContent?: any) => {
-  showComments.value = !showComments.value
-  let textContent = articleContent.content.originalArticle.content_elements
-    .filter((element:any) => element.type === 'text')
-    .map((element:any) => element.content)
-    .join(' ')
-    .replace(/https?:\/\/[^\s]+/g, '') // Remove URLs
-    .replace(/\s+/g, ' ') // Clean up extra whitespace
-    .trim()
-  // Store the current article content for AI chat  
-  if (articleContent) {
-    currentArticleContent.value = textContent
+// --- Comments: API-backed handlers ---
+
+const fetchComments = async (articleId: string) => {
+  commentsLoading.value = true
+  comments.value = []
+  try {
+    const res = await apiFetch(`/api/comments?article_id=${encodeURIComponent(articleId)}`)
+    if (res.ok) {
+      const json = await res.json()
+      comments.value = json.data ?? []
+    }
+  } catch (e) {
+    console.error('Failed to fetch comments:', e)
+  } finally {
+    commentsLoading.value = false
+  }
+}
+
+const toggleComments = (storyOrContent?: any) => {
+  if (showComments.value) {
+    showComments.value = false
+    return
+  }
+
+  // Resolve the article ID from whatever was passed
+  let articleId: string | null = null
+  let textContent = ''
+
+  if (storyOrContent) {
+    // Called from StoryView: storyOrContent is the Story object
+    const story = storyOrContent as any
+    if (story.content?.originalArticle?._id) {
+      articleId = story.content.originalArticle._id
+    } else if (story.content?._id) {
+      articleId = story.content._id
+    } else if (story.video?.content_id || story.video?.id) {
+      articleId = story.video?.content_id ?? story.video?.id
+    } else if (story.podcast?.id) {
+      articleId = story.podcast.id
+    } else if (story.id) {
+      articleId = story.id
+    }
+
+    // Extract text content for AI chat
+    try {
+      textContent = story.content?.originalArticle?.content_elements
+        ?.filter((el: any) => el.type === 'text')
+        .map((el: any) => el.content)
+        .join(' ')
+        .replace(/https?:\/\/[^\s]+/g, '')
+        .replace(/\s+/g, ' ')
+        .trim() ?? ''
+    } catch {
+      // Not all content types have content_elements
+    }
+  }
+
+  currentArticleId.value = articleId
+  currentArticleContent.value = textContent
+  showComments.value = true
+  replyingTo.value = null
+  replyingToName.value = ''
+
+  if (articleId) {
+    fetchComments(articleId)
   }
 }
 
 const closeComments = () => {
   showComments.value = false
+  replyingTo.value = null
+  replyingToName.value = ''
 }
 
-const addComment = () => {
-  if (newComment.value.trim()) {
-    const newId = Math.max(...comments.value.map(c => c.id)) + 1
-    comments.value.unshift({
-      id: newId,
-      author: 'You',
-      text: newComment.value.trim(),
-      time: 'Just now',
-      upvotes: 0,
-      downvotes: 0,
-      userVote: null as 'up' | 'down' | null,
-      verified: false,
-      flair: 'Community Member',
-      replies: []
+const addComment = async () => {
+  const text = newComment.value.trim()
+  if (!text || !currentArticleId.value) return
+
+  const userName = authStore.user?.name || authStore.user?.email?.split('@')[0] || 'Anonymous'
+  const userPicture = authStore.user?.picture || null
+
+  try {
+    const res = await apiFetch('/api/comments', {
+      method: 'POST',
+      body: JSON.stringify({
+        article_id: currentArticleId.value,
+        text,
+        parent_id: replyingTo.value,
+        user_name: userName,
+        user_picture: userPicture,
+      }),
     })
-    newComment.value = ''
-  }
-}
-
-const upvoteComment = (commentId: number) => {
-  const comment = findCommentById(commentId) as any
-  if (!comment) return
-  
-  if (comment.userVote === 'up') {
-    // Remove upvote
-    comment.userVote = null
-    comment.upvotes--
-  } else {
-    // Add upvote
-    if (comment.userVote === 'down') {
-      comment.downvotes-- // Remove previous downvote
+    if (res.ok) {
+      const json = await res.json()
+      const newDoc = json.data
+      if (replyingTo.value) {
+        // Add the reply to its parent comment
+        const parent = comments.value.find((c: any) => c._id === replyingTo.value)
+        if (parent) {
+          if (!parent.replies) parent.replies = []
+          parent.replies.push(newDoc)
+        }
+      } else {
+        // Prepend top-level comment
+        comments.value.unshift({ ...newDoc, replies: [] })
+      }
+      newComment.value = ''
+      replyingTo.value = null
+      replyingToName.value = ''
     }
-    comment.userVote = 'up'
-    comment.upvotes++
+  } catch (e) {
+    console.error('Failed to add comment:', e)
   }
 }
 
-const downvoteComment = (commentId: number) => {
-  const comment = findCommentById(commentId) as any
-  if (!comment) return
-  
-  if (comment.userVote === 'down') {
-    // Remove downvote
-    comment.userVote = null
-    comment.downvotes--
-  } else {
-    // Add downvote
-    if (comment.userVote === 'up') {
-      comment.upvotes-- // Remove previous upvote
+const voteComment = async (commentId: string, vote: 'up' | 'down') => {
+  try {
+    const res = await apiFetch(`/api/comments/${commentId}/vote`, {
+      method: 'POST',
+      body: JSON.stringify({ vote }),
+    })
+    if (res.ok) {
+      const json = await res.json()
+      const updated = json.data
+      // Update the comment in-place (top-level or reply)
+      for (const comment of comments.value) {
+        if (comment._id === commentId) {
+          comment.upvotes = updated.upvotes
+          comment.downvotes = updated.downvotes
+          comment.user_vote = updated.user_vote
+          return
+        }
+        if (comment.replies) {
+          for (const reply of comment.replies) {
+            if (reply._id === commentId) {
+              reply.upvotes = updated.upvotes
+              reply.downvotes = updated.downvotes
+              reply.user_vote = updated.user_vote
+              return
+            }
+          }
+        }
+      }
     }
-    comment.userVote = 'down'
-    comment.downvotes++
+  } catch (e) {
+    console.error('Failed to vote:', e)
   }
 }
 
-const findCommentById = (commentId: number) => {
-  // Search in main comments
-  const mainComment = comments.value.find(comment => comment.id === commentId)
-  if (mainComment) return mainComment
-  
-  // Search in replies
-  for (const comment of comments.value) {
-    const reply = comment.replies?.find(reply => reply.id === commentId)
-    if (reply) return reply
-  }
-  
-  return null
+const startReply = (parentId: string, authorName: string) => {
+  replyingTo.value = parentId
+  replyingToName.value = authorName
+  nextTick(() => {
+    commentInputRef.value?.focus()
+  })
+}
+
+const cancelReply = () => {
+  replyingTo.value = null
+  replyingToName.value = ''
+}
+
+const formatTime = (isoString: string): string => {
+  if (!isoString) return ''
+  const date = new Date(isoString)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffMin = Math.floor(diffMs / 60000)
+  if (diffMin < 1) return 'Just now'
+  if (diffMin < 60) return `${diffMin}m ago`
+  const diffHr = Math.floor(diffMin / 60)
+  if (diffHr < 24) return `${diffHr}h ago`
+  const diffDay = Math.floor(diffHr / 24)
+  return `${diffDay}d ago`
 }
 
 const switchTab = (tab: string) => {
@@ -970,17 +969,17 @@ const sendChatbotMessage = async () => {
   if (chatbotMessage.value.trim()) {
     const userMessageId = Math.max(...chatbotMessages.value.map(m => m.id)) + 1
     const botMessageId = userMessageId + 1
-    
+
     // Get article content for context
     const articleContent = currentArticleContent.value
     console.log('Article content:', articleContent)
-    
+
     let responseMessage = "I'm sorry, I'm having trouble connecting to the AI service right now. Please try again later.";
-    
+
     try {
       // You need to replace 'YOUR_GEMINI_API_KEY' with your actual API key
       const API_KEY = 'AIzaSyB-AsIIwQnGGC_y3MY9OpupF9yPsK1CSGk'; // Replace with your actual API key
-      
+
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`,
         {
@@ -1020,7 +1019,7 @@ const sendChatbotMessage = async () => {
     }
     // Create enhanced user message with article title
     const enhancedMessage = `${chatbotMessage.value.trim()}`
-    
+
     // Add user message
     chatbotMessages.value.push({
       id: userMessageId,
@@ -1028,7 +1027,7 @@ const sendChatbotMessage = async () => {
       text: enhancedMessage,
       time: 'Just now'
     })
-    
+
     // Simulate bot response
     setTimeout(() => {
       chatbotMessages.value.push({
@@ -1038,17 +1037,17 @@ const sendChatbotMessage = async () => {
         time: 'Just now'
       })
     }, 1000)
-    
+
     chatbotMessage.value = ''
   }
 }
 
 const generateBotResponse = (userMessage: string): string => {
   const message = userMessage.toLowerCase()
-  
+
   // Get article content for context
   const articleContent = currentArticleContent.value
-  
+
   if (message.includes('help') || message.includes('what')) {
     if (articleContent) {
       return `I can help you understand this content about "${articleContent.title || 'this article'}", answer questions, or provide additional context. What would you like to know?`
@@ -1074,7 +1073,7 @@ const generateBotResponse = (userMessage: string): string => {
 // Function to get recommendations for a specific category
 const getCategoryRecommendations = async (category: string) => {
   const userId = 'user_001' // You can make this dynamic based on user session
-  
+
   try {
     const RECOMMENDATIONS_API = import.meta.env.VITE_RECOMMENDATIONS_API || 'http://localhost:5000'
     const response = await fetch(`${RECOMMENDATIONS_API}/recommendations`, {
@@ -1124,7 +1123,7 @@ const convertArticleToVideo = (article: Article): Video => {
   }
 }
 
-const convertArticleToStoryContent = (article: Article): any => {
+function convertArticleToStoryContent(article: Article): any {
   return {
     title: article.headlines?.basic || 'Untitled Article',
     description: article.description?.basic || article.subheadlines?.basic || 'No description available',
@@ -1140,20 +1139,22 @@ const convertArticleToStoryContent = (article: Article): any => {
   }
 }
 
-const convertVideoToVerticalVideoFormat = (video: Video): any => {
+function convertVideoToVerticalVideoFormat(video: Video): any {
   // Get the best quality MP4 stream URL (skip HLS streams)
   const mp4Streams = video.streams?.filter(stream => stream.stream_type === 'mp4') || []
   const bestStream = mp4Streams.find(stream => stream.bitrate >= 1200) ||
                     mp4Streams.find(stream => stream.bitrate >= 600) ||
                     mp4Streams[0]
-  
+
   console.log('Converting video:', video.content_id)
   console.log('Available streams:', video.streams?.length || 0)
   console.log('MP4 streams:', mp4Streams.length)
   console.log('Best stream:', bestStream)
-  
+
   const convertedVideo = {
-    id: video.content_id,
+    id: video._id || video.id,
+    _id: video._id || video.id,
+    content_id: video.content_id,
     title: video.tracking?.page_title || 'Video',
     description: `Watch this video from ${video.tracking?.video_source || 'The Washington Post'}`,
     videoUrl: bestStream?.url || '',
@@ -1172,12 +1173,12 @@ const convertVideoToVerticalVideoFormat = (video: Video): any => {
     createdAt: new Date().toISOString(),
     mediaType: 'video'
   }
-  
+
   console.log('Converted video URL:', convertedVideo.videoUrl)
   return convertedVideo
 }
 
-const getCategoryFromVideo = (video: Video): string => {
+function getCategoryFromVideo(video: Video): string {
   const title = video.tracking?.page_title?.toLowerCase() || ''
   if (title.includes('tech') || title.includes('ai')) return 'Technology'
   if (title.includes('climate') || title.includes('energy')) return 'Environment'
@@ -1187,14 +1188,14 @@ const getCategoryFromVideo = (video: Video): string => {
   return 'News'
 }
 
-const getCategoryFromArticle = (article: Article): string => {
-  return article.taxonomy?.primary_section?.name || 
-         article.taxonomy?.sections?.[0]?.name || 
-         article.type || 
+function getCategoryFromArticle(article: Article): string {
+  return article.taxonomy?.primary_section?.name ||
+         article.taxonomy?.sections?.[0]?.name ||
+         article.type ||
          'News'
 }
 
-const getCategoryFromPodcast = (podcast: StoryContent): string => {
+function getCategoryFromPodcast(podcast: StoryContent): string {
   const title = podcast.title?.toLowerCase() || ''
   if (title.includes('tech') || title.includes('ai')) return 'Technology'
   if (title.includes('climate') || title.includes('energy')) return 'Environment'
@@ -1207,9 +1208,9 @@ const getCategoryFromPodcast = (podcast: StoryContent): string => {
 const generateMixedMediaStories = (): Story[] => {
   // Import store to get media data
   const contentStore = useContentStore()
-  
+
   const mixedStories: Story[] = []
-  
+
   // Add articles as stories
   contentStore.articles.slice(0, 4).forEach((article: Article, index: number) => {
     mixedStories.push({
@@ -1219,7 +1220,7 @@ const generateMixedMediaStories = (): Story[] => {
       category: getCategoryFromArticle(article)
     })
   })
-  
+
   // Add some videos from the store
   contentStore.videos.slice(0, 2).forEach((video: Video, index: number) => {
     mixedStories.push({
@@ -1229,7 +1230,7 @@ const generateMixedMediaStories = (): Story[] => {
       category: getCategoryFromVideo(video)
     })
   })
-  
+
   // Add some sample podcast clips if available
   contentStore.podcastClips.slice(0, 2).forEach((podcast: StoryContent, index: number) => {
     mixedStories.push({
@@ -1239,7 +1240,7 @@ const generateMixedMediaStories = (): Story[] => {
       category: getCategoryFromPodcast(podcast)
     })
   })
-  
+
   return mixedStories
 }
 
@@ -1465,8 +1466,20 @@ const generateMixedMediaStories = (): Story[] => {
 }
 
 .comment-input {
-  @apply flex items-center space-x-2 p-4;
+  @apply flex flex-col p-4;
   @apply border-t border-gray-700;
+}
+
+.reply-indicator {
+  @apply flex items-center justify-between text-xs text-blue-400 mb-2 px-1;
+}
+
+.cancel-reply {
+  @apply text-gray-400 text-lg leading-none hover:text-white;
+}
+
+.comment-input-row {
+  @apply flex items-center space-x-2;
 }
 
 .comment-field {
@@ -1479,6 +1492,15 @@ const generateMixedMediaStories = (): Story[] => {
 .send-button {
   @apply text-blue-500 hover:text-blue-400;
   @apply transition-colors duration-200;
+}
+
+.send-button:disabled {
+  @apply opacity-40 cursor-not-allowed;
+}
+
+.comments-loading,
+.comments-empty {
+  @apply flex items-center justify-center py-12 text-gray-400 text-sm;
 }
 
 /* Chatbot Styles */
@@ -1536,4 +1558,4 @@ const generateMixedMediaStories = (): Story[] => {
 .input-section {
   @apply border-t border-gray-700;
 }
-</style> 
+</style>

@@ -10,9 +10,9 @@ from api.routers import content as content_routers
 from api.routers.articles import router as articles_router
 from api.routers.recommendations import router as recommendations_router
 from api.routers.saved_articles import router as saved_articles_router
+from api.routers.comments import router as comments_router
 from api.config import (
     AUTH_ENABLED,
-    CONTENT_COLLECTIONS,
     VIDEO_COLLECTION,
     PODCAST_COLLECTION,
 )
@@ -25,7 +25,9 @@ async def lifespan(app: FastAPI):
     # Startup: ensure MongoDB client is created
     get_client()
     from api.services import user as user_service
+    from api.services import comments as comments_service
     user_service.ensure_indexes()
+    comments_service.ensure_indexes()
     yield
     # Shutdown: close MongoDB client if needed
     # (PyMongo client is global; optional: close here)
@@ -46,12 +48,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Content routers: /api/sports, /api/style, etc.
-for coll in CONTENT_COLLECTIONS:
-    name = coll.capitalize()
-    r = content_routers._make_router(coll, name, is_video=False, is_podcast=False)
-    app.include_router(r, prefix=f"/api/{coll}", tags=[name])
-
+# Content routers for videos and podcasts (separate collections)
 app.include_router(
     content_routers._make_router(VIDEO_COLLECTION, "Video", is_video=True, is_podcast=False),
     prefix="/api/videos",
@@ -64,6 +61,7 @@ app.include_router(
 app.include_router(articles_router, prefix="/api")
 app.include_router(recommendations_router, prefix="/api")
 app.include_router(saved_articles_router, prefix="/api")
+app.include_router(comments_router, prefix="/api")
 
 
 @app.get("/")
@@ -72,17 +70,14 @@ async def root():
         "message": "🚀 Welcome to WAPOW API",
         "version": "1.0.0",
         "endpoints": {
-            "sports": "/api/sports",
-            "style": "/api/style",
-            "technology": "/api/technology",
-            "travel": "/api/travel",
-            "wellbeing": "/api/wellbeing",
+            "articles": "GET /api/articles?category=sports|style|technology|travel|wellbeing",
+            "articles_by_ids": "POST /api/articles/by-ids",
             "videos": "/api/videos",
             "podcasts": "/api/podcasts",
-            "articles_by_ids": "POST /api/articles/by-ids",
             "recommendations": "POST /api/recommendations",
             "me": "GET /api/me (requires Bearer token when Auth0 is configured)",
             "saved_articles": "GET/POST/DELETE /api/saved-articles (save/list/unsave)",
+            "comments": "GET/POST/DELETE /api/comments (list/create/delete/vote)",
         },
         "database": "wapo_data (MongoDB) + Neo4j",
         "auth": "enabled" if AUTH_ENABLED else "disabled (set AUTH0_DOMAIN and AUTH0_AUDIENCE to enable)",

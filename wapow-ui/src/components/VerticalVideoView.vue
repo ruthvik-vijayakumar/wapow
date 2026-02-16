@@ -27,7 +27,7 @@
     <div class="video-content">
       <!-- Video Player -->
       <div class="video-player-container" :class="{ 'horizontal-video': isHorizontalVideo }" @click="togglePlay">
-        <video 
+        <video
           ref="videoPlayer"
           class="video-player"
           :class="{ 'horizontal-video': isHorizontalVideo }"
@@ -41,18 +41,18 @@
         >
           Your browser does not support the video tag.
         </video>
-        
+
         <!-- Play/Pause Overlay -->
         <div v-if="!isPlaying" class="play-overlay" @click.stop="togglePlay">
           <svg class="w-16 h-16" fill="currentColor" viewBox="0 0 24 24">
             <path d="M8 5v14l11-7z"/>
           </svg>
         </div>
-        
+
         <!-- Video Controls -->
         <div class="video-controls" @click.stop>
           <div class="progress-container">
-            <div 
+            <div
               class="progress-bar-video"
               @click="handleSeek"
               ref="progressBar"
@@ -60,7 +60,7 @@
               <div class="progress-fill-video" :style="{ width: videoProgress + '%' }"></div>
             </div>
           </div>
-          
+
           <div class="controls-row">
             <button @click.stop="togglePlay" class="control-button">
               <svg v-if="isPlaying" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -80,13 +80,13 @@
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
                 </svg>
               </button>
-              
+
               <span class="time-display">{{ currentTime }} / {{ duration }}</span>
             </div>
           </div>
         </div>
       </div>
-      
+
       <!-- Video Info Overlay -->
       <!-- <div class="video-info-overlay">
         <h2 class="video-title">{{ video.title }}</h2>
@@ -95,7 +95,7 @@
     </div>
 
     <!-- Bottom Controls -->
-    <BottomControls 
+    <BottomControls
       :initial-liked="isLiked"
       :article-content="props.video"
       @like="handleLike"
@@ -109,6 +109,7 @@ import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import type { Video } from '@/stores/videos'
 import BottomControls from './BottomControls.vue'
 import { apiFetch } from '@/lib/api'
+import { useAnalytics } from '@/composables/useAnalytics'
 
 interface Props {
   video: any
@@ -133,7 +134,12 @@ const emit = defineEmits<{
   save: [content: { id: string; collection?: string; saved: boolean }]
 }>()
 
+const { trackVideoProgress, trackLike } = useAnalytics()
 const isSaved = computed(() => props.isSaved)
+
+// Video progress tracking — fire at 25%, 50%, 75%, 100% milestones
+const _firedMilestones = new Set<number>()
+let _videoStartTime = 0
 
 const handleSave = async () => {
   const id = props.video?.id ?? props.video?._id ?? props.video?.contentId ?? props.video?.content_id
@@ -183,7 +189,7 @@ const handleFollow = () => {
 
 const togglePlay = () => {
   if (!videoPlayer.value) return
-  
+
   if (isPlaying.value) {
     videoPlayer.value.pause()
   } else {
@@ -196,6 +202,7 @@ const playVideo = () => {
   if (!videoPlayer.value) return
   videoPlayer.value.play()
   isPlaying.value = true
+  if (!_videoStartTime) _videoStartTime = performance.now()
 }
 
 const pauseVideo = () => {
@@ -206,13 +213,24 @@ const pauseVideo = () => {
 
 const handleTimeUpdate = () => {
   if (!videoPlayer.value) return
-  
+
   const current = videoPlayer.value.currentTime
   const total = videoPlayer.value.duration
-  
+
   if (total > 0) {
     videoProgress.value = (current / total) * 100
     currentTime.value = formatTime(current)
+
+    // Analytics: fire at 25/50/75/100% milestones
+    const pct = Math.floor(videoProgress.value)
+    for (const milestone of [25, 50, 75, 100]) {
+      if (pct >= milestone && !_firedMilestones.has(milestone)) {
+        _firedMilestones.add(milestone)
+        const videoId = props.video?.id ?? props.video?._id ?? props.video?.content_id ?? ''
+        const watchMs = _videoStartTime ? Math.round(performance.now() - _videoStartTime) : Math.round(current * 1000)
+        trackVideoProgress(String(videoId), milestone, watchMs, props.category)
+      }
+    }
   }
 }
 
@@ -223,14 +241,14 @@ const handleVideoLoaded = () => {
 
 const handleVideoDataLoaded = () => {
   if (!videoPlayer.value) return
-  
+
   console.log('Video data loaded:', {
     src: videoPlayer.value.src,
     videoWidth: videoPlayer.value.videoWidth,
     videoHeight: videoPlayer.value.videoHeight,
     duration: videoPlayer.value.duration
   })
-  
+
   // Calculate aspect ratio
   const video = videoPlayer.value
   if (video.videoWidth && video.videoHeight) {
@@ -308,7 +326,7 @@ onMounted(() => {
     videoPlayer.value.addEventListener('play', () => isPlaying.value = true)
     videoPlayer.value.addEventListener('pause', () => isPlaying.value = false)
   }
-  
+
   // Setup intersection observer for autoplay
   setupIntersectionObserver()
 })
@@ -318,7 +336,7 @@ onUnmounted(() => {
     videoPlayer.value.removeEventListener('play', () => isPlaying.value = true)
     videoPlayer.value.removeEventListener('pause', () => isPlaying.value = false)
   }
-  
+
   // Cleanup intersection observer
   if (intersectionObserver) {
     intersectionObserver.disconnect()
@@ -506,4 +524,4 @@ onUnmounted(() => {
   @apply text-white text-sm font-medium;
   @apply hover:bg-opacity-90 transition-colors;
 }
-</style> 
+</style>

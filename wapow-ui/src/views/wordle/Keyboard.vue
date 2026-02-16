@@ -18,10 +18,11 @@ const rows = [
 
 <template>
   <div id="keyboard">
-    <div class="row" v-for="(row, i) in rows">
+    <div class="row" v-for="(row, i) in rows" :key="i">
       <div class="spacer" v-if="i === 1"></div>
       <button
         v-for="key in row"
+        :key="key"
         :class="[key.length > 1 && 'big', letterStates[key]]"
         @click="$emit('key', key)"
       >
@@ -29,9 +30,9 @@ const rows = [
         <svg
           v-else
           xmlns="http://www.w3.org/2000/svg"
-          height="24"
+          height="20"
           viewBox="0 0 24 24"
-          width="24"
+          width="20"
         >
           <path
             fill="currentColor"
@@ -46,42 +47,72 @@ const rows = [
 
 <style scoped>
 #keyboard {
-  margin: 24px 8px 12px;
+  padding: 0 6px;
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 0.5rem);
+  margin-bottom: 0.25rem;
   user-select: none;
+  flex-shrink: 0;
 }
+
 .row {
   display: flex;
   width: 100%;
-  margin: 0 auto 8px;
+  margin: 0 auto 6px;
   touch-action: manipulation;
+  gap: 5px;
 }
+
 .spacer {
   flex: 0.5;
 }
+
 button {
   font-family: inherit;
-  font-weight: bold;
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
   border: 0;
   padding: 0;
-  margin: 0 6px 0 0;
-  height: 58px;
+  height: 52px;
   border-radius: 4px;
   cursor: pointer;
   user-select: none;
-  background-color: #d3d6da;
-  color: #1a1a1b;
+  background-color: #818384;
+  color: #fff;
   flex: 1;
   display: flex;
   justify-content: center;
   align-items: center;
   text-transform: uppercase;
-  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.3);
-  transition: all 0.2s 1.5s;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.15s, transform 0.1s;
 }
-button:last-of-type {
-  margin: 0;
+
+button:active {
+  transform: scale(0.95);
 }
+
 button.big {
   flex: 1.5;
+  font-size: 0.7rem;
+}
+
+/* State colours matching the board */
+button.correct {
+  background-color: #538d4e;
+  color: #fff;
+}
+button.present {
+  background-color: #b59f3b;
+  color: #fff;
+}
+button.absent {
+  background-color: #3a3a3c;
+  color: #fff;
+}
+
+@media (max-height: 600px) {
+  button { height: 44px; font-size: 0.7rem; }
+  .row { gap: 4px; margin-bottom: 4px; }
 }
 </style>

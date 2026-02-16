@@ -13,18 +13,6 @@
         <span class="text-xs mt-1">Home</span>
       </button>
 
-      <!-- Pin Board -->
-      <button 
-        class="nav-item"
-        :class="{ 'active': currentRoute === 'pin-board' }"
-        @click="navigateTo('pin-board')"
-      >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-        </svg>
-        <span class="text-xs mt-1">Pin Board</span>
-      </button>
-
       <!-- Ask AI -->
       <button
         class="nav-item"
@@ -76,7 +64,6 @@ const route = useRoute()
 const currentRoute = computed(() => {
   const path = route.path
   if (path === '/profile') return 'profile'
-  if (path === '/pin-board') return 'pin-board'
   // Story/article views: keep home active when reading content
   if (path.startsWith('/story/') || path.startsWith('/article/')) return 'home'
   // Category routes and root: /, /sports, /style, /technology, etc.
@@ -96,23 +83,29 @@ const navigateTo = (navRoute: string) => {
 <style scoped>
 .bottom-nav {
   @apply fixed bottom-0 left-0 right-0;
-  @apply bg-gray-900 border-t border-gray-700;
   @apply z-50;
-  background-color: black;
+  background-color: var(--bg-primary);
+  border-top: 1px solid var(--border-primary);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .nav-item {
   @apply flex flex-col items-center justify-center;
   @apply px-2 py-1 rounded-lg;
-  @apply text-gray-400 hover:text-white transition-colors;
+  @apply transition-colors;
   @apply min-w-0 flex-1;
+  color: var(--text-secondary);
+}
+
+.nav-item:hover {
+  color: var(--text-primary);
 }
 
 .nav-item.active {
-  @apply text-blue-400;
+  color: var(--accent-text);
 }
 
 .nav-item svg {
   @apply transition-colors;
 }
-</style> 
+</style>

@@ -26,24 +26,13 @@ const slideDirection = ref<'left' | 'right' | null>(null)
 
 const categories = [
   '/sports',
-  '/style', 
+  '/style',
   // '/recipes',
   '/technology',
   '/wellbeing',
   '/travel',
   // '/podcasts'
 ]
-
-// Mapping from router paths to API category IDs
-const categoryMapping: Record<string, string> = {
-  '/sports': '/sports',
-  '/style': '/style',
-  // '/recipes': '/lifestyle/food/recipes',
-  '/technology': '/technology',
-  '/wellbeing': '/wellbeing',
-  '/travel': '/travel',
-  // '/podcasts': '/podcasts'
-}
 
 const handleSearch = () => {
   console.log('Search clicked')
@@ -58,8 +47,7 @@ const handleMenu = () => {
 const handleCategoryChange = async (categoryId: string) => {
   console.log('Category changed:', categoryId)
   currentCategoryIndex.value = categories.indexOf(categoryId)
-  const apiCategoryId = categoryMapping[categoryId] || categoryId
-  await loadCategoryData(apiCategoryId)
+  await loadCategoryData(categoryId)
 }
 
 // Watch for route changes to sync with CategoryNavigation
@@ -68,14 +56,13 @@ const handleRouteChange = async () => {
   const categoryIndex = categories.findIndex(cat => cat === currentPath)
   if (categoryIndex !== -1 && categoryIndex !== currentCategoryIndex.value) {
     currentCategoryIndex.value = categoryIndex
-    const apiCategoryId = categoryMapping[categories[categoryIndex]] || categories[categoryIndex]
-    await loadCategoryData(apiCategoryId)
+    await loadCategoryData(categories[categoryIndex])
   }
 }
 
 const handleSwipe = async (direction: 'left' | 'right') => {
   if (isAnimating.value) return // Prevent multiple swipes during animation
-  
+
   if (direction === 'left' && currentCategoryIndex.value < categories.length - 1) {
     // Swipe left - go to next category
     slideDirection.value = 'left'
@@ -110,9 +97,9 @@ const handleTouchEnd = (event: TouchEvent) => {
   if (isAnimating.value) return
   touchEndX.value = event.changedTouches[0].clientX
   const swipeThreshold = 50 // Minimum distance for a swipe
-  
+
   const swipeDistance = touchEndX.value - touchStartX.value
-  
+
   if (Math.abs(swipeDistance) > swipeThreshold) {
     if (swipeDistance > 0) {
       // Swipe right
@@ -162,9 +149,6 @@ const handleNavigation = (route: string) => {
     case 'profile':
       router.push('/profile')
       break
-    case 'pin-board':
-      router.push('/pin-board')
-      break
     default:
       console.log('Unknown route:', route)
   }
@@ -172,9 +156,9 @@ const handleNavigation = (route: string) => {
 
 const getCategoryFromContent = (content: Article): string => {
   // Use section from taxonomy or fallback to type
-  return content.taxonomy?.primary_section?.name || 
-         content.taxonomy?.sections?.[0]?.name || 
-         content.type || 
+  return content.taxonomy?.primary_section?.name ||
+         content.taxonomy?.sections?.[0]?.name ||
+         content.type ||
          'News'
 }
 
@@ -184,8 +168,7 @@ const getWapoData = async () => {
     // Get current route or default to sports
     const currentPath = router.currentRoute.value.path
     const defaultCategory = categories.includes(currentPath) ? currentPath : '/sports'
-    const apiCategoryId = categoryMapping[defaultCategory] || defaultCategory
-    await contentStore.loadArticles(apiCategoryId)
+    await contentStore.loadArticles(defaultCategory)
   } catch (error) {
     console.error('Error loading initial data:', error)
   } finally {
@@ -201,7 +184,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div 
+  <div
     class="home-container"
     @touchstart="handleTouchStart"
     @touchend="handleTouchEnd"
@@ -217,15 +200,15 @@ onMounted(() => {
       <!-- Loading state -->
         <div v-if="isLoading || contentStore.isLoading" class="flex justify-center items-center py-20">
         <div class="loading-spinner">
-          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
-          <p class="mt-4 text-white text-sm">Loading articles...</p>
+          <div class="animate-spin rounded-full h-12 w-12 spinner-ring"></div>
+          <p class="mt-4 spinner-text text-sm">Loading articles...</p>
         </div>
       </div>
 
       <!-- Content Grid with Animation -->
       <div v-else class="content-wrapper">
         <div class="content-inner">
-          <div 
+          <div
             class="content-grid"
             :class="{
               'slide-left': slideDirection === 'left',
@@ -247,10 +230,10 @@ onMounted(() => {
             </VueMasonryWall>
           </div>
         </div>
-        
+
         <!-- Swipe Indicators -->
         <div class="swipe-indicators">
-          <div 
+          <div
             v-if="currentCategoryIndex > 0"
             class="swipe-indicator left"
             :class="{ 'pulse': slideDirection === 'right' }"
@@ -259,7 +242,7 @@ onMounted(() => {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
             </svg>
           </div>
-          <div 
+          <div
             v-if="currentCategoryIndex < categories.length - 1"
             class="swipe-indicator right"
             :class="{ 'pulse': slideDirection === 'left' }"
@@ -279,20 +262,29 @@ onMounted(() => {
 
 <style scoped>
 .home-container {
-  @apply min-h-screen bg-black;
+  @apply min-h-screen;
   @apply flex flex-col;
   height: 100vh;
-  touch-action: pan-y; /* Allow vertical scrolling but handle horizontal swipes */
+  touch-action: pan-y;
+  background-color: var(--bg-primary);
+  transition: background-color 0.3s ease;
+}
+
+.spinner-ring {
+  border-bottom: 2px solid var(--spinner-accent);
+}
+
+.spinner-text {
+  color: var(--text-secondary);
 }
 
 .content-area {
   @apply flex-1;
-  @apply pb-20; /* Space for bottom navigation */
-  height: calc(100vh - 120px); /* Account for header and category nav */
+  @apply pb-20;
+  height: calc(100vh - 120px);
   overflow-y: scroll;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
-  /* Hide Firefox scrollbar (takes space), webkit overlay doesn't take space */
   scrollbar-width: none;
   scrollbar-color: transparent transparent;
 }
@@ -303,7 +295,7 @@ onMounted(() => {
 }
 
 .content-area::-webkit-scrollbar-thumb {
-  background-color: rgba(255, 255, 255, 0.15);
+  background-color: var(--scrollbar-thumb);
   border-radius: 10px;
 }
 
@@ -355,11 +347,11 @@ onMounted(() => {
 .swipe-indicator {
   @apply w-12 h-12;
   @apply rounded-full;
-  @apply bg-black bg-opacity-50;
   @apply flex items-center justify-center;
-  @apply text-white;
   @apply transition-all duration-200;
   @apply opacity-0;
+  background-color: rgba(0, 0, 0, 0.5);
+  color: #ffffff;
 }
 
 .swipe-indicator.left {

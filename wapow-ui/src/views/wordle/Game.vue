@@ -205,55 +205,66 @@ const handleShare = () => {
 
 <template>
   <div class="game-container">
-    <Transition>
-      <div class="message" v-if="message">
+    <!-- Toast message -->
+    <Transition name="toast">
+      <div class="toast" v-if="message">
         {{ message }}
-        <pre v-if="grid">{{ grid }}</pre>
+        <pre v-if="grid" class="toast-grid">{{ grid }}</pre>
       </div>
     </Transition>
+
+    <!-- Header -->
     <div class="game-header">
-      <button @click="emit('back')" class="back-button">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <button @click="emit('back')" class="header-btn">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
         </svg>
       </button>
-      
-      <div class="header-actions">
-        <div class="story-indicator">
-          {{ props.storyIndex + 1 }} / {{ props.totalStories }}
-        </div>
+
+      <h1 class="game-title">Wordle</h1>
+
+      <div class="header-btn story-counter">
+        {{ props.storyIndex + 1 }}/{{ props.totalStories }}
       </div>
     </div>
-    <div id="board">
-      <div
-        v-for="(row, index) in board"
-        :class="[
-          'row',
-          shakeRowIndex === index && 'shake',
-          success && currentRowIndex === index && 'jump'
-        ]"
-      >
+
+    <!-- Board -->
+    <div class="board-wrapper">
+      <div id="board">
         <div
-          v-for="(tile, index) in row"
-          :class="['tile', tile.letter && 'filled', tile.state && 'revealed']"
+          v-for="(row, rowIdx) in board"
+          :key="rowIdx"
+          :class="[
+            'row',
+            shakeRowIndex === rowIdx && 'shake',
+            success && currentRowIndex === rowIdx && 'jump'
+          ]"
         >
-          <div class="front" :style="{ transitionDelay: `${index * 300}ms` }">
-            {{ tile.letter }}
-          </div>
           <div
-            :class="['back', tile.state]"
-            :style="{
-              transitionDelay: `${index * 300}ms`,
-              animationDelay: `${index * 100}ms`
-            }"
+            v-for="(tile, tileIdx) in row"
+            :key="tileIdx"
+            :class="['tile', tile.letter && 'filled', tile.state && 'revealed']"
           >
-            {{ tile.letter }}
+            <div class="front" :style="{ transitionDelay: `${tileIdx * 300}ms` }">
+              {{ tile.letter }}
+            </div>
+            <div
+              :class="['back', tile.state]"
+              :style="{
+                transitionDelay: `${tileIdx * 300}ms`,
+                animationDelay: `${tileIdx * 100}ms`
+              }"
+            >
+              {{ tile.letter }}
+            </div>
           </div>
         </div>
       </div>
     </div>
+
+    <!-- Keyboard -->
     <Keyboard @key="onKey" :letter-states="letterStates" />
-    
+
     <!-- Bottom Controls -->
     <BottomControls
       :show-category="true"
@@ -267,110 +278,154 @@ const handleShare = () => {
 </template>
 
 <style scoped>
+/* ── Container ─────────────────────────────────────── */
 .game-container {
-  @apply relative h-screen w-full;
-  background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
-  @apply flex flex-col;
+  position: relative;
+  height: 100vh;
+  height: calc(var(--vh, 100vh));
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #121213;
   overflow: hidden;
+  color: #fff;
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* ── Header ────────────────────────────────────────── */
+.game-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.625rem 1rem;
+  border-bottom: 1px solid #3a3a3c;
+  flex-shrink: 0;
+}
+
+.header-btn {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.header-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.game-title {
+  font-size: 1.375rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.story-counter {
+  font-size: 0.75rem;
+  font-weight: 500;
+  opacity: 0.5;
+  width: auto;
+  padding: 0 0.25rem;
+}
+
+/* ── Toast ─────────────────────────────────────────── */
+.toast {
+  position: absolute;
+  left: 50%;
+  top: 4rem;
+  transform: translateX(-50%);
+  z-index: 20;
+  color: #fff;
+  background: #fff;
+  color: #121213;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 0.875rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+}
+.toast-grid {
+  margin-top: 0.5rem;
+  font-size: 1.25rem;
+  line-height: 1.6;
+  text-align: center;
+}
+.toast-enter-active { animation: toast-in 0.15s ease-out; }
+.toast-leave-active { animation: toast-out 0.25s ease-in forwards; }
+@keyframes toast-in { from { opacity: 0; transform: translateX(-50%) translateY(-8px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+@keyframes toast-out { to { opacity: 0; } }
+
+/* ── Board ─────────────────────────────────────────── */
+.board-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 0;
+  min-height: 0;
 }
 
 #board {
   display: grid;
   grid-template-rows: repeat(6, 1fr);
-  grid-gap: 6px;
-  padding: 20px;
-  padding-top: 64px;
-  box-sizing: border-box;
-  --height: min(380px, calc(var(--vh, 100vh) - 310px));
-  height: var(--height);
-  width: min(320px, calc(var(--height) / 6 * 5));
-  margin: 0px auto;
-  @apply flex-1;
-  position: relative;
+  gap: 5px;
+  width: min(330px, 80vw);
+  max-height: min(396px, calc(var(--vh, 100vh) - 280px));
+  aspect-ratio: 5 / 6;
 }
 
-#board::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.05) 0%, transparent 70%);
-  pointer-events: none;
-  z-index: 0;
-}
-.message {
-  position: absolute;
-  left: 50%;
-  top: 80px;
-  color: #fff;
-  background: linear-gradient(135deg, rgba(0, 0, 0, 0.9) 0%, rgba(26, 26, 46, 0.95) 100%);
-  padding: 20px 24px;
-  z-index: 2;
-  border-radius: 12px;
-  transform: translateX(-50%);
-  transition: all 0.3s ease-out;
-  font-weight: 600;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-}
-.message.v-leave-to {
-  opacity: 0;
-}
 .row {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  grid-gap: 6px;
-  position: relative;
-  z-index: 1;
+  gap: 5px;
 }
+
 .tile {
   width: 100%;
-  font-size: 2rem;
-  line-height: 2rem;
-  font-weight: bold;
-  vertical-align: middle;
+  aspect-ratio: 1;
+  font-size: clamp(1.25rem, 5vw, 2rem);
+  line-height: 1;
+  font-weight: 700;
   text-transform: uppercase;
   user-select: none;
   position: relative;
-  aspect-ratio: 1;
-  border-radius: 8px;
+  border-radius: 4px;
   overflow: hidden;
 }
-.tile.filled {
-  animation: zoom 0.2s;
-}
+
 .tile .front,
 .tile .back {
   box-sizing: border-box;
-  display: inline-flex;
+  display: flex;
   justify-content: center;
   align-items: center;
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  inset: 0;
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
-  border-radius: 8px;
+  border-radius: 4px;
 }
+
 .tile .front {
-  background: rgba(255, 255, 255, 0.1);
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  background: transparent;
+  border: 2px solid #3a3a3c;
+  color: #fff;
 }
 .tile.filled .front {
-  border-color: rgba(255, 255, 255, 0.4);
-  background: rgba(255, 255, 255, 0.15);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border-color: #565758;
+  animation: pop 0.1s ease-in-out;
 }
+
 .tile .back {
   transform: rotateX(180deg);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 .tile.revealed .front {
   transform: rotateX(180deg);
@@ -379,135 +434,56 @@ const handleShare = () => {
   transform: rotateX(0deg);
 }
 
-@keyframes zoom {
-  0% {
-    transform: scale(1.1);
-  }
-  50% {
-    transform: scale(1.05);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
-.shake {
-  animation: shake 0.6s cubic-bezier(0.36, 0, 0.66, 1);
-}
-
-@keyframes shake {
-  0% {
-    transform: translate(1px);
-  }
-  10% {
-    transform: translate(-2px);
-  }
-  20% {
-    transform: translate(2px);
-  }
-  30% {
-    transform: translate(-2px);
-  }
-  40% {
-    transform: translate(2px);
-  }
-  50% {
-    transform: translate(-2px);
-  }
-  60% {
-    transform: translate(2px);
-  }
-  70% {
-    transform: translate(-2px);
-  }
-  80% {
-    transform: translate(2px);
-  }
-  90% {
-    transform: translate(-2px);
-  }
-  100% {
-    transform: translate(1px);
-  }
-}
-
-.jump .tile .back {
-  animation: jump 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-}
-
-@keyframes jump {
-  0% {
-    transform: translateY(0px);
-  }
-  20% {
-    transform: translateY(5px);
-  }
-  60% {
-    transform: translateY(-25px);
-  }
-  90% {
-    transform: translateY(3px);
-  }
-  100% {
-    transform: translateY(0px);
-  }
-}
-
-@media (max-height: 680px) {
-  .tile {
-    font-size: 2.5vh;
-  }
-}
-
-.game-header {
-  @apply absolute top-0 left-0 right-0 z-10;
-  @apply flex items-center justify-between p-4;
-}
-
-.back-button {
-  @apply w-8 h-8 rounded-full bg-black bg-opacity-50;
-  @apply flex items-center justify-center text-white;
-  @apply hover:bg-opacity-70 transition-colors;
-}
-
-.header-actions {
-  @apply flex items-center space-x-2;
-}
-
-.story-indicator {
-  @apply text-sm text-white;
-  @apply font-medium;
-  @apply bg-black bg-opacity-50;
-  @apply px-3 py-1;
-  @apply rounded-full;
-}
-
-#source-link {
-  position: absolute;
-  right: 1em;
-  top: 0.5em;
-}
-
+/* ── State colours ─────────────────────────────────── */
 .correct,
 .present,
 .absent {
   color: #fff !important;
   font-weight: 700;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
-
 .correct {
-  background: #10b981 !important;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  background: #538d4e !important;
 }
-
 .present {
-  background: #f59e0b !important;
-  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+  background: #b59f3b !important;
+}
+.absent {
+  background: #3a3a3c !important;
 }
 
-.absent {
-  background: #6b7280 !important;
-  box-shadow: 0 4px 12px rgba(107, 114, 128, 0.3);
+/* ── Animations ────────────────────────────────────── */
+@keyframes pop {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+.shake {
+  animation: shake 0.5s cubic-bezier(0.36, 0, 0.66, 1);
+}
+@keyframes shake {
+  10%, 90% { transform: translateX(-1px); }
+  20%, 80% { transform: translateX(2px); }
+  30%, 50%, 70% { transform: translateX(-4px); }
+  40%, 60% { transform: translateX(4px); }
+}
+
+.jump .tile .back {
+  animation: bounce 1s ease;
+}
+@keyframes bounce {
+  0%, 20% { transform: translateY(0); }
+  40%     { transform: translateY(-30px); }
+  50%     { transform: translateY(5px); }
+  60%     { transform: translateY(-15px); }
+  80%     { transform: translateY(2px); }
+  100%    { transform: translateY(0); }
+}
+
+/* ── Small screens ─────────────────────────────────── */
+@media (max-height: 600px) {
+  .game-header { padding: 0.375rem 1rem; }
+  .game-title { font-size: 1.125rem; }
+  .board-wrapper { padding: 0.5rem 0; }
 }
 </style>

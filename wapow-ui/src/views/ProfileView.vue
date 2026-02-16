@@ -18,6 +18,18 @@
         <p v-if="userProfile.email" class="user-email">{{ userProfile.email }}</p>
         <p v-if="userProfile.username && userProfile.username !== '@user'" class="user-username">{{ userProfile.username }}</p>
       </div>
+
+      <!-- Theme Toggle -->
+      <button class="theme-toggle" @click="toggleTheme" :title="isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'">
+        <!-- Sun icon (shown in dark mode → click to switch to light) -->
+        <svg v-if="isDark" class="toggle-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+        <!-- Moon icon (shown in light mode → click to switch to dark) -->
+        <svg v-else class="toggle-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+        </svg>
+      </button>
     </div>
 
     <!-- Menu Sections -->
@@ -58,6 +70,16 @@
             </svg>
             <span>Saved Articles</span>
             <span class="badge">{{ userProfile.savedArticles }}</span>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+
+          <button class="menu-item" @click="handlePinBoard">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+            </svg>
+            <span>Pin Board</span>
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
             </svg>
@@ -134,9 +156,11 @@ import TopBar from '@/components/TopBar.vue'
 import BottomNavigation from '@/components/BottomNavigation.vue'
 import { useAuthStore } from '@/stores/auth'
 import { apiFetch } from '@/lib/api'
+import { useTheme } from '@/composables/useTheme'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const { isDark, toggleTheme } = useTheme()
 
 const apiUser = ref<{ user_id?: string; sub?: string } | null>(null)
 const apiError = ref<string | null>(null)
@@ -196,9 +220,6 @@ const handleNavigation = (route: string) => {
     case 'profile':
       router.push('/profile')
       break
-    case 'pin-board':
-      router.push('/pin-board')
-      break
     default:
       console.log('Unknown route:', route)
   }
@@ -206,36 +227,34 @@ const handleNavigation = (route: string) => {
 
 const handleReadingPreferences = () => {
   console.log('Reading preferences clicked')
-  // TODO: Navigate to reading preferences
 }
 
 const handleCategories = () => {
   console.log('Categories clicked')
-  // TODO: Navigate to categories
 }
 
 const handleSavedArticles = () => {
   router.push('/saved')
 }
 
+const handlePinBoard = () => {
+  router.push('/pin-board')
+}
+
 const handleReadingHistory = () => {
   console.log('Reading history clicked')
-  // TODO: Navigate to reading history
 }
 
 const handleAccountSettings = () => {
   console.log('Account settings clicked')
-  // TODO: Navigate to account settings
 }
 
 const handleNotifications = () => {
   console.log('Notifications clicked')
-  // TODO: Navigate to notifications
 }
 
 const handlePrivacy = () => {
   console.log('Privacy clicked')
-  // TODO: Navigate to privacy settings
 }
 
 const handleSignOut = async () => {
@@ -245,12 +264,12 @@ const handleSignOut = async () => {
 </script>
 
 <style scoped>
-/* Base: 1rem (16px). Small: 0.875rem (14px). Page bg black. */
 .profile-container {
   min-height: 100vh;
-  background-color: #000;
-  color: white;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
   @apply flex flex-col;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .profile-info {
@@ -263,7 +282,7 @@ const handleSignOut = async () => {
 
 .avatar-image {
   @apply w-20 h-20 rounded-full object-cover;
-  @apply border-2 border-gray-700;
+  border: 2px solid var(--border-secondary);
 }
 
 .profile-details {
@@ -272,14 +291,33 @@ const handleSignOut = async () => {
 
 .user-name {
   @apply text-2xl font-bold font-postoni;
+  color: var(--text-primary);
 }
 
 .user-email {
-  @apply text-gray-400 text-sm;
+  @apply text-sm;
+  color: var(--text-secondary);
 }
 
 .user-username {
-  @apply text-blue-400 text-sm;
+  @apply text-sm;
+  color: var(--accent-text);
+}
+
+/* Theme Toggle Button */
+.theme-toggle {
+  @apply flex-shrink-0 p-2.5 rounded-full transition-all duration-300;
+  background-color: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.theme-toggle:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.toggle-icon {
+  @apply w-5 h-5;
 }
 
 .profile-menu {
@@ -292,7 +330,8 @@ const handleSignOut = async () => {
 }
 
 .section-title {
-  @apply text-sm tracking-wide font-medium uppercase text-gray-400;
+  @apply text-sm tracking-wide font-medium uppercase;
+  color: var(--text-secondary);
 }
 
 .menu-items {
@@ -307,28 +346,29 @@ const handleSignOut = async () => {
 }
 
 .menu-item svg:first-child {
-  @apply text-gray-400;
+  color: var(--text-secondary);
 }
 
 .menu-item span:nth-child(2) {
-  @apply flex-1 ml-3 text-white text-base;
+  @apply flex-1 ml-3 text-base;
+  color: var(--text-primary);
 }
 
 .badge {
   line-height: 0;
-  @apply bg-blue-600 text-white text-xs mr-1;
+  @apply text-white text-xs mr-1;
   @apply px-2 py-0.5 rounded-full;
   @apply font-medium;
+  background-color: var(--accent);
 }
 
 .menu-item svg:last-child {
-  @apply text-gray-500;
+  color: var(--text-tertiary);
 }
 
 .sign-out-btn {
   @apply flex items-center w-full text-base;
   @apply px-0 py-3;
-
   @apply transition-colors duration-200;
   @apply text-red-400;
 }

@@ -1,5 +1,5 @@
 <template>
-  <div 
+  <div
     class="story-container"
   >
     <!-- Debug info (temporary) -->
@@ -12,13 +12,13 @@
     <!-- Progress Bars -->
     <div class="progress-container">
       <div class="progress-bars">
-        <div 
-          v-for="(page, index) in pages" 
+        <div
+          v-for="(page, index) in pages"
           :key="index"
           class="progress-bar"
           :class="{ 'completed': index < currentPageIndex, 'current': index === currentPageIndex }"
         >
-          <div 
+          <div
             v-if="index === currentPageIndex"
             class="progress-fill"
             :style="{ width: `${(currentPageIndex / (pages.length - 1)) * 100}%` }"
@@ -34,14 +34,14 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
         </svg>
       </button>
-      
+
       <div class="header-actions">
         <!-- <button class="action-button">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
           </svg>
         </button> -->
-        
+
         <button
           class="action-button"
           :class="{ 'saved': isSaved }"
@@ -64,7 +64,7 @@
           <div class="text-section">
             <p class="story-description">{{ currentPage.description }}</p>
           </div>
-          
+
           <div class="image-section">
             <img :src="currentPage.thumbnail" :alt="currentPage.title" class="story-image" />
           </div>
@@ -80,8 +80,8 @@
           <div class="text-section">
             <p class="story-description">{{ currentPage.description }}</p>
           </div>
-          
-          
+
+
         </div>
       </template>
 
@@ -110,7 +110,7 @@
               <div class="takeaway-text">The broader impact extends beyond initial expectations</div>
             </div>
           </div> -->
-          
+
           <div class="poll-section">
             <div class="poll-question">What's your take on this story?</div>
             <div class="poll-options">
@@ -148,7 +148,7 @@
               </div>
             </div>
           </div>
-          
+
           <div class="read-full-button">
             <button @click.stop="readFullArticle" class="full-article-btn">
               Read Full Article
@@ -163,14 +163,14 @@
           <img :src="currentPage.thumbnail" :alt="currentPage.title" class="story-image" />
           <div class="image-overlay"></div>
         </div>
-        
+
         <div class="content-text">
           <!-- Recommendation Badge -->
           <div v-if="recommendationReason" class="recommendation-badge">
             <span class="badge-icon">{{ recommendationIcon }}</span>
             <span class="badge-text">{{ recommendationReason }}</span>
           </div>
-          
+
           <h1 class="story-title">{{ currentPage.title }}</h1>
           <p class="story-description">{{ currentPage.description }}</p>
         </div>
@@ -178,7 +178,7 @@
     </div>
 
     <!-- Bottom Controls -->
-    <BottomControls 
+    <BottomControls
       :initial-liked="isLiked"
       :initial-listening="isListening"
       :show-category="true"
@@ -196,11 +196,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import type { StoryContent } from '@/stores/videos'
 import BottomControls from './BottomControls.vue'
 import { apiFetch } from '@/lib/api'
+import { useAnalytics } from '@/composables/useAnalytics'
 
 interface Props {
   content: StoryContent | any
@@ -273,6 +274,8 @@ const handleSave = async () => {
     emit('save', { id: articleId, collection, saved: !currentlySaved })
   }
 }
+
+const { trackScrollDepth } = useAnalytics()
 
 const currentPageIndex = ref(0)
 const isLiked = ref(false)
@@ -368,6 +371,15 @@ const pages = computed(() => {
   ]
 })
 
+// Analytics: track story depth as scroll_depth (page progress within a story)
+watch(currentPageIndex, (newIdx) => {
+  const total = pages.value.length
+  if (total <= 1) return
+  const depthPercent = ((newIdx + 1) / total) * 100
+  const contentId = String(props.content?.originalArticle?._id ?? props.content?._id ?? props.content?.id ?? '')
+  trackScrollDepth(contentId, depthPercent, 'article', props.category)
+})
+
 const currentPage = computed(() => {
   const page = pages.value[currentPageIndex.value]
   console.log('🔮🗓️currentPage', page)
@@ -381,7 +393,7 @@ const currentPage = computed(() => {
   //     createdAt: new Date().toISOString()
   //   }
   // }
-  
+
   return page
 })
 
@@ -389,7 +401,7 @@ const currentPage = computed(() => {
 const recommendationReason = computed(() => {
   // Determine why this story is recommended based on category and other factors
   const category = props.category.toLowerCase()
-  
+
   // Check if user follows this category
   if (category.includes('sports')) {
     return 'Because you follow Sports'
@@ -406,24 +418,24 @@ const recommendationReason = computed(() => {
   if (category.includes('business')) {
     return 'Because you follow Business'
   }
-  
+
   // Check if it's trending/hot news
   if (Math.random() > 0.7) {
     return 'Hot News'
   }
-  
+
   // Check if it's latest news
   if (Math.random() > 0.5) {
     return 'Latest News'
   }
-  
+
   // Default recommendation
   return 'Recommended for you'
 })
 
 const recommendationIcon = computed(() => {
   const reason = recommendationReason.value
-  
+
   if (reason.includes('Sports')) return '⚽'
   if (reason.includes('Politics')) return '🏛️'
   if (reason.includes('Technology')) return '💻'
@@ -431,7 +443,7 @@ const recommendationIcon = computed(() => {
   if (reason.includes('Business')) return '💰'
   if (reason.includes('Hot News')) return '🔥'
   if (reason.includes('Latest News')) return '📰'
-  
+
   return '✨'
 })
 
@@ -527,13 +539,13 @@ const readFullArticle = () => {
 const selectPollOption = (option: number) => {
   selectedPollOption.value = option
   hasVoted.value = true
-  
+
   // Update poll results (simulate voting)
   pollResults.value[option] = (pollResults.value[option] || 0) + 1
-  
+
   // Prevent auto-advance when poll is voted
   stopAutoAdvance()
-  
+
   console.log('Selected poll option:', option)
 }
 
@@ -548,7 +560,7 @@ const startAutoAdvance = () => {
   if (autoAdvanceTimer.value) {
     clearTimeout(autoAdvanceTimer.value)
   }
-  
+
   // Auto-advance to next page after 5 seconds
   autoAdvanceTimer.value = setTimeout(() => {
     if (currentPageIndex.value < pages.value.length - 1) {
@@ -1151,4 +1163,4 @@ onUnmounted(() => {
   @apply text-blue-500 hover:text-blue-400;
   @apply transition-colors duration-200;
 }
-</style> 
+</style>

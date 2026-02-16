@@ -145,9 +145,6 @@ const handleNavigation = (route: string) => {
     case 'profile':
       router.push('/profile')
       break
-    case 'pin-board':
-      router.push('/pin-board')
-      break
     default:
       console.log('Unknown route:', route)
   }
@@ -262,14 +259,15 @@ const formatDate = (dateString: string): string => {
 .pin-board-container {
   min-height: 100vh;
   height: 100vh;
-  background-color: #000;
-  color: white;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
   @apply flex flex-col;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .nav-bar {
   @apply flex items-center justify-end px-4 py-3;
-  background-color: #000;
+  background-color: var(--bg-primary);
 }
 
 .nav-right {
@@ -277,13 +275,17 @@ const formatDate = (dateString: string): string => {
 }
 
 .grid-button, .options-button {
-  @apply p-2 rounded-lg transition-colors text-white;
-  @apply hover:bg-gray-800 hover:text-white;
+  @apply p-2 rounded-lg transition-colors;
+  color: var(--text-primary);
+}
+
+.grid-button:hover, .options-button:hover {
+  background-color: var(--bg-hover);
 }
 
 .search-container {
   @apply px-4 py-3;
-  background-color: #000;
+  background-color: var(--bg-primary);
 }
 
 .search-bar {
@@ -292,21 +294,21 @@ const formatDate = (dateString: string): string => {
   gap: 0.5rem;
   padding: 0.5rem 0.75rem;
   border-radius: 0.5rem;
-  background-color: #171717;
-  border: 1px solid #262626;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-primary);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.3s ease;
 }
 
 .search-bar:focus-within {
-  border-color: #404040;
-  box-shadow: 0 0 0 1px #404040;
+  border-color: var(--border-secondary);
+  box-shadow: 0 0 0 1px var(--border-secondary);
 }
 
 .search-icon {
   flex-shrink: 0;
   width: 1.25rem;
   height: 1.25rem;
-  color: #737373;
+  color: var(--text-tertiary);
 }
 
 .search-input {
@@ -314,26 +316,26 @@ const formatDate = (dateString: string): string => {
   min-width: 0;
   background: transparent;
   border: none;
-  color: white;
+  color: var(--text-primary);
   font-size: 0.9375rem;
   outline: none;
 }
 
 .search-input::placeholder {
-  color: #737373;
+  color: var(--text-tertiary);
 }
 
 .search-clear {
   flex-shrink: 0;
   padding: 0.25rem;
   border-radius: 0.25rem;
-  color: #737373;
+  color: var(--text-tertiary);
   transition: color 0.15s ease, background-color 0.15s ease;
 }
 
 .search-clear:hover {
-  color: white;
-  background-color: #262626;
+  color: var(--text-primary);
+  background-color: var(--bg-hover);
 }
 
 .content-area {
@@ -342,7 +344,6 @@ const formatDate = (dateString: string): string => {
   overflow-y: scroll;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
-  /* Hide Firefox scrollbar (takes space), webkit overlay doesn't take space */
   scrollbar-width: none;
   scrollbar-color: transparent transparent;
 }
@@ -353,13 +354,13 @@ const formatDate = (dateString: string): string => {
 }
 
 .content-area::-webkit-scrollbar-thumb {
-  background-color: rgba(255, 255, 255, 0.15);
+  background-color: var(--scrollbar-thumb);
   border-radius: 10px;
 }
 
 .article-group {
   @apply rounded-lg p-4;
-  background-color: #171717;
+  background-color: var(--bg-elevated);
 }
 
 .group-header {
@@ -371,12 +372,18 @@ const formatDate = (dateString: string): string => {
 }
 
 .group-name {
-  @apply flex-1 font-medium text-white;
+  @apply flex-1 font-medium;
+  color: var(--text-primary);
 }
 
 .group-options {
   @apply p-1 rounded transition-colors;
-  @apply text-gray-400 hover:text-white hover:bg-gray-800;
+  color: var(--text-secondary);
+}
+
+.group-options:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-hover);
 }
 
 .group-articles {
@@ -388,37 +395,38 @@ const formatDate = (dateString: string): string => {
 .article-preview {
   @apply rounded cursor-pointer transition-colors;
   @apply flex items-center justify-center;
-  background-color: #262626;
+  background-color: var(--bg-tertiary);
 }
 .article-preview:hover {
-  background-color: #404040;
+  background-color: var(--bg-hover);
 }
 
 .preview-icon {
-  @apply text-xl text-white;
+  @apply text-xl;
+  color: var(--text-primary);
 }
 
 .more-indicator {
   @apply rounded flex items-center justify-center text-xs;
-  background-color: #262626;
-  color: #a3a3a3;
+  background-color: var(--bg-tertiary);
+  color: var(--text-secondary);
   aspect-ratio: 1 / 1;
   min-height: 0;
 }
 
 .empty-slot {
   @apply rounded;
-  background-color: #262626;
+  background-color: var(--bg-tertiary);
   aspect-ratio: 1 / 1;
   min-height: 0;
 }
 
 .individual-article {
   @apply rounded-lg p-4 cursor-pointer transition-colors;
-  background-color: #171717;
+  background-color: var(--bg-elevated);
 }
 .individual-article:hover {
-  background-color: #262626;
+  background-color: var(--bg-tertiary);
 }
 
 .article-header {
@@ -427,19 +435,27 @@ const formatDate = (dateString: string): string => {
 
 .article-icon {
   @apply w-8 h-8 rounded flex items-center justify-center;
-  background-color: #262626;
+  background-color: var(--bg-tertiary);
 }
 
 .icon-placeholder {
-  @apply text-sm text-white;
+  @apply text-sm;
+  color: var(--text-primary);
 }
 
 .article-title {
-  @apply flex-1 font-medium text-white truncate;
+  @apply flex-1 font-medium truncate;
+  color: var(--text-primary);
 }
 
 .close-button {
-  @apply p-1 rounded transition-colors text-gray-400 hover:text-white hover:bg-gray-800;
+  @apply p-1 rounded transition-colors;
+  color: var(--text-secondary);
+}
+
+.close-button:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-hover);
 }
 
 .article-content {
@@ -452,12 +468,12 @@ const formatDate = (dateString: string): string => {
 
 .preview-text {
   @apply text-sm line-clamp-2;
-  color: #d4d4d4;
+  color: var(--text-secondary);
 }
 
 .preview-meta {
   @apply flex items-center space-x-2 text-xs;
-  color: #a3a3a3;
+  color: var(--text-tertiary);
 }
 
 .meta-item {

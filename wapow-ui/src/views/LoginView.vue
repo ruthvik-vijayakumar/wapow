@@ -44,12 +44,13 @@ const handleLogin = () => {
 <style scoped>
 .login-container {
   min-height: 100vh;
-  background: #000;
-  color: white;
+  background: var(--bg-primary);
+  color: var(--text-primary);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 2rem;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .login-card {
@@ -69,7 +70,7 @@ const handleLogin = () => {
 }
 
 .login-illustration {
-  filter: invert(1);
+  filter: var(--login-illustration-filter);
   max-width: 200px;
   width: 100%;
   height: auto;
@@ -79,12 +80,13 @@ const handleLogin = () => {
 .login-title {
   font-size: 1.5rem;
   font-weight: 600;
+  color: var(--text-primary);
   @apply font-postoni;
 }
 
 .login-subtitle {
   font-size: 0.95rem;
-  color: #9ca3af;
+  color: var(--text-secondary);
   text-align: center;
   margin: -0.4rem 0 0;
 }
@@ -118,6 +120,6 @@ const handleLogin = () => {
 
 .login-status {
   font-size: 0.875rem;
-  color: #9ca3af;
+  color: var(--text-secondary);
 }
 </style>

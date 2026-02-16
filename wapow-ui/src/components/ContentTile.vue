@@ -46,12 +46,11 @@
       
       <!-- Section/Category -->
       <div class="flex items-center space-x-1 mb-1">
-        <p class="text-xs text-gray-400">{{ getSectionName() }}</p>
-        <!-- <span v-if="content.subtype" class="text-xs text-gray-500">• {{ content.subtype }}</span> -->
+        <p class="text-xs tile-text-secondary">{{ getSectionName() }}</p>
       </div>
       
       <!-- Title -->
-      <h3 style="font-size: 1.1rem; line-height: 1.2;" class="text-xl font-bold text-white font-postoni">
+      <h3 style="font-size: 1.1rem; line-height: 1.2;" class="text-xl font-bold tile-text-primary font-postoni">
         {{ content.headlines?.basic || 'Article Title' }}
       </h3>
       
@@ -62,29 +61,28 @@
 
       <!-- Author info -->
       <div v-if="content.subtype !== 'recipe-template'" class="flex items-center space-x-2 pt-2">
-        <span class="text-xs text-gray-200">by {{ getAuthorName() }}</span>
-        <!-- <span v-if="getAuthorDesk()" class="text-xs text-gray-500">• {{ getAuthorDesk() }}</span> -->
+        <span class="text-xs tile-text-primary" style="opacity: 0.85;">by {{ getAuthorName() }}</span>
       </div>
       
       <!-- Published date -->
       <div v-if="content.publish_date && content.subtype !== 'recipe-template'" class="flex items-center space-x-2">
-        <span class="text-xs text-gray-400">{{ formatTimeAgo(content.publish_date) }}</span>
+        <span class="text-xs tile-text-secondary">{{ formatTimeAgo(content.publish_date) }}</span>
       </div>
       
       <!-- Recipe-specific information -->
       <div v-if="content.subtype === 'recipe-template'" class="flex items-center space-x-2 pt-1">
         <!-- Total time -->
         <div  class="flex items-center space-x-1">
-          <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-3 h-3 tile-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <span class="text-xs text-gray-400">{{ getRecipeTotalTime() }}</span>
+          <span class="text-xs tile-text-secondary">{{ getRecipeTotalTime() }}</span>
         </div>
         
         <!-- Course -->
         <div class="flex items-center space-x-1">
-          <span class="text-xs text-gray-400">&bull;</span>
-          <span class="text-xs text-gray-400">{{  content.taxonomy.tags[0].description || '' }}</span>
+          <span class="text-xs tile-text-secondary">&bull;</span>
+          <span class="text-xs tile-text-secondary">{{  content.taxonomy.tags[0].description || '' }}</span>
         </div>
       </div>
       
@@ -317,13 +315,21 @@ const getRecipeTotalTime = (): string => {
 </script>
 
 <style scoped>
+.tile-text-primary {
+  color: var(--text-primary);
+}
+
+.tile-text-secondary {
+  color: var(--text-secondary);
+}
+
 .content-tile {
   @apply rounded-lg overflow-hidden;
   @apply transition-all duration-300 ease-in-out;
   @apply hover:scale-105 hover:shadow-lg;
   @apply relative;
   animation: fadeInUp 0.6s ease-out both;
-  background-color: #171717;
+  background-color: var(--bg-elevated);
 }
 
 .content-tile.clicked {

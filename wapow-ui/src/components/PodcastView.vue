@@ -66,7 +66,7 @@
       <!-- Podcast Info -->
       <div class="podcast-info">
         <h2 class="podcast-title">{{ props.podcast.title }}</h2>
-        <p class="podcast-artist">{{ props.podcast.author.name }}</p>
+        <p class="podcast-artist">{{ props.podcast.author?.name || 'Unknown Artist' }}</p>
         <p class="podcast-album ellipsis-2">{{ props.podcast.description }}</p>
       </div>
 
@@ -112,6 +112,7 @@
 import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import BottomControls from './BottomControls.vue'
 import { apiFetch } from '@/lib/api'
+import { useAnalytics } from '@/composables/useAnalytics'
 
 interface Props {
   podcast: any
@@ -136,7 +137,12 @@ const emit = defineEmits<{
   save: [content: { id: string; collection?: string; saved: boolean }]
 }>()
 
+const { trackAudioProgress } = useAnalytics()
 const isSaved = computed(() => props.isSaved)
+
+// Audio progress tracking — fire at 25%, 50%, 75%, 100% milestones
+const _firedAudioMilestones = new Set<number>()
+let _audioStartTime = 0
 
 const handleSave = async () => {
   const id = props.podcast?.id ?? props.podcast?._id
@@ -177,7 +183,7 @@ const handleBack = () => {
 }
 
 const handleFollow = () => {
-  emit('follow', props.podcast.author.username)
+  emit('follow', props.podcast.author?.username ?? '')
 }
 
 const playPodcast = () => {
@@ -186,6 +192,7 @@ const playPodcast = () => {
     console.log('Play failed:', error)
   })
   isPlaying.value = true
+  if (!_audioStartTime) _audioStartTime = performance.now()
 }
 
 const pausePodcast = () => {
@@ -213,6 +220,17 @@ const handleTimeUpdate = () => {
   if (total > 0) {
     audioProgress.value = (current / total) * 100
     currentTime.value = formatTime(current)
+
+    // Analytics: fire at 25/50/75/100% milestones
+    const pct = Math.floor(audioProgress.value)
+    for (const milestone of [25, 50, 75, 100]) {
+      if (pct >= milestone && !_firedAudioMilestones.has(milestone)) {
+        _firedAudioMilestones.add(milestone)
+        const podcastId = String(props.podcast?.id ?? props.podcast?._id ?? '')
+        const listenMs = _audioStartTime ? Math.round(performance.now() - _audioStartTime) : Math.round(current * 1000)
+        trackAudioProgress(podcastId, milestone, listenMs, props.category)
+      }
+    }
 
     // Update lyric index based on progress
     // const lyrics = props.podcast.lyrics

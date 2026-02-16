@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-black">
+  <div class="cat-nav-container">
     <div class="flex overflow-x-scroll scrollbar-hide">
       <div class="flex space-x-2 px-4 py-3">
         <button
@@ -9,7 +9,6 @@
           :class="{ 'active': selectedCategory === category.id }"
           @click="selectCategory(category)"
         >
-          <!-- <span class="category-emoji">{{ category.emoji }}</span> -->
           <span class="category-name">{{ category.name }}</span>
         </button>
       </div>
@@ -26,24 +25,21 @@ const route = useRoute()
 
 interface Category {
   id: string
-  canonical_url: string  // Router path
+  canonical_url: string
   name: string
   emoji: string
 }
 
 const categories: Category[] = [
-  { id: '/sports', canonical_url: '/sports', name: 'Sports', emoji: '⚽' },
-  { id: '/style', canonical_url: '/style', name: 'Style', emoji: '👗' },
-  // { id: '/recipes', canonical_url: '/recipes', name: 'Recipes', emoji: '🍳' },
-  { id: '/technology', canonical_url: '/technology', name: 'Technology', emoji: '💻' },
-  { id: '/wellbeing', canonical_url: '/wellbeing', name: 'Well Being', emoji: '🧘' },
-  { id: '/travel', canonical_url: '/travel', name: 'Travel', emoji: '✈️' },
-  // { id: '/podcasts', canonical_url: '/podcasts', name: 'Podcasts', emoji: '🎧' },
+  { id: '/sports', canonical_url: '/sports', name: 'Sports', emoji: '' },
+  { id: '/style', canonical_url: '/style', name: 'Style', emoji: '' },
+  { id: '/technology', canonical_url: '/technology', name: 'Technology', emoji: '' },
+  { id: '/wellbeing', canonical_url: '/wellbeing', name: 'Well Being', emoji: '' },
+  { id: '/travel', canonical_url: '/travel', name: 'Travel', emoji: '' },
 ]
 
 const selectedCategory = ref('/sports')
 
-// Watch for route changes and sync selected category
 watch(() => route.path, (newPath) => {
   const matchingCategory = categories.find(cat => cat.canonical_url === newPath)
   if (matchingCategory) {
@@ -58,18 +54,25 @@ const selectCategory = (category: Category) => {
 </script>
 
 <style scoped>
+.cat-nav-container {
+  background-color: var(--bg-primary);
+  transition: background-color 0.3s ease;
+}
+
 .nav-category {
   @apply px-3 py-1.5 rounded-full text-sm transition-all duration-200;
-  @apply text-gray-400 hover:text-white;
   @apply flex items-center space-x-1;
+  color: var(--cat-inactive-text);
+}
+
+.nav-category:hover {
+  color: var(--text-primary);
 }
 
 .nav-category.active {
-  @apply bg-white text-black font-semibold;
-}
-
-.category-emoji {
-  @apply text-base;
+  background-color: var(--cat-active-bg);
+  color: var(--cat-active-text);
+  @apply font-semibold;
 }
 
 .scrollbar-hide {
@@ -80,4 +83,4 @@ const selectCategory = (category: Category) => {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
-</style> 
+</style>

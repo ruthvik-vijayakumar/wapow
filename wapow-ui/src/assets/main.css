@@ -5,6 +5,72 @@
 @tailwind utilities;
 
 @layer base {
+  /* ── Theme CSS Custom Properties ── */
+  :root {
+    /* Light mode (default when .light class present) */
+    --bg-primary: #ffffff;
+    --bg-secondary: #f9fafb;
+    --bg-tertiary: #f3f4f6;
+    --bg-elevated: #ffffff;
+    --bg-input: #f3f4f6;
+    --bg-hover: #e5e7eb;
+
+    --text-primary: #111827;
+    --text-secondary: #6b7280;
+    --text-tertiary: #9ca3af;
+
+    --border-primary: #e5e7eb;
+    --border-secondary: #d1d5db;
+
+    --accent: #2563eb;
+    --accent-text: #2563eb;
+
+    --cat-active-bg: #111827;
+    --cat-active-text: #ffffff;
+    --cat-inactive-text: #6b7280;
+
+    --scrollbar-thumb: rgba(0, 0, 0, 0.15);
+    --scrollbar-thumb-hover: rgba(0, 0, 0, 0.25);
+    --scrollbar-thumb-active: rgba(0, 0, 0, 0.35);
+
+    --spinner-border: #d1d5db;
+    --spinner-accent: #111827;
+
+    --login-illustration-filter: none;
+  }
+
+  :root.dark {
+    --bg-primary: #000000;
+    --bg-secondary: #111827;
+    --bg-tertiary: #1f2937;
+    --bg-elevated: #171717;
+    --bg-input: #171717;
+    --bg-hover: #1f2937;
+
+    --text-primary: #ffffff;
+    --text-secondary: #9ca3af;
+    --text-tertiary: #6b7280;
+
+    --border-primary: #1f2937;
+    --border-secondary: #374151;
+
+    --accent: #3b82f6;
+    --accent-text: #60a5fa;
+
+    --cat-active-bg: #ffffff;
+    --cat-active-text: #000000;
+    --cat-inactive-text: #9ca3af;
+
+    --scrollbar-thumb: rgba(255, 255, 255, 0.15);
+    --scrollbar-thumb-hover: rgba(255, 255, 255, 0.25);
+    --scrollbar-thumb-active: rgba(255, 255, 255, 0.35);
+
+    --spinner-border: #374151;
+    --spinner-accent: #ffffff;
+
+    --login-illustration-filter: invert(1);
+  }
+
   html {
     overflow-y: auto;
     scroll-behavior: smooth;
@@ -12,8 +78,8 @@
 
   body {
     font-family: 'Franklin ITC Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background-color: #000000;
-    color: #ffffff;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
     overflow-y: auto;
     min-height: 100vh;
     /* Mobile browser navigation bar handling */
@@ -26,6 +92,7 @@
     padding-bottom: env(safe-area-inset-bottom);
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 
 #app {
@@ -77,35 +144,43 @@
   }
 
   *::-webkit-scrollbar-thumb {
-    background-color: rgba(255, 255, 255, 0.15);
+    background-color: var(--scrollbar-thumb);
     border-radius: 10px;
     border: none;
   }
 
   *::-webkit-scrollbar-thumb:hover {
-    background-color: rgba(255, 255, 255, 0.25);
+    background-color: var(--scrollbar-thumb-hover);
   }
 
   *::-webkit-scrollbar-thumb:active {
-    background-color: rgba(255, 255, 255, 0.35);
+    background-color: var(--scrollbar-thumb-active);
   }
 }
 
 @layer components {
   .video-tile {
-    @apply relative overflow-hidden rounded-lg bg-secondary;
+    @apply relative overflow-hidden rounded-lg;
+    background-color: var(--bg-secondary);
 }
 
   .bottom-nav {
-    @apply fixed bottom-0 left-0 right-0 bg-black border-t border-gray-800;
+    @apply fixed bottom-0 left-0 right-0;
+    background-color: var(--bg-primary);
+    border-top: 1px solid var(--border-primary);
   }
 
   .nav-item {
-    @apply flex flex-col items-center justify-center py-2 px-4 text-gray-400 hover:text-white transition-colors;
+    @apply flex flex-col items-center justify-center py-2 px-4 transition-colors;
+    color: var(--text-secondary);
+  }
+
+  .nav-item:hover {
+    color: var(--text-primary);
   }
 
   .nav-item.active {
-    @apply text-accent;
+    color: var(--accent-text);
   }
 
   /* Font utility classes */

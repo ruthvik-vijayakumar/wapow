@@ -11,7 +11,7 @@
         </span>
       </div>
 
-      <div class="bottom-left">      
+      <div class="bottom-left">
         <!-- Action Buttons -->
         <div class="podcast-actions">
           <!-- Simple Like Button -->
@@ -24,7 +24,7 @@
             </svg>
             <span class="action-text">{{ isLiked ? 'Liked' : 'Like' }}</span>
           </button>
-          
+
           <!-- Listen Button -->
           <button v-if="showListen" @click="handleListen" class="podcast-action-btn" :class="{ 'active': isListening }">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -32,7 +32,7 @@
             </svg>
             <span class="action-text">{{ isListening ? 'Listening' : 'Listen' }}</span>
           </button>
-          
+
           <!-- Share Button -->
           <button @click="handleShare" class="podcast-action-btn">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -43,7 +43,7 @@
         </div>
       </div>
     </div>
-    
+
     <div class="bottom-right">
       <button @click="handleComments" class="follow-button">
         <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -58,6 +58,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import html2canvas from 'html2canvas'
+import { useAnalytics } from '@/composables/useAnalytics'
 
 interface Props {
   initialLiked?: boolean
@@ -84,12 +85,13 @@ const emit = defineEmits<{
   share: []
 }>()
 
+const { trackLike, trackShare } = useAnalytics()
 const isLiked = ref(props.initialLiked)
 const isListening = ref(props.initialListening)
 
 const categoryEmoji = computed(() => {
   const category = props.category.toLowerCase()
-  
+
   if (category.includes('news') || category.includes('politics')) return '📰'
   if (category.includes('sports')) return '⚽'
   if (category.includes('entertainment') || category.includes('celebrity')) return '🎭'
@@ -107,7 +109,7 @@ const categoryEmoji = computed(() => {
   if (category.includes('weather')) return '🌤️'
   if (category.includes('crime') || category.includes('police')) return '🚔'
   if (category.includes('environment') || category.includes('climate')) return '🌍'
-  
+
   // Default emoji
   return '📰'
 })
@@ -117,6 +119,10 @@ const categoryEmoji = computed(() => {
 const handleLike = () => {
   isLiked.value = !isLiked.value
   emit('like', isLiked.value)
+  // Analytics
+  const contentId = String(props.articleContent?._id ?? props.articleContent?.id ?? props.articleContent?.content_id ?? '')
+  const contentType = props.articleContent?.mediaType || props.articleContent?.type || ''
+  trackLike(contentId, isLiked.value, contentType, props.category)
 }
 
 const handleListen = () => {
@@ -129,10 +135,15 @@ const handleComments = () => {
 }
 
 const handleShare = async () => {
+  // Analytics
+  const contentId = String(props.articleContent?._id ?? props.articleContent?.id ?? props.articleContent?.content_id ?? '')
+  const contentType = props.articleContent?.mediaType || props.articleContent?.type || ''
+  trackShare(contentId, 'screenshot', contentType, props.category)
+
   try {
     // Find the main content container to screenshot
     const contentElement = document.querySelector('.story-container, .vertical-video-container, .podcast-container')
-    
+
     if (!contentElement) {
       console.error('Content element not found for screenshot')
       emit('share')
@@ -149,7 +160,7 @@ const handleShare = async () => {
       height: contentElement.clientHeight,
       ignoreElements: (element) => {
         // Ignore certain elements like controls, buttons, etc.
-        return element.classList.contains('podcast-bottom') || 
+        return element.classList.contains('podcast-bottom') ||
                element.classList.contains('video-controls') ||
                element.classList.contains('story-header') ||
                element.classList.contains('progress-container') ||
@@ -160,7 +171,7 @@ const handleShare = async () => {
                element.tagName === 'BUTTON'
       }
     })
-    
+
 
     // Convert canvas to blob
     canvas.toBlob(async (blob) => {
@@ -185,14 +196,14 @@ const shareImageAsset = async (blobImageAsset: Blob): Promise<boolean> => {
     // Get title from the current content
     const titleElement = document.querySelector('.story-title, .video-title, .podcast-title')
     const title = titleElement?.textContent || 'Washington Post Content'
-    
+
     const filesArray = [
       new File([blobImageAsset], `${title}.png`, {
         type: 'image/png',
         lastModified: new Date().getTime(),
       }),
     ]
-    
+
     const shareData = {
       title: `${title}`,
       files: filesArray,
@@ -300,4 +311,4 @@ const shareImageAsset = async (blobImageAsset: Blob): Promise<boolean> => {
 }
 
 
-</style> 
+</style>

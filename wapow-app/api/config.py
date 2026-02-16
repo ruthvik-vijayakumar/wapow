@@ -44,6 +44,13 @@ PODCAST_COLLECTION = "podcasts"
 CONTENT_COLLECTIONS = ARTICLE_CATEGORIES  # Alias for backward compat
 ALL_COLLECTIONS = ARTICLE_CATEGORIES + [VIDEO_COLLECTION, PODCAST_COLLECTION]
 
+# ClickHouse (for analytics sync script)
+CLICKHOUSE_HOST = os.getenv("CLICKHOUSE_HOST", "localhost")
+CLICKHOUSE_PORT = int(os.getenv("CLICKHOUSE_PORT", "8123"))
+CLICKHOUSE_DB = os.getenv("CLICKHOUSE_DB", "wapow_analytics")
+
 # User data collections (MongoDB)
 USERS_COLLECTION = "users"
 SAVED_ARTICLES_COLLECTION = "saved_articles"  # Legacy; migrated to users.saved
+COMMENTS_COLLECTION = "comments"
+COMMENT_VOTES_COLLECTION = "comment_votes"
