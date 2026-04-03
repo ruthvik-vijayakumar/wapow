@@ -1,0 +1,42 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Login to DO registry
+      - name: Login to DO Container Registry
+        run: echo "${{ secrets.DO_API_TOKEN }}" | docker login registry.digitalocean.com -u ${{ secrets.DO_API_TOKEN }} --password-stdin
+
+      # Build and push to DO registry
+      - name: Build and push
+        run: |
+          docker build -t $REGISTRY/wapow-app:latest ../wapow-app
+          docker push $REGISTRY/wapow-app:latest
+
+
+      - name: Build & push wapow-collector
+        run: |
+          docker build -t $REGISTRY/wapow-collector:latest ../wapow-collector
+          docker push $REGISTRY/wapow-collector:latest
+
+        
+      # SSH into Droplet and redeploy
+      - name: Deploy to Droplet
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DROPLET_IP }}
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            doctl registry login
+            docker pull $REGISTRY/wapow-app:latest
+            docker pull $REGISTRY/wapow-collector:latest
+            cd /app
+            docker compose up -d
