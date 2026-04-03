@@ -19,6 +19,9 @@ __pycache__/
 .venv/
 *.egg
 
+# Poetry (lockfile — remove this line if you want pinned deps committed for Docker/CI)
+**/poetry.lock
+
 # Logs
 logs/
 *.log
