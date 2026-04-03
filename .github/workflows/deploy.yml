@@ -40,5 +40,5 @@ jobs:
             doctl registry login
             docker pull $REGISTRY/wapow-app:latest
             docker pull $REGISTRY/wapow-collector:latest
-            cd /app
+            cd /opt
             docker compose up -d
