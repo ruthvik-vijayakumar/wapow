@@ -23,27 +23,34 @@ sudo rsync -av dist/ /var/www/wapow-ui/
 
 ### 2. Backend + databases with Docker Compose
 
-From `wapow-app/` on the server:
+On the server, clone the **repository root** (not only `wapow-app/`) so paths like `wapow-app/migrations` and `deploy/nginx.conf` resolve. Example:
 
 ```bash
-cd wapow-app
-cp .env.dev .env  # or create a fresh .env with prod values
-
-# Important: set MongoDB, Neo4j, Auth0, and ClickHouse env vars
-vim .env
+sudo mkdir -p /opt && sudo git clone <your-repo-url> /opt/wapow
+cd /opt/wapow
 ```
 
-For a production-style stack with Nginx and internal-only databases, use:
+Create `wapow-app/.env` with MongoDB, Neo4j, Auth0, and server settings:
 
 ```bash
-docker compose -f docker-compose.prod.yml up -d --build
+cp wapow-app/.env.dev wapow-app/.env   # or create a fresh .env
+vim wapow-app/.env
 ```
+
+For a production-style stack with Nginx and internal-only databases, set **`REGISTRY_PREFIX`** to your DigitalOcean registry base (same value GitHub Actions uses: `registry.digitalocean.com/<registry-name>`), then:
+
+```bash
+export REGISTRY_PREFIX=registry.digitalocean.com/your-registry-name
+docker compose -f docker-compose.prod.yml up -d
+```
+
+CI builds and pushes `wapow-app` and `wapow-collector` images; the compose file uses those images (no local `build` for those services).
 
 This starts:
 
 - `mongo` (no public port)
 - `neo4j` (no public port; admin via SSH tunnel)
-- `clickhouse` (no public port; init run from `./migrations`)
+- `clickhouse` (no public port; init run from `wapow-app/migrations`)
 - `wapow-api` (FastAPI, internal only)
 - `wapow-collector` (analytics, internal only)
 - `wapow-nginx` (public, port 80 → serves UI + proxies `/api` and `/collect`)

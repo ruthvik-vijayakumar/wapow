@@ -4,41 +4,58 @@ on:
   push:
     branches: [main]
 
+# Registry slug only — set GitHub secret DO_REGISTRY_NAME (e.g. wapow-do-registry)
 env:
-  REGISTRY: registry.digitalocean.com/wapow-do-registry
+  REGISTRY_PREFIX: registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      # Login to DO registry
+      - name: Verify DO_REGISTRY_NAME secret
+        env:
+          DO_REGISTRY_NAME: ${{ secrets.DO_REGISTRY_NAME }}
+        run: |
+          if [ -z "$DO_REGISTRY_NAME" ]; then
+            echo "::error::Set repository secret DO_REGISTRY_NAME to your DigitalOcean Container Registry name (slug only)."
+            exit 1
+          fi
+
       - name: Login to DO Container Registry
-        run: echo "${{ secrets.DO_API_TOKEN }}" | docker login registry.digitalocean.com -u ${{ secrets.DO_API_TOKEN }} --password-stdin
+        run: echo "${{ secrets.DO_API_TOKEN }}" | docker login registry.digitalocean.com -u "${{ secrets.DO_API_TOKEN }}" --password-stdin
 
-      # Build and push to DO registry
-      - name: Build and push
+      - name: Build and push wapow-app
         run: |
-          docker build -t $REGISTRY/wapow-app:latest ./wapow-app
-          docker push $REGISTRY/wapow-app:latest
+          docker build -t "${REGISTRY_PREFIX}/wapow-app:latest" -f wapow-app/Dockerfile wapow-app
+          docker push "${REGISTRY_PREFIX}/wapow-app:latest"
 
-
-      - name: Build & push wapow-collector
+      - name: Build and push wapow-collector
         run: |
-          docker build -t $REGISTRY/wapow-collector:latest ./wapow-collector
-          docker push $REGISTRY/wapow-collector:latest
+          docker build -t "${REGISTRY_PREFIX}/wapow-collector:latest" -f wapow-collector/Dockerfile wapow-collector
+          docker push "${REGISTRY_PREFIX}/wapow-collector:latest"
 
-        
-      # SSH into Droplet and redeploy
+      # Remote shell does NOT inherit GitHub env — pass tokens and registry via envs
       - name: Deploy to Droplet
         uses: appleboy/ssh-action@v1
+        env:
+          DO_API_TOKEN: ${{ secrets.DO_API_TOKEN }}
+          REGISTRY_PREFIX: ${{ env.REGISTRY_PREFIX }}
+          # Optional: set secret DEPLOY_PATH to the clone dir on the Droplet (default /opt/wapow)
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
         with:
           host: ${{ secrets.DROPLET_IP }}
           username: root
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: DO_API_TOKEN,REGISTRY_PREFIX,DEPLOY_PATH
           script: |
-            doctl registry login
-            docker pull $REGISTRY/wapow-app:latest
-            docker pull $REGISTRY/wapow-collector:latest
-            cd /opt
-            docker compose up -d
+            set -euo pipefail
+            echo "$DO_API_TOKEN" | docker login registry.digitalocean.com -u "$DO_API_TOKEN" --password-stdin
+            docker pull "${REGISTRY_PREFIX}/wapow-app:latest"
+            docker pull "${REGISTRY_PREFIX}/wapow-collector:latest"
+            TARGET="${DEPLOY_PATH:-/opt/wapow}"
+            cd "$TARGET"
+            export REGISTRY_PREFIX="$REGISTRY_PREFIX"
+            docker compose -f docker-compose.prod.yml pull app collector
+            docker compose -f docker-compose.prod.yml up -d
