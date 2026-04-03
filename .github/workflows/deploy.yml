@@ -19,13 +19,13 @@ jobs:
       # Build and push to DO registry
       - name: Build and push
         run: |
-          docker build -t $REGISTRY/wapow-app:latest ../wapow-app
+          docker build -t $REGISTRY/wapow-app:latest ./wapow-app
           docker push $REGISTRY/wapow-app:latest
 
 
       - name: Build & push wapow-collector
         run: |
-          docker build -t $REGISTRY/wapow-collector:latest ../wapow-collector
+          docker build -t $REGISTRY/wapow-collector:latest ./wapow-collector
           docker push $REGISTRY/wapow-collector:latest
 
         
