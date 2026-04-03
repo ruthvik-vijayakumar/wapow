@@ -45,7 +45,7 @@ jobs:
             echo "$DO_API_TOKEN" | docker login registry.digitalocean.com -u "$DO_API_TOKEN" --password-stdin
             docker pull "${REGISTRY_PREFIX}/wapow-app:latest"
             docker pull "${REGISTRY_PREFIX}/wapow-collector:latest"
-            cd "/opt"
+            cd "/app"
             export REGISTRY_PREFIX="$REGISTRY_PREFIX"
             docker compose -f docker-compose.prod.yml pull app collector
             docker compose -f docker-compose.prod.yml up -d
