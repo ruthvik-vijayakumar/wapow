@@ -1,6 +1,5 @@
 <template>
   <div class="podcast-container" ref="podcastContainer">
-    <!-- Header (matches StoryView) -->
     <div class="podcast-header">
       <button @click="handleBack" class="back-button">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -23,9 +22,7 @@
       </div>
     </div>
 
-    <!-- Main Content -->
     <div class="podcast-content">
-      <!-- Album Art -->
       <div class="album-art-container">
         <img
           :src="props.podcast.thumbnail"
@@ -33,7 +30,6 @@
           class="album-art"
         />
 
-        <!-- Play/Pause Overlay -->
         <div v-if="!isPlaying" class="play-overlay" @click="togglePlay">
           <svg class="w-16 h-16" fill="currentColor" viewBox="0 0 24 24">
             <path d="M8 5v14l11-7z"/>
@@ -41,7 +37,6 @@
         </div>
       </div>
 
-      <!-- Audio Controls -->
       <div class="audio-controls">
         <div class="progress-container">
           <div class="progress-bar-audio">
@@ -63,14 +58,12 @@
         </div>
       </div>
 
-      <!-- Podcast Info -->
       <div class="podcast-info">
         <h2 class="podcast-title">{{ props.podcast.title }}</h2>
         <p class="podcast-artist">{{ props.podcast.author?.name || 'Unknown Artist' }}</p>
         <p class="podcast-album ellipsis-2">{{ props.podcast.description }}</p>
       </div>
 
-      <!-- Lyrics Display -->
       <div class="lyrics-container">
         <div ref="lyricsScrollRef" class="lyrics-scroll">
           <div
@@ -88,7 +81,6 @@
       </div>
     </div>
 
-    <!-- Comments Bottom Sheet -->
     <BottomControls
       :initial-liked="isLiked"
       :article-content="props.podcast"
@@ -96,7 +88,6 @@
       @comments="handleComment"
     />
 
-    <!-- Hidden Audio Element -->
     <audio
       ref="audioPlayer"
       :src="props.podcast.audioUrl"
@@ -140,7 +131,6 @@ const emit = defineEmits<{
 const { trackAudioProgress } = useAnalytics()
 const isSaved = computed(() => props.isSaved)
 
-// Audio progress tracking — fire at 25%, 50%, 75%, 100% milestones
 const _firedAudioMilestones = new Set<number>()
 let _audioStartTime = 0
 
@@ -188,9 +178,7 @@ const handleFollow = () => {
 
 const playPodcast = () => {
   if (!audioPlayer.value) return
-  audioPlayer.value.play().catch(error => {
-    console.log('Play failed:', error)
-  })
+  audioPlayer.value.play().catch(() => {})
   isPlaying.value = true
   if (!_audioStartTime) _audioStartTime = performance.now()
 }
@@ -221,7 +209,6 @@ const handleTimeUpdate = () => {
     audioProgress.value = (current / total) * 100
     currentTime.value = formatTime(current)
 
-    // Analytics: fire at 25/50/75/100% milestones
     const pct = Math.floor(audioProgress.value)
     for (const milestone of [25, 50, 75, 100]) {
       if (pct >= milestone && !_firedAudioMilestones.has(milestone)) {
@@ -232,15 +219,6 @@ const handleTimeUpdate = () => {
       }
     }
 
-    // Update lyric index based on progress
-    // const lyrics = props.podcast.lyrics
-    // const progressPerLyric = 100 / lyrics.length
-    // const newLyricIndex = Math.floor(audioProgress.value / progressPerLyric)
-
-    // if (newLyricIndex !== currentLyricIndex.value) {
-    //   currentLyricIndex.value = newLyricIndex
-    //   scrollToActiveLyric()
-    // }
   }
 }
 
@@ -254,7 +232,6 @@ const scrollToActiveLyric = () => {
   const containerRect = container.getBoundingClientRect()
   const elementRect = activeElement.getBoundingClientRect()
 
-  // Calculate the scroll position to center the active lyric
   const scrollTop = activeElement.offsetTop - container.offsetTop - (containerRect.height / 2) + (elementRect.height / 2)
 
   container.scrollTo({
@@ -283,16 +260,10 @@ const handleLike = () => {
   isLiked.value = !isLiked.value
 }
 
-const handleComment = (articleContent?: any) => {
+const handleComment = () => {
   emit('comments')
-  console.log('Comments event emitted from PodcastView with content:', articleContent)
 }
 
-const handleShare = () => {
-  console.log('Share clicked')
-}
-
-// Visibility detection for autoplay
 const setupIntersectionObserver = () => {
   if (!podcastContainer.value) return
 
@@ -300,29 +271,21 @@ const setupIntersectionObserver = () => {
     (entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
-          // Podcast is visible - play it
           isVisible.value = true
-          nextTick(() => {
-            playPodcast()
-          })
+          nextTick(() => playPodcast())
         } else {
-          // Podcast is not visible - pause it
           isVisible.value = false
           pausePodcast()
         }
       })
     },
-    {
-      threshold: 0.5, // Trigger when 50% of podcast is visible
-      rootMargin: '0px'
-    }
+    { threshold: 0.5 }
   )
 
   intersectionObserver.observe(podcastContainer.value)
 }
 
 onMounted(() => {
-  console.log('PodcastView mounted', props.podcast)
   if (audioPlayer.value) {
     audioPlayer.value.addEventListener('play', () => {
       isPlaying.value = true
@@ -333,12 +296,7 @@ onMounted(() => {
     })
   }
 
-  // Scroll to active lyric on mount
-  nextTick(() => {
-    scrollToActiveLyric()
-  })
-
-  // Setup intersection observer for autoplay
+  nextTick(() => scrollToActiveLyric())
   setupIntersectionObserver()
 })
 
@@ -348,7 +306,6 @@ onUnmounted(() => {
     audioPlayer.value.removeEventListener('pause', () => isPlaying.value = false)
   }
 
-  // Cleanup intersection observer
   if (intersectionObserver) {
     intersectionObserver.disconnect()
   }
@@ -361,11 +318,9 @@ onUnmounted(() => {
   @apply flex flex-col;
   @apply touch-none;
   @apply h-full w-full;
-  /* Mobile browser navigation bar handling */
   height: 100vh;
-  height: 100dvh; /* Dynamic viewport height */
+  height: 100dvh;
   min-height: -webkit-fill-available;
-  /* Safe area insets for notched devices */
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
   padding-left: env(safe-area-inset-left);

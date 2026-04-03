@@ -57,7 +57,7 @@
     </div>
 
     <!-- Main Content -->
-    <div class="story-content" :class="{ 'has-padding': currentPage.layout === 'text-top' || currentPage.layout === 'image-top' }" @click="handleContentClick">
+    <div class="story-content" @click="handleContentClick">
       <!-- Layout: Text on top, Image on bottom -->
       <template v-if="currentPage.layout === 'text-top'">
         <div class="text-top-container">
@@ -73,7 +73,7 @@
 
       <!-- Layout: Image on top, Text on bottom (standard) -->
       <template v-else-if="currentPage.layout === 'image-top'">
-        <div class="text-top-container mb-2">
+        <div class="text-top-container">
           <div class="image-section">
             <img :src="currentPage.thumbnail" :alt="currentPage.title" class="story-image" />
           </div>
@@ -161,16 +161,9 @@
       <template v-else>
         <div class="content-image">
           <img :src="currentPage.thumbnail" :alt="currentPage.title" class="story-image" />
-          <div class="image-overlay"></div>
         </div>
 
         <div class="content-text">
-          <!-- Recommendation Badge -->
-          <div v-if="recommendationReason" class="recommendation-badge">
-            <span class="badge-icon">{{ recommendationIcon }}</span>
-            <span class="badge-text">{{ recommendationReason }}</span>
-          </div>
-
           <h1 class="story-title">{{ currentPage.title }}</h1>
           <p class="story-description">{{ currentPage.description }}</p>
         </div>
@@ -198,7 +191,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import type { StoryContent } from '@/stores/videos'
+import type { StoryContent } from '@/stores/content'
 import BottomControls from './BottomControls.vue'
 import { apiFetch } from '@/lib/api'
 import { useAnalytics } from '@/composables/useAnalytics'
@@ -218,14 +211,6 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const router = useRouter()
-
-// Debug props
-console.log('StoryView props:', {
-  content: props.content,
-  category: props.category,
-  storyIndex: props.storyIndex,
-  totalStories: props.totalStories
-})
 
 const emit = defineEmits<{
   back: []
@@ -317,7 +302,6 @@ const pages = computed(() => {
 
   const createdAt = props.content.createdAt || props.content.publish_date || new Date().toISOString()
   const pages_data  = props.content.originalArticle.ai_summary?.pages?.filter((page: any) => page.page_type !=='hero') || []
-  console.log('🔮🗓️pages', pages_data)
   return [
     {
       ...props.content,
@@ -382,69 +366,7 @@ watch(currentPageIndex, (newIdx) => {
 
 const currentPage = computed(() => {
   const page = pages.value[currentPageIndex.value]
-  console.log('🔮🗓️currentPage', page)
-  // Ensure we always have valid content
-  // if (!page || !page.title || !page.thumbnail) {
-  //   return {
-  //     title: "Story Content",
-  //     description: "This story contains important information.",
-  //     thumbnail: "https://picsum.photos/400/600?random=fallback",
-  //     author: { name: 'Unknown', username: '@unknown', avatar: 'https://picsum.photos/50/50?random=fallback' },
-  //     createdAt: new Date().toISOString()
-  //   }
-  // }
-
   return page
-})
-
-// Recommendation badge logic
-const recommendationReason = computed(() => {
-  // Determine why this story is recommended based on category and other factors
-  const category = props.category.toLowerCase()
-
-  // Check if user follows this category
-  if (category.includes('sports')) {
-    return 'Because you follow Sports'
-  }
-  if (category.includes('politics') || category.includes('news')) {
-    return 'Because you follow Politics'
-  }
-  if (category.includes('technology') || category.includes('tech')) {
-    return 'Because you follow Technology'
-  }
-  if (category.includes('entertainment')) {
-    return 'Because you follow Entertainment'
-  }
-  if (category.includes('business')) {
-    return 'Because you follow Business'
-  }
-
-  // Check if it's trending/hot news
-  if (Math.random() > 0.7) {
-    return 'Hot News'
-  }
-
-  // Check if it's latest news
-  if (Math.random() > 0.5) {
-    return 'Latest News'
-  }
-
-  // Default recommendation
-  return 'Recommended for you'
-})
-
-const recommendationIcon = computed(() => {
-  const reason = recommendationReason.value
-
-  if (reason.includes('Sports')) return '⚽'
-  if (reason.includes('Politics')) return '🏛️'
-  if (reason.includes('Technology')) return '💻'
-  if (reason.includes('Entertainment')) return '🎭'
-  if (reason.includes('Business')) return '💰'
-  if (reason.includes('Hot News')) return '🔥'
-  if (reason.includes('Latest News')) return '📰'
-
-  return '✨'
 })
 
 const handleContentClick = (event: MouseEvent) => {
@@ -701,11 +623,6 @@ onUnmounted(() => {
   @apply overflow-hidden;
 }
 
-/* Add padding for text-top and image-top layouts */
-.story-content.has-padding {
-  @apply p-4;
-}
-
 .content-image {
   @apply absolute inset-0;
 }
@@ -714,14 +631,17 @@ onUnmounted(() => {
   @apply w-full h-full object-cover;
 }
 
-.image-overlay {
-  @apply absolute inset-0;
-  @apply bg-gradient-to-t from-black via-transparent to-transparent;
-}
-
 .content-text {
-  @apply absolute bottom-0 left-0 right-0 p-6;
+  @apply absolute bottom-0 left-0 right-0 z-10;
+  @apply px-6 pb-6 pt-20;
   @apply text-white;
+  /* Readable copy on busy hero images without dimming the whole slide */
+  background: linear-gradient(
+    to top,
+    rgb(0 0 0 / 0.92) 0%,
+    rgb(0 0 0 / 0.55) 38%,
+    transparent 100%
+  );
 }
 
 /* Text-top layout styles */
@@ -740,13 +660,29 @@ onUnmounted(() => {
 }
 
 .image-section {
-  @apply h-1/2 bg-gray-900;
-  @apply flex items-center justify-center;
+  @apply relative h-1/2 min-h-0 w-full bg-black overflow-hidden;
+}
+
+/* Soften hard crop edges: blend into black (text band / chrome) above and below */
+.image-section::before,
+.image-section::after {
+  content: '';
+  @apply pointer-events-none absolute left-0 right-0 z-[1];
+  height: 32%;
+}
+
+.image-section::before {
+  @apply top-0;
+  background: linear-gradient(to bottom, #000 0%, rgba(0, 0, 0, 0.45) 35%, transparent 100%);
+}
+
+.image-section::after {
+  @apply bottom-0;
+  background: linear-gradient(to top, #000 0%, rgba(0, 0, 0, 0.45) 35%, transparent 100%);
 }
 
 .image-section .story-image {
-  @apply max-h-full max-w-full object-cover;
-  @apply block;
+  @apply relative z-0 w-full h-full object-cover block;
 }
 
 /* Image-top layout styles */
@@ -953,23 +889,6 @@ onUnmounted(() => {
   line-height: 1.2rem;
   @apply text-base;
   @apply text-gray-200;
-}
-
-/* Recommendation Badge */
-.recommendation-badge {
-  @apply flex items-center space-x-2 mb-3;
-  @apply bg-white bg-opacity-20 backdrop-blur-sm;
-  @apply px-3 py-1 rounded-full;
-  @apply text-white text-sm font-medium;
-  @apply w-fit;
-}
-
-.badge-icon {
-  @apply text-xs;
-}
-
-.badge-text {
-  @apply font-medium;
 }
 
 /* Bottom Controls */

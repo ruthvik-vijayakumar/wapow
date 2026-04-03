@@ -111,6 +111,7 @@ async def me(user: UserClaims = Depends(get_current_user_or_dev)):
     """Current user from JWT. Upserts user document in MongoDB on every call."""
     doc = user_service.get_or_create_user(user_id=user.user_id)
     return {
+        "_id": doc.get("_id"),
         "user_id": user.user_id,
         "sub": user.sub,
         "scope": user.scope,

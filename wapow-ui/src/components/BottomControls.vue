@@ -4,9 +4,6 @@
       <div v-if="showCategory" class="category-tag-container">
         <span class="category-tag">{{ category }}</span>
         <span class="decorative-text">
-          <svg class="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-          </svg>
           Follow
         </span>
       </div>

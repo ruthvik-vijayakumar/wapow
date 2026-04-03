@@ -25,6 +25,7 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref<AuthUser | null>(null)
   const isAuthenticated = ref(false)
   const isLoading = ref(true)
+  const mongoId = ref<string | null>(null)
 
   /* ─── derived ─── */
   const userId = computed(() => user.value?.id ?? user.value?.sub ?? null)
@@ -124,12 +125,17 @@ export const useAuthStore = defineStore('auth', () => {
     return null
   }
 
+  function setMongoId(id: string) {
+    mongoId.value = id
+  }
+
   return {
     // State
     user,
     isAuthenticated,
     isLoading,
     userId,
+    mongoId,
     // Lifecycle
     init,
     // Actions
@@ -139,5 +145,6 @@ export const useAuthStore = defineStore('auth', () => {
     signOut,
     getAccessToken,
     handleRedirectCallback,
+    setMongoId,
   }
 })

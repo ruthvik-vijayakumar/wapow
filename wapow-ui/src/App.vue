@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { RouterView } from 'vue-router'
 import { onMounted, watch } from 'vue'
-import { useContentStore } from '@/stores/videos'
+import { useContentStore } from '@/stores/content'
 import { useAuthStore } from '@/stores/auth'
 import { apiFetch } from '@/lib/api'
 import { tracker } from '@/lib/analytics'
@@ -19,27 +19,24 @@ const contentStore = useContentStore()
 // Start the analytics event tracker
 tracker.start()
 
-// Keep the analytics tracker in sync with the current user ID.
-// Watching userId directly avoids timing issues where isAuthenticated
-// becomes true before the user profile (and thus userId) is available.
-watch(
-  () => authStore.userId,
-  (id) => {
-    tracker.setUserId(id ?? '')
-  },
-  { immediate: true },
-)
-
-// When the user becomes authenticated, call /api/me to upsert user document in MongoDB
+// When the user becomes authenticated, call /api/me to upsert user document
+// in MongoDB and use the returned _id for the analytics tracker.
 watch(
   () => authStore.isAuthenticated,
   async (authenticated) => {
     if (authenticated) {
       try {
-        await apiFetch('/api/me')
+        const res = await apiFetch('/api/me')
+        const data = await res.json()
+        if (data._id) {
+          authStore.setMongoId(data._id)
+          tracker.setUserId(data._id)
+        }
       } catch {
         // Non-critical — user will be created on next interaction
       }
+    } else {
+      tracker.setUserId('')
     }
   },
   { immediate: true },

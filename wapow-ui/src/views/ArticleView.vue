@@ -13,6 +13,20 @@
 
     <!-- Iframe container -->
     <div class="iframe-container">
+      <!-- Skeleton overlay while iframe loads -->
+      <div v-if="isLoading && !hasError" class="article-skeleton">
+        <div class="article-skeleton-hero skeleton-pulse"></div>
+        <div class="article-skeleton-body">
+          <div class="skeleton-line skeleton-pulse" style="width: 75%; height: 1.25rem;"></div>
+          <div class="skeleton-line skeleton-pulse" style="width: 40%; height: 0.75rem; margin-top: 1rem;"></div>
+          <div class="skeleton-line skeleton-pulse" style="width: 100%; height: 0.625rem; margin-top: 1.5rem;"></div>
+          <div class="skeleton-line skeleton-pulse" style="width: 100%; height: 0.625rem; margin-top: 0.5rem;"></div>
+          <div class="skeleton-line skeleton-pulse" style="width: 85%; height: 0.625rem; margin-top: 0.5rem;"></div>
+          <div class="skeleton-line skeleton-pulse" style="width: 100%; height: 0.625rem; margin-top: 1rem;"></div>
+          <div class="skeleton-line skeleton-pulse" style="width: 95%; height: 0.625rem; margin-top: 0.5rem;"></div>
+          <div class="skeleton-line skeleton-pulse" style="width: 60%; height: 0.625rem; margin-top: 0.5rem;"></div>
+        </div>
+      </div>
       <iframe
         :src="`https://washingtonpost.com/${articleUrl}`"
         class="article-iframe"
@@ -78,7 +92,7 @@ const retryLoad = () => {
 // Initialize component
 onMounted(() => {
   console.log('ArticleView mounted with URL:', articleUrl.value)
-  
+
   // Set a timeout to show error if iframe doesn't load
   setTimeout(() => {
     if (isLoading.value) {
@@ -134,23 +148,45 @@ onMounted(() => {
   @apply max-w-xs;
 }
 
-.loading-container {
-  @apply flex flex-col items-center justify-center;
-  @apply flex-1;
-  @apply p-8;
+/* Article skeleton */
+.article-skeleton {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: #ffffff;
+  overflow: hidden;
 }
 
-.loading-spinner {
-  @apply w-8 h-8;
-  @apply border-4 border-gray-200 border-t-blue-600;
-  @apply rounded-full;
-  @apply animate-spin;
-  @apply mb-4;
+.article-skeleton-hero {
+  width: 100%;
+  height: 40%;
 }
 
-.loading-text {
-  @apply text-gray-600;
-  @apply text-sm;
+.article-skeleton-body {
+  padding: 1.5rem 1rem;
+}
+
+.skeleton-line {
+  border-radius: 0.25rem;
+}
+
+.skeleton-pulse {
+  background: #f3f4f6;
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-pulse::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, #e5e7eb 50%, transparent 100%);
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 
 .error-container {

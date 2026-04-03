@@ -9,9 +9,15 @@
       <h1 class="saved-title">Saved Content</h1>
     </header>
 
-    <div v-if="isLoading" class="loading-state">
-      <div class="loading-spinner"></div>
-      <p class="loading-text">Loading saved content...</p>
+    <div v-if="isLoading" class="saved-list">
+      <div v-for="n in 6" :key="n" class="saved-item skeleton-item">
+        <div class="item-thumbnail skeleton-pulse"></div>
+        <div class="item-content">
+          <div class="skeleton-line skeleton-pulse" style="width: 80%; height: 0.8125rem;"></div>
+          <div class="skeleton-line skeleton-pulse" style="width: 45%; height: 0.625rem; margin-top: 0.375rem;"></div>
+        </div>
+        <div class="skeleton-circle skeleton-pulse"></div>
+      </div>
     </div>
 
     <div v-else-if="items.length === 0" class="empty-state">
@@ -217,7 +223,6 @@ onMounted(() => loadSaved())
   color: var(--text-primary);
 }
 
-.loading-state,
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -227,23 +232,39 @@ onMounted(() => loadSaved())
   text-align: center;
 }
 
-.loading-spinner {
-  width: 3rem;
-  height: 3rem;
-  border: 2px solid var(--spinner-border);
-  border-top-color: var(--spinner-accent);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+/* Skeleton */
+.skeleton-item {
+  pointer-events: none;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
+.skeleton-pulse {
+  background: var(--bg-tertiary);
+  position: relative;
+  overflow: hidden;
 }
 
-.loading-text {
-  margin-top: 1rem;
-  color: var(--text-secondary);
-  font-size: 0.875rem;
+.skeleton-pulse::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, var(--bg-hover) 50%, transparent 100%);
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+.skeleton-line {
+  border-radius: 0.25rem;
+}
+
+.skeleton-circle {
+  flex-shrink: 0;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.5rem;
+}
+
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 
 .empty-icon {

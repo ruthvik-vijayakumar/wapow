@@ -7,7 +7,6 @@
     @keydown="handleKeyDown"
     tabindex="0"
   >
-    <!-- Stories Container -->
     <div
       class="stories-container"
       :class="{ 'swiping': isSwiping }"
@@ -18,7 +17,6 @@
         :key="story.id"
         class="story-wrapper"
       >
-        <!-- Dynamic Story Renderer -->
         <StoryView
           v-if="story.mediaType === 'story' && story.content"
           :content="story.content"
@@ -76,7 +74,6 @@
       </div>
     </div>
 
-    <!-- Comments Bottom Sheet -->
     <div
       v-if="showComments"
       class="comments-overlay"
@@ -98,7 +95,6 @@
           </button>
         </div>
 
-        <!-- Tabs -->
         <div class="tabs-container">
           <button
             @click="switchTab('comments')"
@@ -122,13 +118,17 @@
           </button>
         </div>
 
-        <!-- Comments Tab -->
         <div v-if="activeTab === 'comments'" class="comments-list" @touchstart.stop @touchmove.stop @touchend.stop>
-          <!-- Loading state -->
-          <div v-if="commentsLoading" class="comments-loading">
-            <span>Loading comments...</span>
+          <div v-if="commentsLoading" class="comments-skeleton">
+            <div v-for="n in 4" :key="n" class="comment-skeleton-item">
+              <div class="comment-skeleton-avatar skeleton-pulse-dark"></div>
+              <div class="comment-skeleton-body">
+                <div class="skeleton-line-dark skeleton-pulse-dark" style="width: 40%; height: 0.6875rem;"></div>
+                <div class="skeleton-line-dark skeleton-pulse-dark" style="width: 90%; height: 0.625rem; margin-top: 0.5rem;"></div>
+                <div class="skeleton-line-dark skeleton-pulse-dark" style="width: 65%; height: 0.625rem; margin-top: 0.375rem;"></div>
+              </div>
+            </div>
           </div>
-          <!-- Empty state -->
           <div v-else-if="comments.length === 0" class="comments-empty">
             <span>No comments yet. Be the first to discuss!</span>
           </div>
@@ -171,7 +171,6 @@
                 <button class="comment-reply" @click="startReply(comment._id, comment.user_name)">Reply</button>
               </div>
 
-              <!-- Replies -->
               <div v-if="comment.replies && comment.replies.length > 0" class="replies-container">
                 <div
                   v-for="reply in comment.replies"
@@ -217,7 +216,6 @@
           </div>
         </div>
 
-        <!-- Chatbot Tab -->
         <div v-if="activeTab === 'chatbot'" class="chatbot-list" @touchstart.stop @touchmove.stop @touchend.stop>
           <div
             v-for="message in chatbotMessages"
@@ -232,9 +230,7 @@
           </div>
         </div>
 
-        <!-- Input Section -->
         <div class="input-section">
-          <!-- Comments Input -->
           <div v-if="activeTab === 'comments'" class="comment-input">
             <div v-if="replyingTo" class="reply-indicator">
               <span>Replying to {{ replyingToName }}</span>
@@ -257,7 +253,6 @@
             </div>
           </div>
 
-          <!-- Chatbot Input -->
           <div v-if="activeTab === 'chatbot'" class="chatbot-input">
             <input
               type="text"
@@ -285,18 +280,14 @@ import { apiFetch } from '@/lib/api'
 import VerticalVideoView from './VerticalVideoView.vue'
 import PodcastView from './PodcastView.vue'
 import Game from '@/views/wordle/Game.vue'
-import { useContentStore } from '@/stores/videos'
+import { useContentStore } from '@/stores/content'
 import { useAuthStore } from '@/stores/auth'
 import { useAnalytics } from '@/composables/useAnalytics'
-import type { Video, StoryContent, Article } from '@/stores/videos'
+import type { Video, StoryContent, Article } from '@/stores/content'
 
-// Add a watcher to debug store changes
 const contentStore = useContentStore()
 const authStore = useAuthStore()
 const { trackView, trackSave, trackNavigate, startDwell, stopDwell } = useAnalytics()
-watch(() => contentStore.videos, (newVideos) => {
-  console.log('Videos changed in store:', newVideos.length)
-}, { immediate: true })
 
 
 interface Story {
@@ -324,7 +315,6 @@ const emit = defineEmits<{
 const currentStoryIndex = ref(0)
 const swipeOffset = ref(0)
 
-// Saved articles - persisted via API when logged in, local-only otherwise
 const savedArticleIds = ref<Set<string>>(new Set())
 
 const getStoryArticleId = (story: Story): string => {
@@ -348,7 +338,7 @@ const fetchSavedArticleIds = async () => {
       savedArticleIds.value = new Set(json.ids ?? [])
     }
   } catch {
-    // Auth not configured or not logged in - use local state
+    // not logged in — use local state
   }
 }
 
@@ -362,7 +352,6 @@ const handleSaveArticle = (payload: { id: string; collection?: string; saved: bo
   }
   savedArticleIds.value = set
 
-  // Analytics: track save/unsave
   const story = currentStory.value
   const type = story?.mediaType === 'story' ? 'article' : (story?.mediaType || '')
   trackSave(id, saved, type, story?.category || '')
@@ -372,10 +361,9 @@ onMounted(() => {
   fetchSavedArticleIds()
 })
 
-// Comments functionality
 const showComments = ref(false)
 const newComment = ref('')
-const activeTab = ref('comments') // 'comments' or 'chatbot'
+const activeTab = ref('comments')
 const chatbotMessage = ref('')
 const currentArticleContent = ref<any>(null)
 const currentArticleId = ref<string | null>(null)
@@ -392,26 +380,17 @@ const chatbotMessages = ref([
   }
 ])
 
-// Comments data (fetched from API)
 const comments = ref<any[]>([])
 
-
-
-
-// Touch/swipe handling
 const touchStart = ref({ x: 0, y: 0 })
 const touchEnd = ref({ x: 0, y: 0 })
 const isSwiping = ref(false)
 
-// Generate stories from initial article, related articles, and videos
 const stories = computed((): Story[] => {
   const baseStories: Story[] = []
 
-  // Always add the initial article/video/podcast as the first story
   if (props.initialArticle && (props.initialArticle as any)._videoRef) {
-    // Initial item is a video passed from saved content
     const videoData = (props.initialArticle as any)._videoRef
-    console.log('Adding initial item as VIDEO story:', videoData.tracking?.page_title || videoData.title)
     baseStories.push({
       id: `video-${props.initialArticle._id}`,
       mediaType: 'video',
@@ -419,9 +398,7 @@ const stories = computed((): Story[] => {
       category: props.category
     })
   } else if (props.initialArticle && (props.initialArticle as any)._podcastRef) {
-    // Initial item is a podcast passed from saved content
     const podcastData = (props.initialArticle as any)._podcastRef
-    console.log('Adding initial item as PODCAST story:', podcastData.title)
     baseStories.push({
       id: `podcast-${props.initialArticle._id}`,
       mediaType: 'podcast',
@@ -429,23 +406,17 @@ const stories = computed((): Story[] => {
       category: props.category
     })
   } else if (props.initialArticle && props.initialArticle.headlines?.basic) {
-    // console.log('Adding initial article as story:', props.initialArticle.headlines.basic)
     baseStories.push({
       id: `story-${props.initialArticle._id}`,
       mediaType: 'story',
       content: convertArticleToStoryContent(props.initialArticle),
       category: props.category
     })
-  } else {
-    console.error('Initial article is invalid:', props.initialArticle)
   }
 
-  // Add related articles as additional stories
   if (props.articles && props.articles.length > 0) {
-    console.log('Adding related articles as stories, count:', props.articles.length)
-    props.articles.forEach((article, index) => {
+    props.articles.forEach((article) => {
       if (article && article.headlines?.basic && article._id !== props.initialArticle?._id) {
-        console.log('Adding article:', article.headlines.basic)
         baseStories.push({
           id: `story-related-${article._id}`,
           mediaType: 'story',
@@ -453,111 +424,68 @@ const stories = computed((): Story[] => {
           category: getCategoryFromArticle(article)
         })
       } else if (article && (article as any).type === 'game') {
-        console.log('Adding game to StoryFeed:', (article as any).title || 'Wordle', 'ID:', article._id)
         baseStories.push({
           id: `game-${article._id}`,
           mediaType: 'game',
           content: article,
           category: 'Games'
         })
-      } else {
-        console.error('Invalid related article:', article)
       }
     })
-  } else {
-    console.log('No related articles provided')
   }
 
-  // Create a healthy mix of articles and videos for up to 20 scrolls
+  // Fill up to 20 stories with a rotating article → video → podcast pattern
   const targetStories = 20
   const currentStories = baseStories.length
 
-  // Debug: Check if store is still loading
-  console.log('Store loading state:', contentStore.isLoading)
-
-  console.log('ContentStore state:', {
-    articlesCount: contentStore.articles.length,
-    videosCount: contentStore.videos.length,
-    podcastClipsCount: contentStore.podcastClips.length
-  })
-
-  // Debug: Check if videos are actually in the store
-  if (contentStore.videos.length > 0) {
-    console.log('First video in store:', contentStore.videos[0])
-  } else {
-    console.log('No videos in store!')
-  }
-
   if (currentStories < targetStories) {
-    console.log(`Adding mixed content to reach ${targetStories} stories (currently have ${currentStories})`)
-
-    // Get all available articles, videos, and podcast clips
     const allArticles = contentStore.articles.filter(article =>
       article && article.headlines?.basic &&
       !baseStories.some(story => story.id === `story-${article._id}`)
     )
-
     const allVideos = contentStore.videos.filter(video =>
       video && video.content_id &&
       !baseStories.some(story => story.id === `video-${video.content_id}`)
     )
-
     const allPodcastClips = contentStore.podcastClips.filter(podcast =>
       podcast && podcast.id &&
       !baseStories.some(story => story.id === `podcast-${podcast.id}`)
     )
 
-    console.log(`Available articles: ${allArticles.length}, Available videos: ${allVideos.length}, Available podcast clips: ${allPodcastClips.length}`)
-    if (allVideos.length > 0) {
-      console.log('Sample video:', allVideos[0])
-    }
-    if (allPodcastClips.length > 0) {
-      console.log('Sample podcast clip:', allPodcastClips[0])
-    }
-
-    // Shuffle arrays for randomization
     const shuffledArticles = [...allArticles].sort(() => Math.random() - 0.5)
     const shuffledVideos = [...allVideos].sort(() => Math.random() - 0.5)
     const shuffledPodcastClips = [...allPodcastClips].sort(() => Math.random() - 0.5)
 
-    // Create a pattern: article, video, podcast, article, video, podcast, etc.
     let articleIndex = 0
     let videoIndex = 0
     let podcastIndex = 0
 
     for (let i = currentStories; i < targetStories; i++) {
-      const cycle = i % 3 // 0 = article, 1 = video, 2 = podcast
+      const cycle = i % 3
       const shouldAddVideo = cycle === 1 && videoIndex < shuffledVideos.length
       const shouldAddPodcast = cycle === 2 && podcastIndex < shuffledPodcastClips.length
       const shouldAddArticle = (cycle === 0 || (cycle === 1 && videoIndex >= shuffledVideos.length) || (cycle === 2 && podcastIndex >= shuffledPodcastClips.length)) && articleIndex < shuffledArticles.length
 
       if (shouldAddVideo) {
         const video = shuffledVideos[videoIndex]
-        console.log(`Adding video ${videoIndex + 1}:`, video.tracking?.page_title || video.content_id)
-        const videoStory = {
+        baseStories.push({
           id: `video-${video.content_id}`,
           mediaType: 'video' as const,
           video: video,
           category: getCategoryFromVideo(video)
-        }
-        baseStories.push(videoStory)
-        console.log('Added video story:', videoStory)
+        })
         videoIndex++
       } else if (shouldAddPodcast) {
         const podcast = shuffledPodcastClips[podcastIndex]
-        console.log(`Adding podcast clip ${podcastIndex + 1}:`, podcast.title)
-        const podcastStory = {
+        baseStories.push({
           id: `podcast-${podcast.id}`,
           mediaType: 'podcast' as const,
           podcast: podcast,
           category: getCategoryFromPodcast(podcast)
-        }
-        baseStories.push(podcastStory)
-        console.log('Added podcast story:', podcastStory)
+        })
         podcastIndex++
       } else if (shouldAddArticle) {
         const article = shuffledArticles[articleIndex]
-        console.log(`Adding article ${articleIndex + 1}:`, article.headlines?.basic)
         baseStories.push({
           id: `story-mixed-${article._id}`,
           mediaType: 'story',
@@ -566,17 +494,12 @@ const stories = computed((): Story[] => {
         })
         articleIndex++
       } else {
-        // If we run out of content, break
-        console.log('No more content available')
         break
       }
     }
 
-    console.log(`Final story count: ${baseStories.length}`)
-
-    // Debug: Force add a video if we have videos but none were added
+    // Ensure at least one video is present if the store has any
     if (contentStore.videos.length > 0 && !baseStories.some(story => story.mediaType === 'video')) {
-      console.log('Forcing addition of a video story')
       const firstVideo = contentStore.videos[0]
       baseStories.push({
         id: `forced-video-${firstVideo.content_id}`,
@@ -584,54 +507,26 @@ const stories = computed((): Story[] => {
         video: firstVideo,
         category: getCategoryFromVideo(firstVideo)
       })
-      console.log('Added forced video story')
     }
   }
 
-  console.log('Final stories array:', baseStories.length, baseStories.map(s => ({
-    id: s.id,
-    mediaType: s.mediaType,
-    title: s.video?.tracking?.page_title || s.podcast?.title || s.content?.title
-  })))
-
-  // Randomize the stories array (except the first story which is the initial article)
+  // Shuffle everything except the first story (the initial article)
   if (baseStories.length > 2) {
-    const initialStory = baseStories[0]
-    const remainingStories = baseStories.slice(1)
-
-    // Shuffle the remaining stories
-    for (let i = remainingStories.length - 1; i > 0; i--) {
+    const [initial, ...rest] = baseStories
+    for (let i = rest.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1))
-      ;[remainingStories[i], remainingStories[j]] = [remainingStories[j], remainingStories[i]]
+      ;[rest[i], rest[j]] = [rest[j], rest[i]]
     }
-
-    // Reconstruct the array with initial story first, then shuffled remaining stories
-    const shuffledStories = [initialStory, ...remainingStories]
-    console.log('Stories after randomization:', shuffledStories.map(s => ({
-      id: s.id,
-      mediaType: s.mediaType,
-      title: s.video?.tracking?.page_title || s.podcast?.title || s.content?.title
-    })))
-
-    return shuffledStories
+    return [initial, ...rest]
   }
 
   return baseStories
 })
 
-const currentStory = computed(() => {
-  const story = stories.value[currentStoryIndex.value]
-  console.log('Current story:', currentStoryIndex.value, story?.mediaType, story?.video?.tracking?.page_title || story?.podcast?.title)
-  return story
-})
+const currentStory = computed(() => stories.value[currentStoryIndex.value])
 
-// ── Analytics: track view + dwell on story change ──────────────────────────
 watch(currentStory, (newStory, oldStory) => {
-  // Stop dwell for the previous story
-  if (oldStory) {
-    stopDwell(getStoryArticleId(oldStory))
-  }
-  // Start dwell + fire view for the new story
+  if (oldStory) stopDwell(getStoryArticleId(oldStory))
   if (newStory) {
     const id = getStoryArticleId(newStory)
     const type = newStory.mediaType === 'story' ? 'article' : newStory.mediaType
@@ -642,11 +537,7 @@ watch(currentStory, (newStory, oldStory) => {
 }, { immediate: true })
 
 const handleTouchStart = (event: TouchEvent) => {
-  console.log('Touch start detected')
-  touchStart.value = {
-    x: event.touches[0].clientX,
-    y: event.touches[0].clientY
-  }
+  touchStart.value = { x: event.touches[0].clientX, y: event.touches[0].clientY }
   isSwiping.value = false
   swipeOffset.value = 0
 }
@@ -657,52 +548,25 @@ const handleTouchMove = (event: TouchEvent) => {
   const deltaY = currentY - touchStart.value.y
   const deltaX = currentX - touchStart.value.x
 
-  // Only start swiping if we've moved enough vertically and not horizontally
   if (Math.abs(deltaY) > 10 && Math.abs(deltaY) > Math.abs(deltaX)) {
     isSwiping.value = true
-    console.log('Swiping detected, deltaY:', deltaY)
-
-    // Calculate swipe offset as percentage of screen height
-    const screenHeight = window.innerHeight
-    const swipePercentage = deltaY / screenHeight
-    swipeOffset.value = swipePercentage * 100 // Convert to percentage
-
-    console.log('Swipe offset:', swipeOffset.value)
+    swipeOffset.value = (deltaY / window.innerHeight) * 100
   }
 
-  touchEnd.value = {
-    x: event.touches[0].clientX,
-    y: currentY
-  }
+  touchEnd.value = { x: currentX, y: currentY }
 }
 
 const handleTouchEnd = () => {
-  console.log('Touch end detected, isSwiping:', isSwiping.value)
-
   if (!isSwiping.value) return
 
   const deltaX = touchEnd.value.x - touchStart.value.x
   const deltaY = touchEnd.value.y - touchStart.value.y
-  const minSwipeDistance = 80 // Increased threshold for better detection
+  const minSwipeDistance = 80
 
-  console.log('Swipe analysis - deltaX:', deltaX, 'deltaY:', deltaY, 'minDistance:', minSwipeDistance)
-
-  // Only handle vertical swipes (vertical movement must be greater than horizontal)
   if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > minSwipeDistance) {
-    if (deltaY > 0) {
-      // Swipe down - previous story
-      console.log('Swipe down detected - going to previous story')
-      prevStory()
-    } else {
-      // Swipe up - next story
-      console.log('Swipe up detected - going to next story')
-      nextStory()
-    }
-  } else {
-    console.log('Swipe not significant enough or not vertical')
+    if (deltaY > 0) { prevStory() } else { nextStory() }
   }
 
-  // Reset swipe state
   isSwiping.value = false
   swipeOffset.value = 0
 }
@@ -725,56 +589,35 @@ const handleKeyDown = (event: KeyboardEvent) => {
 }
 
 const nextStory = () => {
-  console.log('Attempting next story. Current:', currentStoryIndex.value, 'Total:', stories.value.length)
-
   if (currentStoryIndex.value < stories.value.length - 1) {
     const fromId = getStoryArticleId(stories.value[currentStoryIndex.value])
     currentStoryIndex.value++
     const toId = getStoryArticleId(stories.value[currentStoryIndex.value])
     trackNavigate(fromId, toId, 'next')
-    const nextStory = stories.value[currentStoryIndex.value]
-    console.log('Next story:', currentStoryIndex.value, nextStory?.mediaType, nextStory?.video?.tracking?.page_title || nextStory?.podcast?.title)
 
-    // Validate the next story has content
-    if (!nextStory || (!nextStory.video && !nextStory.podcast && !nextStory.content)) {
-      console.error('Invalid story at index:', currentStoryIndex.value)
-      // Try to find a valid story
+    const story = stories.value[currentStoryIndex.value]
+    if (!story || (!story.video && !story.podcast && !story.content)) {
       const validIndex = stories.value.findIndex(s => s.video || s.podcast || s.content)
-      if (validIndex !== -1) {
-        currentStoryIndex.value = validIndex
-      }
+      if (validIndex !== -1) currentStoryIndex.value = validIndex
     }
   } else {
-    console.log('No more stories, going back')
     handleStoryBack()
   }
 }
 
 const prevStory = () => {
-  console.log('Attempting prev story. Current:', currentStoryIndex.value)
-
   if (currentStoryIndex.value > 0) {
     const fromId = getStoryArticleId(stories.value[currentStoryIndex.value])
     currentStoryIndex.value--
     const toId = getStoryArticleId(stories.value[currentStoryIndex.value])
     trackNavigate(fromId, toId, 'prev')
-    const prevStory = stories.value[currentStoryIndex.value]
-    console.log('Previous story:', currentStoryIndex.value, prevStory?.mediaType, prevStory?.video?.tracking?.page_title || prevStory?.podcast?.title)
 
-    // Validate the previous story has content
-    if (!prevStory || (!prevStory.video && !prevStory.podcast && !prevStory.content)) {
-      console.error('Invalid story at index:', currentStoryIndex.value)
-      // Try to find a valid story
+    const story = stories.value[currentStoryIndex.value]
+    if (!story || (!story.video && !story.podcast && !story.content)) {
       const validIndex = stories.value.findIndex(s => s.video || s.podcast || s.content)
-      if (validIndex !== -1) {
-        currentStoryIndex.value = validIndex
-      }
+      if (validIndex !== -1) currentStoryIndex.value = validIndex
     }
   }
-}
-
-const goToStory = (index: number) => {
-  currentStoryIndex.value = index
 }
 
 const handleStoryBack = () => {
@@ -784,8 +627,6 @@ const handleStoryBack = () => {
 const handleFollow = (authorId: string) => {
   emit('follow', authorId)
 }
-
-// --- Comments: API-backed handlers ---
 
 const fetchComments = async (articleId: string) => {
   commentsLoading.value = true
@@ -809,12 +650,10 @@ const toggleComments = (storyOrContent?: any) => {
     return
   }
 
-  // Resolve the article ID from whatever was passed
   let articleId: string | null = null
   let textContent = ''
 
   if (storyOrContent) {
-    // Called from StoryView: storyOrContent is the Story object
     const story = storyOrContent as any
     if (story.content?.originalArticle?._id) {
       articleId = story.content.originalArticle._id
@@ -828,7 +667,6 @@ const toggleComments = (storyOrContent?: any) => {
       articleId = story.id
     }
 
-    // Extract text content for AI chat
     try {
       textContent = story.content?.originalArticle?.content_elements
         ?.filter((el: any) => el.type === 'text')
@@ -837,9 +675,7 @@ const toggleComments = (storyOrContent?: any) => {
         .replace(/https?:\/\/[^\s]+/g, '')
         .replace(/\s+/g, ' ')
         .trim() ?? ''
-    } catch {
-      // Not all content types have content_elements
-    }
+    } catch { /* not all content types have content_elements */ }
   }
 
   currentArticleId.value = articleId
@@ -881,14 +717,12 @@ const addComment = async () => {
       const json = await res.json()
       const newDoc = json.data
       if (replyingTo.value) {
-        // Add the reply to its parent comment
         const parent = comments.value.find((c: any) => c._id === replyingTo.value)
         if (parent) {
           if (!parent.replies) parent.replies = []
           parent.replies.push(newDoc)
         }
       } else {
-        // Prepend top-level comment
         comments.value.unshift({ ...newDoc, replies: [] })
       }
       newComment.value = ''
@@ -909,7 +743,6 @@ const voteComment = async (commentId: string, vote: 'up' | 'down') => {
     if (res.ok) {
       const json = await res.json()
       const updated = json.data
-      // Update the comment in-place (top-level or reply)
       for (const comment of comments.value) {
         if (comment._id === commentId) {
           comment.upvotes = updated.upvotes
@@ -966,161 +799,51 @@ const switchTab = (tab: string) => {
 }
 
 const sendChatbotMessage = async () => {
-  if (chatbotMessage.value.trim()) {
-    const userMessageId = Math.max(...chatbotMessages.value.map(m => m.id)) + 1
-    const botMessageId = userMessageId + 1
+  if (!chatbotMessage.value.trim()) return
 
-    // Get article content for context
-    const articleContent = currentArticleContent.value
-    console.log('Article content:', articleContent)
-
-    let responseMessage = "I'm sorry, I'm having trouble connecting to the AI service right now. Please try again later.";
-
-    try {
-      // You need to replace 'YOUR_GEMINI_API_KEY' with your actual API key
-      const API_KEY = 'AIzaSyB-AsIIwQnGGC_y3MY9OpupF9yPsK1CSGk'; // Replace with your actual API key
-
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  {
-                    text: `User question: ${chatbotMessage.value.trim()}\n\nArticle Content:\n${articleContent}`
-                  }
-                ]
-              }
-            ],
-            generationConfig: {
-              temperature: 0.2,
-              topK: 40,
-              topP: 0.95,
-              maxOutputTokens: 1024,
-            },
-          }),
-        },
-      );
-
-      if (!response.ok) {
-        console.error('Gemini API Error:', response.status, response.statusText);
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const responseData = await response.json();
-      responseMessage = responseData.candidates[0].content.parts[0].text;
-    } catch (error) {
-      console.error('Error calling Gemini API:', error);
-    }
-    // Create enhanced user message with article title
-    const enhancedMessage = `${chatbotMessage.value.trim()}`
-
-    // Add user message
-    chatbotMessages.value.push({
-      id: userMessageId,
-      type: 'user',
-      text: enhancedMessage,
-      time: 'Just now'
-    })
-
-    // Simulate bot response
-    setTimeout(() => {
-      chatbotMessages.value.push({
-        id: botMessageId,
-        type: 'bot',
-        text: responseMessage,
-        time: 'Just now'
-      })
-    }, 1000)
-
-    chatbotMessage.value = ''
-  }
-}
-
-const generateBotResponse = (userMessage: string): string => {
-  const message = userMessage.toLowerCase()
-
-  // Get article content for context
+  const userMessageId = Math.max(...chatbotMessages.value.map(m => m.id)) + 1
+  const botMessageId = userMessageId + 1
   const articleContent = currentArticleContent.value
-
-  if (message.includes('help') || message.includes('what')) {
-    if (articleContent) {
-      return `I can help you understand this content about "${articleContent.title || 'this article'}", answer questions, or provide additional context. What would you like to know?`
-    }
-    return 'I can help you understand this content, answer questions, or provide additional context. What would you like to know?'
-  } else if (message.includes('explain') || message.includes('tell me')) {
-    if (articleContent) {
-      return `This content is about ${articleContent.title || 'current events'}. ${articleContent.description || 'I can provide more details or answer specific questions you have about it.'}`
-    }
-    return 'I can explain this content in detail. What specific aspect would you like me to focus on?'
-  } else if (message.includes('summary') || message.includes('summarize')) {
-    if (articleContent) {
-      return `Here's a quick summary: ${articleContent.description || 'This content covers important information that you might find interesting.'}`
-    }
-    return 'I can provide a summary of this content. What would you like me to highlight?'
-  } else {
-    return 'I understand your question. Let me help you with that. Could you be more specific about what you\'d like to know?'
-  }
-}
-
-
-
-// Function to get recommendations for a specific category
-const getCategoryRecommendations = async (category: string) => {
-  const userId = 'user_001' // You can make this dynamic based on user session
+  let responseMessage = "I'm sorry, I'm having trouble connecting to the AI service right now. Please try again later."
 
   try {
-    const RECOMMENDATIONS_API = import.meta.env.VITE_RECOMMENDATIONS_API || 'http://localhost:5000'
-    const response = await fetch(`${RECOMMENDATIONS_API}/recommendations`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
+    const API_KEY = 'AIzaSyB-AsIIwQnGGC_y3MY9OpupF9yPsK1CSGk'
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: `User question: ${chatbotMessage.value.trim()}\n\nArticle Content:\n${articleContent}` }] }],
+          generationConfig: { temperature: 0.2, topK: 40, topP: 0.95, maxOutputTokens: 1024 },
+        }),
       },
-      body: JSON.stringify({
-        user_id: userId,
-        category: category
-      })
+    )
+
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    const responseData = await response.json()
+    responseMessage = responseData.candidates[0].content.parts[0].text
+  } catch {
+    // fall back to default error message
+  }
+
+  chatbotMessages.value.push({
+    id: userMessageId,
+    type: 'user',
+    text: chatbotMessage.value.trim(),
+    time: 'Just now'
+  })
+
+  setTimeout(() => {
+    chatbotMessages.value.push({
+      id: botMessageId,
+      type: 'bot',
+      text: responseMessage,
+      time: 'Just now'
     })
+  }, 1000)
 
-    if (!response.ok) {
-      console.error('Recommendations API Error:', response.status, response.statusText)
-      return []
-    }
-
-    const recommendations = await response.json()
-    console.log(`Found ${recommendations.articles?.length || 0} recommendations for ${category}`)
-    return recommendations.articles || []
-  } catch (error) {
-    console.error('Error fetching recommendations:', error)
-    return []
-  }
-}
-
-const convertArticleToVideo = (article: Article): Video => {
-  return {
-    aspect_ratio: 16/9,
-    content_id: article._id,
-    canonical_url: article.canonical_url,
-    promo_image: {
-      url: article.promo_items?.basic?.url || ''
-    },
-    streams: [],
-    duration: 0,
-    tracking: {
-      page_name: '',
-      video_category: 'vertical',
-      video_section: article.taxonomy?.primary_section?.name || '',
-      video_source: 'The Washington Post',
-      page_title: article.headlines?.basic || '',
-      av_name: '',
-      av_arc_id: ''
-    }
-  }
+  chatbotMessage.value = ''
 }
 
 function convertArticleToStoryContent(article: Article): any {
@@ -1134,24 +857,17 @@ function convertArticleToStoryContent(article: Article): any {
       avatar: 'https://picsum.photos/50/50?random=author'
     },
     createdAt: article.publish_date || new Date().toISOString(),
-    // Keep the original article data for reference
     originalArticle: article
   }
 }
 
 function convertVideoToVerticalVideoFormat(video: Video): any {
-  // Get the best quality MP4 stream URL (skip HLS streams)
   const mp4Streams = video.streams?.filter(stream => stream.stream_type === 'mp4') || []
   const bestStream = mp4Streams.find(stream => stream.bitrate >= 1200) ||
                     mp4Streams.find(stream => stream.bitrate >= 600) ||
                     mp4Streams[0]
 
-  console.log('Converting video:', video.content_id)
-  console.log('Available streams:', video.streams?.length || 0)
-  console.log('MP4 streams:', mp4Streams.length)
-  console.log('Best stream:', bestStream)
-
-  const convertedVideo = {
+  return {
     id: video._id || video.id,
     _id: video._id || video.id,
     content_id: video.content_id,
@@ -1173,9 +889,6 @@ function convertVideoToVerticalVideoFormat(video: Video): any {
     createdAt: new Date().toISOString(),
     mediaType: 'video'
   }
-
-  console.log('Converted video URL:', convertedVideo.videoUrl)
-  return convertedVideo
 }
 
 function getCategoryFromVideo(video: Video): string {
@@ -1205,44 +918,6 @@ function getCategoryFromPodcast(podcast: StoryContent): string {
   return 'Podcasts'
 }
 
-const generateMixedMediaStories = (): Story[] => {
-  // Import store to get media data
-  const contentStore = useContentStore()
-
-  const mixedStories: Story[] = []
-
-  // Add articles as stories
-  contentStore.articles.slice(0, 4).forEach((article: Article, index: number) => {
-    mixedStories.push({
-      id: `article-${index}`,
-      mediaType: 'story',
-      content: convertArticleToStoryContent(article),
-      category: getCategoryFromArticle(article)
-    })
-  })
-
-  // Add some videos from the store
-  contentStore.videos.slice(0, 2).forEach((video: Video, index: number) => {
-    mixedStories.push({
-      id: `video-${index}`,
-      mediaType: 'video',
-      video: video,
-      category: getCategoryFromVideo(video)
-    })
-  })
-
-  // Add some sample podcast clips if available
-  contentStore.podcastClips.slice(0, 2).forEach((podcast: StoryContent, index: number) => {
-    mixedStories.push({
-      id: `podcast-${index}`,
-      mediaType: 'podcast',
-      podcast: podcast,
-      category: getCategoryFromPodcast(podcast)
-    })
-  })
-
-  return mixedStories
-}
 
 </script>
 
@@ -1251,7 +926,7 @@ const generateMixedMediaStories = (): Story[] => {
   @apply fixed inset-0 bg-black z-50;
   @apply overflow-hidden;
   @apply outline-none;
-  @apply touch-none; /* Prevent default touch behaviors */
+  @apply touch-none;
 }
 
 .stories-container {
@@ -1295,7 +970,6 @@ const generateMixedMediaStories = (): Story[] => {
   @apply bg-opacity-100;
 }
 
-/* Comments Bottom Sheet */
 .comments-overlay {
   @apply fixed inset-0 bg-black bg-opacity-50;
   @apply flex items-end justify-center;
@@ -1344,8 +1018,8 @@ const generateMixedMediaStories = (): Story[] => {
 .comments-list {
   @apply flex-1 overflow-y-auto p-4;
   @apply space-y-4;
-  @apply min-h-0; /* Allow flex item to shrink */
-  @apply max-h-full; /* Ensure it doesn't exceed container */
+  @apply min-h-0;
+  @apply max-h-full;
 }
 
 .comment-item {
@@ -1395,7 +1069,6 @@ const generateMixedMediaStories = (): Story[] => {
   @apply hover:underline cursor-pointer;
 }
 
-/* Vote Buttons */
 .vote-buttons {
   @apply flex items-center space-x-2;
 }
@@ -1498,17 +1171,59 @@ const generateMixedMediaStories = (): Story[] => {
   @apply opacity-40 cursor-not-allowed;
 }
 
-.comments-loading,
 .comments-empty {
   @apply flex items-center justify-center py-12 text-gray-400 text-sm;
 }
 
-/* Chatbot Styles */
+.comments-skeleton {
+  padding: 0.5rem 0;
+}
+
+.comment-skeleton-item {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.comment-skeleton-avatar {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.comment-skeleton-body {
+  flex: 1;
+}
+
+.skeleton-line-dark {
+  border-radius: 0.25rem;
+}
+
+.skeleton-pulse-dark {
+  background: rgba(255, 255, 255, 0.08);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-pulse-dark::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.06) 50%, transparent 100%);
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
 .chatbot-list {
   @apply flex-1 overflow-y-auto p-4;
   @apply space-y-4;
-  @apply min-h-0; /* Allow flex item to shrink */
-  @apply max-h-full; /* Ensure it doesn't exceed container */
+  @apply min-h-0;
+  @apply max-h-full;
 }
 
 .chatbot-message {

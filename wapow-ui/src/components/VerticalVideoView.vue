@@ -1,6 +1,5 @@
 <template>
   <div class="vertical-video-container" ref="videoContainer">
-    <!-- Header (matches StoryView) -->
     <div class="video-header">
       <button @click="handleBack" class="back-button">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -23,9 +22,7 @@
       </div>
     </div>
 
-    <!-- Main Content -->
     <div class="video-content">
-      <!-- Video Player -->
       <div class="video-player-container" :class="{ 'horizontal-video': isHorizontalVideo }" @click="togglePlay">
         <video
           ref="videoPlayer"
@@ -42,14 +39,12 @@
           Your browser does not support the video tag.
         </video>
 
-        <!-- Play/Pause Overlay -->
         <div v-if="!isPlaying" class="play-overlay" @click.stop="togglePlay">
           <svg class="w-16 h-16" fill="currentColor" viewBox="0 0 24 24">
             <path d="M8 5v14l11-7z"/>
           </svg>
         </div>
 
-        <!-- Video Controls -->
         <div class="video-controls" @click.stop>
           <div class="progress-container">
             <div
@@ -87,14 +82,8 @@
         </div>
       </div>
 
-      <!-- Video Info Overlay -->
-      <!-- <div class="video-info-overlay">
-        <h2 class="video-title">{{ video.title }}</h2>
-        <p class="video-description">{{ video.description }}</p>
-      </div> -->
     </div>
 
-    <!-- Bottom Controls -->
     <BottomControls
       :initial-liked="isLiked"
       :article-content="props.video"
@@ -106,7 +95,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
-import type { Video } from '@/stores/videos'
+import type { Video } from '@/stores/content'
 import BottomControls from './BottomControls.vue'
 import { apiFetch } from '@/lib/api'
 import { useAnalytics } from '@/composables/useAnalytics'
@@ -137,7 +126,6 @@ const emit = defineEmits<{
 const { trackVideoProgress, trackLike } = useAnalytics()
 const isSaved = computed(() => props.isSaved)
 
-// Video progress tracking — fire at 25%, 50%, 75%, 100% milestones
 const _firedMilestones = new Set<number>()
 let _videoStartTime = 0
 
@@ -168,15 +156,14 @@ const duration = ref('0:00')
 const videoProgress = ref(0)
 const isLiked = ref(false)
 const isVisible = ref(false)
-const isMuted = ref(false) // Start muted for autoplay compliance
-const videoAspectRatio = ref(16/9) // Default aspect ratio
+const isMuted = ref(false)
+const videoAspectRatio = ref(16/9)
 const isHorizontalVideo = computed(() => videoAspectRatio.value > 1)
 
 const videoPlayer = ref<HTMLVideoElement>()
 const progressBar = ref<HTMLDivElement>()
 const videoContainer = ref<HTMLDivElement>()
 
-// Intersection Observer for visibility detection
 let intersectionObserver: IntersectionObserver | null = null
 
 const handleBack = () => {
@@ -221,7 +208,6 @@ const handleTimeUpdate = () => {
     videoProgress.value = (current / total) * 100
     currentTime.value = formatTime(current)
 
-    // Analytics: fire at 25/50/75/100% milestones
     const pct = Math.floor(videoProgress.value)
     for (const milestone of [25, 50, 75, 100]) {
       if (pct >= milestone && !_firedMilestones.has(milestone)) {
@@ -241,15 +227,6 @@ const handleVideoLoaded = () => {
 
 const handleVideoDataLoaded = () => {
   if (!videoPlayer.value) return
-
-  console.log('Video data loaded:', {
-    src: videoPlayer.value.src,
-    videoWidth: videoPlayer.value.videoWidth,
-    videoHeight: videoPlayer.value.videoHeight,
-    duration: videoPlayer.value.duration
-  })
-
-  // Calculate aspect ratio
   const video = videoPlayer.value
   if (video.videoWidth && video.videoHeight) {
     videoAspectRatio.value = video.videoWidth / video.videoHeight
@@ -266,13 +243,8 @@ const handleLike = () => {
   isLiked.value = !isLiked.value
 }
 
-const handleComment = (articleContent?: any) => {
+const handleComment = () => {
   emit('comments')
-  console.log('Comments event emitted from VerticalVideoView with content:', articleContent)
-}
-
-const handleShare = () => {
-  console.log('Share clicked')
 }
 
 const handleSeek = (event: MouseEvent) => {
@@ -292,7 +264,6 @@ const toggleMute = () => {
   videoPlayer.value.muted = isMuted.value
 }
 
-// Visibility detection
 const setupIntersectionObserver = () => {
   if (!videoContainer.value) return
 
@@ -300,22 +271,15 @@ const setupIntersectionObserver = () => {
     (entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
-          // Video is visible - play it
           isVisible.value = true
-          nextTick(() => {
-            playVideo()
-          })
+          nextTick(() => playVideo())
         } else {
-          // Video is not visible - pause it
           isVisible.value = false
           pauseVideo()
         }
       })
     },
-    {
-      threshold: 0.5, // Trigger when 50% of video is visible
-      rootMargin: '0px'
-    }
+    { threshold: 0.5 }
   )
 
   intersectionObserver.observe(videoContainer.value)
@@ -327,7 +291,6 @@ onMounted(() => {
     videoPlayer.value.addEventListener('pause', () => isPlaying.value = false)
   }
 
-  // Setup intersection observer for autoplay
   setupIntersectionObserver()
 })
 
@@ -337,7 +300,6 @@ onUnmounted(() => {
     videoPlayer.value.removeEventListener('pause', () => isPlaying.value = false)
   }
 
-  // Cleanup intersection observer
   if (intersectionObserver) {
     intersectionObserver.disconnect()
   }
@@ -350,11 +312,9 @@ onUnmounted(() => {
   @apply flex flex-col;
   @apply touch-none;
   @apply h-full w-full;
-  /* Mobile viewport handling */
   height: 100vh;
-  height: 100dvh; /* Dynamic viewport height for mobile */
+  height: 100dvh;
   min-height: -webkit-fill-available;
-  /* Safe area insets for notched devices */
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
   padding-left: env(safe-area-inset-left);
@@ -426,7 +386,6 @@ onUnmounted(() => {
   @apply absolute bottom-0 left-0 right-0;
   @apply bg-gradient-to-t from-black to-transparent;
   @apply p-4;
-  /* Mobile safe area handling */
   padding-bottom: calc(1rem + env(safe-area-inset-bottom));
   bottom: env(safe-area-inset-bottom);
 }

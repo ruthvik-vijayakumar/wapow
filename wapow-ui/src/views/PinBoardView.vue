@@ -24,16 +24,16 @@
         <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
         </svg>
-        <input 
-          v-model="searchQuery" 
-          type="search" 
+        <input
+          v-model="searchQuery"
+          type="search"
           placeholder="Search your articles"
           class="search-input"
           aria-label="Search your articles"
         />
-        <button 
-          v-if="searchQuery" 
-          type="button" 
+        <button
+          v-if="searchQuery"
+          type="button"
           class="search-clear"
           aria-label="Clear search"
           @click="searchQuery = ''"
@@ -58,10 +58,10 @@
             </svg>
           </button>
         </div>
-        
+
         <div class="group-articles">
-          <div 
-            v-for="(article, index) in group.articles.slice(0, 4)" 
+          <div
+            v-for="(article, index) in group.articles.slice(0, 4)"
             :key="article._id"
             class="article-preview"
             @click="handleArticleClick(article)"
@@ -78,8 +78,8 @@
       </div>
 
       <!-- Individual Articles -->
-      <div 
-        v-for="article in individualArticles" 
+      <div
+        v-for="article in individualArticles"
         :key="article._id"
         class="individual-article"
         @click="handleArticleClick(article)"
@@ -95,7 +95,7 @@
             </svg>
           </button>
         </div>
-        
+
         <div class="article-content">
           <div class="content-preview">
             <div class="preview-text">{{ getArticlePreview(article) }}</div>
@@ -115,8 +115,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useContentStore } from '@/stores/videos'
-import type { Article } from '@/stores/videos'
+import { useContentStore } from '@/stores/content'
+import type { Article } from '@/stores/content'
 import TopBar from '@/components/TopBar.vue'
 import BottomNavigation from '@/components/BottomNavigation.vue'
 
@@ -169,8 +169,8 @@ const groups = ref([
 
 // Computed
 const individualArticles = computed(() => {
-  return contentStore.articles.filter(article => 
-    !groups.value.some(group => 
+  return contentStore.articles.filter(article =>
+    !groups.value.some(group =>
       group.articles.some(groupArticle => groupArticle._id === article._id)
     )
   ).slice(0, 10)
@@ -178,10 +178,10 @@ const individualArticles = computed(() => {
 
 const filteredGroups = computed(() => {
   if (!searchQuery.value) return groups.value
-  
+
   return groups.value.map(group => ({
     ...group,
-    articles: group.articles.filter(article => 
+    articles: group.articles.filter(article =>
       article.headlines?.basic?.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
       article.description?.basic?.toLowerCase().includes(searchQuery.value.toLowerCase())
     )
@@ -200,9 +200,9 @@ const closeArticle = (article: Article) => {
 }
 
 const getCategoryFromArticle = (article: Article): string => {
-  return article.taxonomy?.primary_section?.name || 
-         article.taxonomy?.sections?.[0]?.name || 
-         article.type || 
+  return article.taxonomy?.primary_section?.name ||
+         article.taxonomy?.sections?.[0]?.name ||
+         article.type ||
          'News'
 }
 
@@ -235,11 +235,11 @@ const getArticleAuthor = (article: Article): string => {
 
 const formatDate = (dateString: string): string => {
   if (!dateString) return ''
-  
+
   const date = new Date(dateString)
   const now = new Date()
   const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60)
-  
+
   if (diffInHours < 1) {
     return 'Just now'
   } else if (diffInHours < 24) {
@@ -247,9 +247,9 @@ const formatDate = (dateString: string): string => {
   } else if (diffInHours < 48) {
     return 'Yesterday'
   } else {
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric' 
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric'
     })
   }
 }
@@ -491,4 +491,4 @@ const formatDate = (dateString: string): string => {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-</style> 
+</style>

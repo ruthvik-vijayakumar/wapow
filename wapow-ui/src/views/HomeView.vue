@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
-import { useContentStore } from '@/stores/videos'
+import { useContentStore } from '@/stores/content'
 import TopBar from '@/components/TopBar.vue'
 import CategoryNavigation from '@/components/CategoryNavigation.vue'
 import ContentTile from '@/components/ContentTile.vue'
 import BottomNavigation from '@/components/BottomNavigation.vue'
 import VueMasonryWall from '@yeger/vue-masonry-wall'
-import type { Article } from '@/stores/videos'
+import type { Article } from '@/stores/content'
 import { onMounted, ref } from 'vue'
 
 import { useRoute } from 'vue-router'
@@ -138,6 +138,9 @@ const handleNavigation = (route: string) => {
     case 'home':
       // Already on home page
       break
+    case 'search':
+      router.push('/search')
+      break
     case 'ask-ai':
       // TODO: Navigate to AI chat page
       console.log('Navigate to Ask AI')
@@ -197,16 +200,19 @@ onMounted(() => {
 
     <!-- Main Content -->
     <div class="content-area">
-      <!-- Loading state -->
-        <div v-if="isLoading || contentStore.isLoading" class="flex justify-center items-center py-20">
-        <div class="loading-spinner">
-          <div class="animate-spin rounded-full h-12 w-12 spinner-ring"></div>
-          <p class="mt-4 spinner-text text-sm">Loading articles...</p>
+      <!-- Skeleton loading state -->
+      <div v-show="isLoading || contentStore.isLoading" class="skeleton-grid">
+        <div v-for="n in 8" :key="n" class="skeleton-tile">
+          <div class="skeleton-tile-image skeleton-pulse"></div>
+          <div class="skeleton-tile-body">
+            <div class="skeleton-line skeleton-pulse" style="width: 90%; height: 0.75rem;"></div>
+            <div class="skeleton-line skeleton-pulse" style="width: 55%; height: 0.625rem; margin-top: 0.5rem;"></div>
+          </div>
         </div>
       </div>
 
       <!-- Content Grid with Animation -->
-      <div v-else class="content-wrapper">
+      <div v-show="!isLoading && !contentStore.isLoading" class="content-wrapper">
         <div class="content-inner">
           <div
             class="content-grid"
@@ -270,12 +276,51 @@ onMounted(() => {
   transition: background-color 0.3s ease;
 }
 
-.spinner-ring {
-  border-bottom: 2px solid var(--spinner-accent);
+/* Skeleton grid */
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  padding: 1rem;
 }
 
-.spinner-text {
-  color: var(--text-secondary);
+.skeleton-tile {
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background: var(--bg-elevated);
+}
+
+.skeleton-tile-image {
+  width: 100%;
+  aspect-ratio: 9 / 16;
+  background: var(--bg-tertiary);
+}
+
+.skeleton-tile-body {
+  padding: 0.625rem;
+}
+
+.skeleton-line {
+  border-radius: 0.25rem;
+}
+
+.skeleton-pulse {
+  background: var(--bg-tertiary);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-pulse::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, var(--bg-hover) 50%, transparent 100%);
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 
 .content-area {
@@ -332,7 +377,7 @@ onMounted(() => {
 }
 
 .slide-up {
-  animation: slideUpFromBottom 0.6s ease-out;
+  animation: slideUpFromBottom 0.1s ease-out;
 }
 
 .swipe-indicators {
@@ -367,9 +412,6 @@ onMounted(() => {
   animation: pulse 0.6s ease-in-out;
 }
 
-.loading-spinner {
-  @apply flex flex-col items-center;
-}
 
 @keyframes slideInLeft {
   0% {
@@ -395,11 +437,8 @@ onMounted(() => {
 
 @keyframes slideUpFromBottom {
   0% {
-    transform: translateY(100%);
+    transform: translateY(20px);
     opacity: 0;
-  }
-  50% {
-    opacity: 0.5;
   }
   100% {
     transform: translateY(0);

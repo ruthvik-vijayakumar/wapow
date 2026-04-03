@@ -2,64 +2,41 @@ services:
   mongo:
     image: mongo:7
     container_name: wapow-mongo
-    ports:
-      - "27017:27017"
+    # No published ports; only other services on the Docker network can reach it
     volumes:
       - mongo_data:/data/db
     environment:
       - MONGO_INITDB_DATABASE=wapow-data
-    healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
 
   neo4j:
     image: neo4j:5
     container_name: wapow-neo4j
     restart: unless-stopped
-    ports:
-      - "7474:7474"
-      - "7687:7687"
+    # Internal only in prod; admin access via SSH tunnel
     volumes:
       - neo4j_data:/data
     environment:
       - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD:-wapow-neo4j}
-      # Limit heap so Neo4j starts reliably in Docker (default can OOM)
       - NEO4J_server_memory_heap_initial__size=512m
       - NEO4J_server_memory_heap_max__size=512m
 
   clickhouse:
     image: clickhouse/clickhouse-server:24-alpine
     container_name: wapow-clickhouse
-    ports:
-      - "8123:8123"
-      - "9000:9000"
+    # Do not publish ports externally; expose only inside Docker network
     environment:
       - CLICKHOUSE_USER=default
       - CLICKHOUSE_PASSWORD=
       - CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
     volumes:
       - clickhouse_data:/var/lib/clickhouse
-      - ./clickhouse-init:/docker-entrypoint-initdb.d
-      - ./clickhouse-config/users.xml:/etc/clickhouse-server/users.d/override-users.xml:ro
-    ulimits:
-      nofile:
-        soft: 262144
-        hard: 262144
-    healthcheck:
-      test: ["CMD-SHELL", "clickhouse client --query 'SELECT 1' || exit 1"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 15s
+      - ./migrations:/docker-entrypoint-initdb.d
+      - ./config/users.xml:/etc/clickhouse-server/users.d/override-users.xml:ro
 
   app:
     image: wapow-app
-    build: .
+    build: ./wapow-app
     container_name: wapow-api
-    ports:
-      - "3001:3001"
     environment:
       - PORT=3001
       - MONGODB_URI=${MONGODB_URI:-mongodb://mongo:27017/wapow-data}
@@ -68,27 +45,40 @@ services:
       - NEO4J_PASSWORD=${NEO4J_PASSWORD:-wapow-neo4j}
       - AUTH0_DOMAIN=${AUTH0_DOMAIN:-}
       - AUTH0_AUDIENCE=${AUTH0_AUDIENCE:-}
+      - CLICKHOUSE_HOST=clickhouse
+      - CLICKHOUSE_PORT=8123
+      - CLICKHOUSE_DB=wapow_analytics
     depends_on:
-      mongo:
-        condition: service_healthy
-      neo4j:
-        condition: service_started
+      - mongo
+      - neo4j
+      - clickhouse
 
   collector:
-    build: ../wapow-collector
+    build: ./wapow-collector
     container_name: wapow-collector
-    ports:
-      - "3002:3002"
     environment:
       - PORT=3002
       - CLICKHOUSE_HOST=clickhouse
       - CLICKHOUSE_PORT=8123
       - CLICKHOUSE_DB=wapow_analytics
     depends_on:
-      clickhouse:
-        condition: service_healthy
+      - clickhouse
+
+  nginx:
+    image: nginx:stable
+    container_name: wapow-nginx
+    depends_on:
+      - app
+      - collector
+    ports:
+      - "80:80"
+    volumes:
+      # Built Vue app should be copied to /var/www/wapow-ui on the host
+      - /var/www/wapow-ui:/var/www/wapow-ui:ro
+      - ../deploy/nginx.conf:/etc/nginx/nginx.conf:ro
 
 volumes:
   mongo_data:
   neo4j_data:
   clickhouse_data:
+
