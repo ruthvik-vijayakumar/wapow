@@ -5,8 +5,7 @@ on:
     branches: [main]
 
 env:
-  REGISTRY: registry.digitalocean.com/${{ secrets.REGISTRY }}
-
+  REGISTRY: registry.digitalocean.com/wapow-do-registry
 jobs:
   deploy:
     runs-on: ubuntu-latest
