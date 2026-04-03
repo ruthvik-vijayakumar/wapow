@@ -7,7 +7,8 @@ readme = "README.md"
 packages = [{ include = "api" }]
 
 [tool.poetry.dependencies]
-python = ">=3.12"
+# Upper bound keeps Poetry’s resolver aligned with clickhouse-connect wheels on 3.12 images
+python = ">=3.12,<3.14"
 fastapi = ">=0.115.0,<1.0"
 uvicorn = { extras = ["standard"], version = ">=0.32.0" }
 pymongo = ">=4.10.0,<5.0"
