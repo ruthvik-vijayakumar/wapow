@@ -77,8 +77,11 @@ services:
     depends_on:
       - app
       - collector
+    # Must publish host ports or the Droplet cannot reach Nginx from the internet.
+    # If `docker ps` shows no PORTS for wapow-nginx, recreate: docker compose -f docker-compose.prod.yml up -d --force-recreate nginx
     ports:
-      - "80:80"
+      - "0.0.0.0:80:80"
+      # After TLS (see deploy/CERTBOT.md), add: - "0.0.0.0:443:443"
     volumes:
       - ./deploy/nginx.conf:/etc/nginx/nginx.conf:ro
       # Let's Encrypt webroot (host path — create with: sudo mkdir -p /var/www/certbot)

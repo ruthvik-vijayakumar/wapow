@@ -59,6 +59,18 @@ Certificates are usually stored as:
    docker compose -f docker-compose.prod.yml up -d nginx
    ```
 
+## Troubleshooting: `docker ps` shows no ports on `wapow-nginx`
+
+The container was probably created **before** `ports:` were in `docker-compose.prod.yml`, or Compose was run with a different file. Recreate it from the repo root (where `docker-compose.prod.yml` lives):
+
+```bash
+cd /opt/wapow   # your clone path
+docker compose -f docker-compose.prod.yml up -d --force-recreate nginx
+docker ps --filter name=wapow-nginx
+```
+
+You should see **`0.0.0.0:80->80/tcp`** (and `443` once you add it for HTTPS).
+
 ## 4. Renewal
 
 Certbot’s cron/systemd timer renews certs on the host. After renewal, reload Nginx so it picks up new files:
