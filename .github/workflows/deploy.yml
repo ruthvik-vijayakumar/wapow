@@ -6,22 +6,13 @@ on:
 
 # Registry slug only — set GitHub secret DO_REGISTRY_NAME (e.g. wapow-do-registry)
 env:
-  REGISTRY_PREFIX: registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}
+  REGISTRY_PREFIX: registry.digitalocean.com/wapow-do-registry
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Verify DO_REGISTRY_NAME secret
-        env:
-          DO_REGISTRY_NAME: ${{ secrets.DO_REGISTRY_NAME }}
-        run: |
-          if [ -z "$DO_REGISTRY_NAME" ]; then
-            echo "::error::Set repository secret DO_REGISTRY_NAME to your DigitalOcean Container Registry name (slug only)."
-            exit 1
-          fi
 
       - name: Login to DO Container Registry
         run: echo "${{ secrets.DO_API_TOKEN }}" | docker login registry.digitalocean.com -u "${{ secrets.DO_API_TOKEN }}" --password-stdin
