@@ -24,8 +24,14 @@ print(f"CLICKHOUSE_PASSWORD: {CLICKHOUSE_PASSWORD}")
 # Optional MaxMind GeoLite2 database path
 MAXMIND_DB_PATH = os.getenv("MAXMIND_DB_PATH", "")
 
-# CORS — allow all origins in dev; restrict in production
-CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
+# CORS — comma-separated; * for dev; production: list Vercel + custom domain URLs
+_cors_raw = os.getenv("CORS_ORIGINS", "*").strip()
+if _cors_raw == "*":
+    CORS_ORIGINS = ["*"]
+    CORS_ALLOW_CREDENTIALS = False
+else:
+    CORS_ORIGINS = [o.strip() for o in _cors_raw.split(",") if o.strip()] or ["*"]
+    CORS_ALLOW_CREDENTIALS = CORS_ORIGINS != ["*"]
 
 # Writer buffer settings
 FLUSH_INTERVAL_SECONDS = float(os.getenv("FLUSH_INTERVAL_SECONDS", "1.0"))

@@ -13,6 +13,8 @@ from api.routers.saved_articles import router as saved_articles_router
 from api.routers.comments import router as comments_router
 from api.config import (
     AUTH_ENABLED,
+    CORS_ALLOW_CREDENTIALS,
+    CORS_ORIGINS,
     VIDEO_COLLECTION,
     PODCAST_COLLECTION,
 )
@@ -42,8 +44,8 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=CORS_ALLOW_CREDENTIALS,
     allow_methods=["*"],
     allow_headers=["*"],
 )

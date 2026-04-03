@@ -29,6 +29,16 @@ AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN", "").rstrip("/")
 AUTH0_AUDIENCE = os.getenv("AUTH0_AUDIENCE", "")
 AUTH_ENABLED = bool(AUTH0_DOMAIN and AUTH0_AUDIENCE)
 
+# CORS: comma-separated origins for browsers (e.g. Vercel + custom domain).
+# Use * for local dev only; browsers disallow credentials with *.
+_cors_raw = os.getenv("CORS_ORIGINS", "*").strip()
+if _cors_raw == "*":
+    CORS_ORIGINS: list[str] = ["*"]
+    CORS_ALLOW_CREDENTIALS = False
+else:
+    CORS_ORIGINS = [o.strip() for o in _cors_raw.split(",") if o.strip()] or ["*"]
+    CORS_ALLOW_CREDENTIALS = bool(CORS_ORIGINS != ["*"])
+
 # Content collections (MongoDB)
 # Article categories are stored in a single "articles" collection with a "category" field
 ARTICLE_CATEGORIES = [
