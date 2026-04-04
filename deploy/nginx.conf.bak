@@ -1,7 +1,3 @@
-# Use after: certbot certonly --webroot -w /var/www/certbot -d api.tunedin.live -d collector.tunedin.live
-# Mount /etc/letsencrypt read-only in the nginx container and publish 443.
-# Cert paths assume the certificate line directory is api.tunedin.live (first -d).
-
 user  www-data;
 worker_processes auto;
 
@@ -16,8 +12,10 @@ http {
     sendfile        on;
     keepalive_timeout  65;
 
+    # Docker embedded DNS — defer resolving Compose service names until request time
     resolver 127.0.0.11 ipv6=off valid=10s;
 
+    # Default when hitting the Droplet by IP (SPA is hosted on Vercel)
     server {
         listen 80 default_server;
         server_name _;
@@ -25,7 +23,7 @@ http {
         return 200 'wapow gateway — use api.* and collector.* hostnames\n';
     }
 
-    # --- API: HTTP → ACME + redirect to HTTPS ---
+    # --- API: FastAPI (wapow-app) — service name: app ---
     server {
         listen 80;
         server_name api.tunedin.live;
@@ -34,18 +32,6 @@ http {
             root /var/www/certbot;
             default_type text/plain;
         }
-
-        location / {
-            return 301 https://$host$request_uri;
-        }
-    }
-
-    server {
-        listen 443 ssl http2;
-        server_name api.tunedin.live;
-
-        ssl_certificate     /etc/letsencrypt/live/api.tunedin.live/fullchain.pem;
-        ssl_certificate_key /etc/letsencrypt/live/api.tunedin.live/privkey.pem;
 
         location / {
             set $api_upstream http://app:3001;
@@ -58,7 +44,7 @@ http {
         }
     }
 
-    # --- Collector: HTTP → ACME + redirect to HTTPS ---
+    # --- Analytics collector — service name: collector ---
     server {
         listen 80;
         server_name collector.tunedin.live;
@@ -67,18 +53,6 @@ http {
             root /var/www/certbot;
             default_type text/plain;
         }
-
-        location / {
-            return 301 https://$host$request_uri;
-        }
-    }
-
-    server {
-        listen 443 ssl http2;
-        server_name collector.tunedin.live;
-
-        ssl_certificate     /etc/letsencrypt/live/api.tunedin.live/fullchain.pem;
-        ssl_certificate_key /etc/letsencrypt/live/api.tunedin.live/privkey.pem;
 
         location / {
             set $collector_upstream http://collector:3002;
