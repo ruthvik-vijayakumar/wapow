@@ -4,15 +4,24 @@ on:
   push:
     branches: [main]
 
-# Registry slug only — set GitHub secret DO_REGISTRY_NAME (e.g. wapow-do-registry)
+# Set secret DO_REGISTRY_NAME to your registry slug (e.g. wapow-do-registry)
 env:
-  REGISTRY_PREFIX: registry.digitalocean.com/wapow-do-registry
+  REGISTRY_PREFIX: registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Verify DO_REGISTRY_NAME secret
+        env:
+          DO_REGISTRY_NAME: ${{ secrets.DO_REGISTRY_NAME }}
+        run: |
+          if [ -z "$DO_REGISTRY_NAME" ]; then
+            echo "::error::Set repository secret DO_REGISTRY_NAME (DigitalOcean registry slug only)."
+            exit 1
+          fi
 
       - name: Login to DO Container Registry
         run: echo "${{ secrets.DO_API_TOKEN }}" | docker login registry.digitalocean.com -u "${{ secrets.DO_API_TOKEN }}" --password-stdin
@@ -45,7 +54,8 @@ jobs:
             echo "$DO_API_TOKEN" | docker login registry.digitalocean.com -u "$DO_API_TOKEN" --password-stdin
             docker pull "${REGISTRY_PREFIX}/wapow-app:latest"
             docker pull "${REGISTRY_PREFIX}/wapow-collector:latest"
-            cd "/app"
+            cd "${DEPLOY_PATH:-/opt/wapow}"
+            if [ -d .git ]; then git pull --ff-only; fi
             export REGISTRY_PREFIX="$REGISTRY_PREFIX"
-            docker compose -f docker-compose.prod.yml pull app collector
-            docker compose -f docker-compose.prod.yml up -d
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans

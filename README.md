@@ -9,8 +9,13 @@ Built with a **Vue 3** frontend and a **FastAPI** backend, using **MongoDB** for
 ```
 wapow/
 ├── wapow-ui/          # Vue 3 frontend (Vite + TypeScript + Tailwind)
-└── wapow-app/         # FastAPI backend (Python + MongoDB + Neo4j)
+├── wapow-app/         # FastAPI backend (Python + MongoDB + Neo4j)
+├── wapow-collector/   # Analytics → ClickHouse
+├── deploy/            # Nginx, TLS, env docs
+└── docker-compose*.yml
 ```
+
+**Environment variables (local vs Docker vs Vercel vs prod):** see [`deploy/ENV.md`](deploy/ENV.md).
 
 ### Frontend — `wapow-ui/`
 

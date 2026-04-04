@@ -1,5 +1,7 @@
 ## WAPOW deployment (Docker + Nginx on a VM)
 
+**Environment variables (local vs prod, Vercel, CI):** [deploy/ENV.md](ENV.md) · **Droplet `.env` template:** [deploy/env.production.example](env.production.example)
+
 ### 1. Frontend (Vercel)
 
 The UI is deployed to **Vercel** (not on the Droplet). See **[deploy/VERCEL.md](VERCEL.md)** for project root directory, env vars (`VITE_API_URL`, `VITE_COLLECTOR_URL`, Auth0), and DNS.

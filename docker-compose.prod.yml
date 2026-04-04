@@ -84,7 +84,8 @@ services:
       - "0.0.0.0:443:443"
     volumes:
       - ./deploy/nginx.conf:/etc/nginx/nginx.conf:ro
-      # Let's Encrypt webroot (host path — create with: sudo mkdir -p /var/www/certbot)
+      # Let's Encrypt: webroot for HTTP-01 + live certs for TLS
+      - /var/www/certbot:/var/www/certbot:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
 
 volumes:

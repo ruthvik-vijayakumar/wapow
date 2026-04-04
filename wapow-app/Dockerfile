@@ -20,4 +20,5 @@ COPY . .
 
 EXPOSE 3001
 
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "3001"]
+# Trust X-Forwarded-* from nginx on the Docker network (not only 127.0.0.1).
+CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "3001", "--proxy-headers", "--forwarded-allow-ips", "*"]
