@@ -22,7 +22,7 @@ const handleLogin = () => {
           class="login-illustration"
         />
       </div>
-      <h1 class="login-title">Welcome to WAPOW</h1>
+      <h1 class="login-title">Welcome to TunedIn</h1>
       <p class="login-subtitle">Articles, videos, and stories—curated around what you care about</p>
       <p v-if="!isAuth0Configured" class="login-error">
         Auth0 is not configured. Set VITE_AUTH0_DOMAIN, VITE_AUTH0_CLIENT_ID, and VITE_AUTH0_AUDIENCE.

@@ -3,7 +3,7 @@
     <div class="flex items-center justify-between">
       <!-- Left side - Menu -->
       <div class="flex items-center w-12">
-        <button 
+        <button
           class="top-bar-btn"
           @click="handleMenu"
         >
@@ -15,12 +15,12 @@
 
       <!-- Center - Brand -->
       <div class="flex items-center justify-center flex-1">
-        <span class="top-bar-brand font-postoni">WaPOW</span>
+        <span class="top-bar-brand font-postoni">TunedIn</span>
       </div>
 
       <!-- Right side - Notification -->
       <div class="flex items-center justify-end w-12">
-        <button 
+        <button
           class="top-bar-btn"
           @click="handleNotification"
         >
