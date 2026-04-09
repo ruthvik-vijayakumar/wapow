@@ -50,7 +50,7 @@
       </div>
 
       <!-- Title -->
-      <h3 style="font-size: 1.1rem; line-height: 1.2;" class="text-xl font-bold tile-text-primary font-postoni">
+      <h3 style="font-size: 1.1rem; line-height: 1.2;" class="text-xl tracking-wide font-bold tile-text-primary font-postoni">
         {{ content.headlines?.basic || 'Article Title' }}
       </h3>
 

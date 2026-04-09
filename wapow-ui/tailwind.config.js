@@ -12,11 +12,13 @@ export default {
         accent: '#166dfc'
       },
       fontFamily: {
-        sans: ['Franklin ITC Pro', 'sans-serif'],
-        franklin: ['Franklin ITC Pro', 'sans-serif'],
-        postoni: ['Postoni', 'serif'],
-        'postoni-display': ['Postoni Display', 'serif'],
-        'postoni-titling': ['Postoni Titling', 'serif'],
+        sans: ['Archivo', 'sans-serif'],
+        franklin: ['Archivo', 'sans-serif'],
+        archivo: ['Archivo', 'sans-serif'],
+        postoni: ['Saira Extra Condensed', 'sans-serif'],
+        'postoni-display': ['Saira Extra Condensed', 'sans-serif'],
+        'postoni-titling': ['Saira Extra Condensed', 'sans-serif'],
+        display: ['Saira Extra Condensed', 'sans-serif'],
       },
     },
   },

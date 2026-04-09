@@ -67,7 +67,7 @@ const handleNotification = () => {
 
 .top-bar-brand {
   color: var(--text-primary);
-  @apply text-xl tracking-wide;
+  @apply text-2xl tracking-wide;
   transition: color 0.3s ease;
 }
 </style>

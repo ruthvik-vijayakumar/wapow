@@ -5,9 +5,11 @@ import TopBar from '@/components/TopBar.vue'
 import CategoryNavigation from '@/components/CategoryNavigation.vue'
 import ContentTile from '@/components/ContentTile.vue'
 import BottomNavigation from '@/components/BottomNavigation.vue'
+import DesktopSidebar from '@/components/DesktopSidebar.vue'
+import DesktopTopHeader from '@/components/DesktopTopHeader.vue'
 import VueMasonryWall from '@yeger/vue-masonry-wall'
 import type { Article } from '@/stores/content'
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 import { useRoute } from 'vue-router'
 
@@ -16,6 +18,13 @@ const route = useRoute()
 const router = useRouter()
 const contentStore = useContentStore()
 const isLoading = ref(false)
+
+// Desktop breakpoint handling (keep template logic simple)
+const isDesktop = ref(false)
+let mq: MediaQueryList | null = null
+const onMqChange = (e: MediaQueryListEvent) => {
+  isDesktop.value = e.matches
+}
 
 // Swipe functionality
 const touchStartX = ref(0)
@@ -42,6 +51,10 @@ const handleSearch = () => {
 const handleMenu = () => {
   console.log('Menu clicked')
   // TODO: Implement menu functionality
+}
+
+const handleDesktopSearch = (query: string) => {
+  router.push({ path: '/search', query: query ? { q: query } : undefined })
 }
 
 const handleCategoryChange = async (categoryId: string) => {
@@ -89,11 +102,13 @@ const handleSwipe = async (direction: 'left' | 'right') => {
 }
 
 const handleTouchStart = (event: TouchEvent) => {
+  if (isDesktop.value) return
   if (isAnimating.value) return
   touchStartX.value = event.touches[0].clientX
 }
 
 const handleTouchEnd = (event: TouchEvent) => {
+  if (isDesktop.value) return
   if (isAnimating.value) return
   touchEndX.value = event.changedTouches[0].clientX
   const swipeThreshold = 50 // Minimum distance for a swipe
@@ -165,6 +180,23 @@ const getCategoryFromContent = (content: Article): string => {
          'News'
 }
 
+const masonryConfig = computed(() => {
+  if (isDesktop.value) {
+    return {
+      ssrColumns: 5,
+      columnWidth: 240,
+      gap: 18,
+      padding: 12
+    }
+  }
+  return {
+    ssrColumns: 2,
+    columnWidth: 150,
+    gap: 16,
+    padding: 8
+  }
+})
+
 const getWapoData = async () => {
   try {
     isLoading.value = true
@@ -180,100 +212,196 @@ const getWapoData = async () => {
 }
 
 onMounted(() => {
+  mq = window.matchMedia('(min-width: 1024px)')
+  isDesktop.value = mq.matches
+  mq.addEventListener('change', onMqChange)
+
   getWapoData()
   // Watch for route changes
   router.afterEach(handleRouteChange)
 })
+
+onUnmounted(() => {
+  if (mq) mq.removeEventListener('change', onMqChange)
+})
 </script>
 
 <template>
-  <div
-    class="home-container"
-    @touchstart="handleTouchStart"
-    @touchend="handleTouchEnd"
-  >
-    <!-- Top Bar -->
-    <TopBar @search="handleSearch" @menu="handleMenu" />
+  <div class="home-shell" @touchstart="handleTouchStart" @touchend="handleTouchEnd">
+    <!-- Desktop layout -->
+    <div class="desktop-layout" v-show="isDesktop">
+      <DesktopSidebar @navigate="handleNavigation" />
 
-    <!-- Category Navigation -->
-    <CategoryNavigation />
-
-    <!-- Main Content -->
-    <div class="content-area">
-      <!-- Skeleton loading state -->
-      <div v-show="isLoading || contentStore.isLoading" class="skeleton-grid">
-        <div v-for="n in 8" :key="n" class="skeleton-tile">
-          <div class="skeleton-tile-image skeleton-pulse"></div>
-          <div class="skeleton-tile-body">
-            <div class="skeleton-line skeleton-pulse" style="width: 90%; height: 0.75rem;"></div>
-            <div class="skeleton-line skeleton-pulse" style="width: 55%; height: 0.625rem; margin-top: 0.5rem;"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Content Grid with Animation -->
-      <div v-show="!isLoading && !contentStore.isLoading" class="content-wrapper">
-        <div class="content-inner">
-          <div
-            class="content-grid"
-            :class="{
-              'slide-left': slideDirection === 'left',
-              'slide-right': slideDirection === 'right',
-              'swipe-hint': !isAnimating && !isLoading,
-              'slide-up': !isAnimating && !isLoading && contentStore.articles.length > 0
-            }"
-          >
-            <VueMasonryWall
-              :items="contentStore.articles"
-              :ssr-columns="2"
-              :column-width="150"
-              :gap="16"
-              :padding="8"
-            >
-              <template #default="{ item, index }">
-                <ContentTile :content="item" :index="index" @click="handleContentClick" />
-              </template>
-            </VueMasonryWall>
-          </div>
+      <div class="desktop-main">
+        <DesktopTopHeader @search="handleDesktopSearch" />
+        <div class="desktop-categories">
+          <CategoryNavigation />
         </div>
 
-        <!-- Swipe Indicators -->
-        <div class="swipe-indicators">
-          <div
-            v-if="currentCategoryIndex > 0"
-            class="swipe-indicator left"
-            :class="{ 'pulse': slideDirection === 'right' }"
-          >
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-            </svg>
+        <div class="desktop-content">
+          <!-- Skeleton loading state -->
+          <div v-show="isLoading || contentStore.isLoading" class="skeleton-grid desktop">
+            <div v-for="n in 12" :key="n" class="skeleton-tile">
+              <div class="skeleton-tile-image skeleton-pulse"></div>
+              <div class="skeleton-tile-body">
+                <div class="skeleton-line skeleton-pulse" style="width: 90%; height: 0.75rem;"></div>
+                <div class="skeleton-line skeleton-pulse" style="width: 55%; height: 0.625rem; margin-top: 0.5rem;"></div>
+              </div>
+            </div>
           </div>
-          <div
-            v-if="currentCategoryIndex < categories.length - 1"
-            class="swipe-indicator right"
-            :class="{ 'pulse': slideDirection === 'left' }"
-          >
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-            </svg>
+
+          <!-- Content grid -->
+          <div v-show="!isLoading && !contentStore.isLoading" class="content-wrapper desktop">
+            <div class="content-inner">
+              <div class="content-grid">
+                <VueMasonryWall
+                  :items="contentStore.articles"
+                  :ssr-columns="masonryConfig.ssrColumns"
+                  :column-width="masonryConfig.columnWidth"
+                  :gap="masonryConfig.gap"
+                  :padding="masonryConfig.padding"
+                >
+                  <template #default="{ item, index }">
+                    <ContentTile :content="item" :index="index" @click="handleContentClick" />
+                  </template>
+                </VueMasonryWall>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Bottom Navigation -->
-    <BottomNavigation @navigate="handleNavigation" />
+    <!-- Mobile layout (existing) -->
+    <div class="mobile-layout" v-show="!isDesktop">
+      <TopBar @search="handleSearch" @menu="handleMenu" />
+      <CategoryNavigation />
+
+      <div class="content-area">
+        <!-- Skeleton loading state -->
+        <div v-show="isLoading || contentStore.isLoading" class="skeleton-grid">
+          <div v-for="n in 8" :key="n" class="skeleton-tile">
+            <div class="skeleton-tile-image skeleton-pulse"></div>
+            <div class="skeleton-tile-body">
+              <div class="skeleton-line skeleton-pulse" style="width: 90%; height: 0.75rem;"></div>
+              <div class="skeleton-line skeleton-pulse" style="width: 55%; height: 0.625rem; margin-top: 0.5rem;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Content Grid with Animation -->
+        <div v-show="!isLoading && !contentStore.isLoading" class="content-wrapper">
+          <div class="content-inner">
+            <div
+              class="content-grid"
+              :class="{
+                'slide-left': slideDirection === 'left',
+                'slide-right': slideDirection === 'right',
+                'swipe-hint': !isAnimating && !isLoading,
+                'slide-up': !isAnimating && !isLoading && contentStore.articles.length > 0
+              }"
+            >
+              <VueMasonryWall
+                :items="contentStore.articles"
+                :ssr-columns="masonryConfig.ssrColumns"
+                :column-width="masonryConfig.columnWidth"
+                :gap="masonryConfig.gap"
+                :padding="masonryConfig.padding"
+              >
+                <template #default="{ item, index }">
+                  <ContentTile :content="item" :index="index" @click="handleContentClick" />
+                </template>
+              </VueMasonryWall>
+            </div>
+          </div>
+
+          <!-- Swipe Indicators -->
+          <div class="swipe-indicators">
+            <div
+              v-if="currentCategoryIndex > 0"
+              class="swipe-indicator left"
+              :class="{ 'pulse': slideDirection === 'right' }"
+            >
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+              </svg>
+            </div>
+            <div
+              v-if="currentCategoryIndex < categories.length - 1"
+              class="swipe-indicator right"
+              :class="{ 'pulse': slideDirection === 'left' }"
+            >
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <BottomNavigation @navigate="handleNavigation" />
+    </div>
   </div>
 </template>
 
 <style scoped>
-.home-container {
+.home-shell {
   @apply min-h-screen;
-  @apply flex flex-col;
   height: 100vh;
   touch-action: pan-y;
   background-color: var(--bg-primary);
   transition: background-color 0.3s ease;
+}
+
+.desktop-layout {
+  display: none;
+}
+
+.mobile-layout {
+  @apply flex flex-col;
+  height: 100vh;
+}
+
+@media (min-width: 1024px) {
+  .desktop-layout {
+    display: flex;
+    height: 100vh;
+  }
+  .mobile-layout {
+    display: none;
+  }
+}
+
+.desktop-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.desktop-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 1rem 1.5rem 2rem;
+}
+
+.desktop-categories {
+  padding: 0.25rem 1rem 0.4rem;
+}
+
+.desktop-categories :deep(.cat-nav-container) {
+  background: transparent;
+}
+
+.skeleton-grid.desktop {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  padding: 1.25rem;
+}
+
+.content-wrapper.desktop {
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
 }
 
 /* Skeleton grid */
