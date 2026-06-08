@@ -14,12 +14,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Verify DO_REGISTRY_NAME secret
+      - name: Verify secrets are set
         env:
           DO_REGISTRY_NAME: ${{ secrets.DO_REGISTRY_NAME }}
+          DO_API_TOKEN: ${{ secrets.DO_API_TOKEN }}
         run: |
           if [ -z "$DO_REGISTRY_NAME" ]; then
             echo "::error::Set repository secret DO_REGISTRY_NAME (DigitalOcean registry slug only)."
+            exit 1
+          fi
+          if [ -z "$DO_API_TOKEN" ]; then
+            echo "::error::Set repository secret DO_API_TOKEN (DigitalOcean read/write Personal Access Token)."
             exit 1
           fi
 
