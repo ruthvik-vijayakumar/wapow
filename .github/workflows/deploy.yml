@@ -24,9 +24,7 @@ jobs:
           fi
 
       - name: Login to DO Container Registry
-        env:
-          DO_API_TOKEN: ${{ secrets.DO_API_TOKEN }}
-        run: echo "$DO_API_TOKEN" | docker login registry.digitalocean.com -u "$DO_API_TOKEN" --password-stdin    
+        run: echo "${{ secrets.DO_API_TOKEN }}" | docker login registry.digitalocean.com -u "${{ secrets.DO_API_TOKEN }}" --password-stdin
 
       - name: Build and push wapow-app
         run: |
