@@ -51,7 +51,7 @@ jobs:
           envs: DO_API_TOKEN,REGISTRY_PREFIX,DEPLOY_PATH
           script: |
             set -euo pipefail
-            echo "$DO_API_TOKEN" | docker login registry.digitalocean.com -u "$DO_API_TOKEN" --password-stdin
+            echo "$DO_API_TOKEN" | docker login registry.digitalocean.com -u token --password-stdin
             docker pull "${REGISTRY_PREFIX}/wapow-app:latest"
             docker pull "${REGISTRY_PREFIX}/wapow-collector:latest"
             cd "${DEPLOY_PATH:-/app}"
