@@ -77,11 +77,13 @@ services:
     container_name: wapow-scraper
     environment:
       - MONGODB_URI=${MONGODB_URI:-mongodb://mongo:27017/wapow-data}
+      - WAPOW_API_BASE_URL=${WAPOW_API_BASE_URL:-http://app:3001}
       - YOUTUBE_API_KEY=${YOUTUBE_API_KEY:-}
       - SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID:-}
       - SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET:-}
     depends_on:
       - mongo
+      - app
     restart: unless-stopped
 
   nginx:
