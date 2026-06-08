@@ -92,6 +92,21 @@ services:
       clickhouse:
         condition: service_healthy
 
+  scraper:
+    build: ./wapow-scraper
+    container_name: wapow-scraper
+    ports:
+      - "3003:3003"
+    environment:
+      - MONGODB_URI=${MONGODB_URI:-mongodb://mongo:27017/wapow-data}
+      - YOUTUBE_API_KEY=${YOUTUBE_API_KEY:-}
+      - SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID:-}
+      - SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET:-}
+    depends_on:
+      mongo:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   mongo_data:
   neo4j_data:

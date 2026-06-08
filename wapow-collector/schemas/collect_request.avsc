@@ -1,0 +1,16 @@
+{
+  "type": "record",
+  "name": "CollectRequest",
+  "namespace": "com.wapow.collector",
+  "doc": "Batch of analytics events sent by the frontend SDK to POST /collect. Mirrors models.CollectRequest.",
+  "fields": [
+    {
+      "name": "events",
+      "type": {
+        "type": "array",
+        "items": "com.wapow.collector.EventPayload"
+      },
+      "doc": "One to 200 analytics events to ingest in a single request."
+    }
+  ]
+}

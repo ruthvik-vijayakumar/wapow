@@ -1,0 +1,16 @@
+{
+  "type": "record",
+  "name": "CollectRequest",
+  "namespace": "com.wapow.ui",
+  "doc": "Batch payload flushed by EventTracker to POST /collect or POST /collect/beacon. Maps to the { events } body shape in lib/analytics.ts.",
+  "fields": [
+    {
+      "name": "events",
+      "type": {
+        "type": "array",
+        "items": "com.wapow.ui.AnalyticsEvent"
+      },
+      "doc": "Buffer of queued events. Flushed when the buffer reaches 20 items or every 5 seconds."
+    }
+  ]
+}

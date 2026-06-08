@@ -1,15 +1,28 @@
 <script setup lang="ts">
-import { useRoute } from 'vue-router'
+import { watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { isAuth0Configured } from '@/lib/auth0'
 
 const route = useRoute()
+const router = useRouter()
 const authStore = useAuthStore()
 
 const handleLogin = () => {
   const redirect = (route.query.redirect as string) || '/'
   authStore.loginWithRedirect({ appState: { target: redirect } })
 }
+
+watch(
+  () => authStore.isAuthenticated,
+  (authenticated) => {
+    if (authenticated) {
+      const redirect = (route.query.redirect as string) || '/'
+      router.replace(redirect)
+    }
+  },
+  { immediate: true },
+)
 </script>
 
 <template>

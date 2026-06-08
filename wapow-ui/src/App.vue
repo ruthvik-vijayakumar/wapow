@@ -12,7 +12,6 @@ useTheme()
 
 // Initialise auth — must happen in setup so Auth0's inject() resolves
 const authStore = useAuthStore()
-authStore.init()
 
 const contentStore = useContentStore()
 
@@ -27,6 +26,7 @@ watch(
     if (authenticated) {
       try {
         const res = await apiFetch('/api/me')
+        if (!res.ok) return
         const data = await res.json()
         if (data._id) {
           authStore.setMongoId(data._id)

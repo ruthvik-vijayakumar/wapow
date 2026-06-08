@@ -1,6 +1,6 @@
 <template>
   <div class="pin-board-container">
-    <TopBar @menu="handleMenu" @notification="handleNotification" />
+    <TopBar @menu="handleMenu" @search="handleSearch" />
 
     <!-- Pin Board Bar -->
     <div class="nav-bar">
@@ -108,7 +108,7 @@
       </div>
     </div>
 
-    <BottomNavigation @navigate="handleNavigation" />
+    <NavigationDrawer :isOpen="isDrawerOpen" @close="isDrawerOpen = false" />
   </div>
 </template>
 
@@ -118,36 +118,19 @@ import { useRouter } from 'vue-router'
 import { useContentStore } from '@/stores/content'
 import type { Article } from '@/stores/content'
 import TopBar from '@/components/TopBar.vue'
-import BottomNavigation from '@/components/BottomNavigation.vue'
+import NavigationDrawer from '@/components/NavigationDrawer.vue'
 
 const router = useRouter()
 const contentStore = useContentStore()
 
+const isDrawerOpen = ref(false)
+
 const handleMenu = () => {
-  router.push('/')
+  isDrawerOpen.value = true
 }
 
-const handleNotification = () => {
-  console.log('Notification clicked')
-}
-
-const handleNavigation = (route: string) => {
-  switch (route) {
-    case 'home':
-      router.push('/')
-      break
-    case 'ask-ai':
-      console.log('Navigate to Ask AI')
-      break
-    case 'games':
-      console.log('Navigate to Games')
-      break
-    case 'profile':
-      router.push('/profile')
-      break
-    default:
-      console.log('Unknown route:', route)
-  }
+const handleSearch = () => {
+  router.push('/search')
 }
 
 // State

@@ -1,0 +1,64 @@
+{
+  "type": "record",
+  "name": "AnalyticsEvent",
+  "namespace": "com.wapow.ui",
+  "doc": "A single analytics event tracked by the frontend EventTracker. Mirrors the AnalyticsEvent interface in lib/analytics.ts.",
+  "fields": [
+    {
+      "name": "event_type",
+      "type": "string",
+      "doc": "Event name, e.g. page_view, content_like, content_share, dwell_time."
+    },
+    {
+      "name": "user_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Authenticated user ID injected by EventTracker.setUserId(). Null for anonymous sessions."
+    },
+    {
+      "name": "session_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Browser session UUID stored in sessionStorage. Generated once per tab."
+    },
+    {
+      "name": "content_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "ID of the content item the event relates to."
+    },
+    {
+      "name": "content_type",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Content kind: article, video, podcast, or game."
+    },
+    {
+      "name": "category",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Editorial category or tag for the content item."
+    },
+    {
+      "name": "timestamp",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "ISO-8601 timestamp set by EventTracker.track() via new Date().toISOString()."
+    },
+    {
+      "name": "properties",
+      "type": ["null", {
+        "type": "map",
+        "values": "string"
+      }],
+      "default": null,
+      "doc": "Arbitrary key-value metadata for the event. Corresponds to Record<string, unknown> in TypeScript."
+    },
+    {
+      "name": "referrer",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "document.referrer captured at track() call time."
+    }
+  ]
+}

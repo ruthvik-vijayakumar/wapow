@@ -236,7 +236,9 @@ const mixedCategoryContent = computed(() => {
     const articleCategory = article.taxonomy?.primary_section?.name ||
       article.taxonomy?.sections?.[0]?.name ||
       article.type || 'News'
-    return articleCategory.toLowerCase() === currentCategory.value.toLowerCase()
+    const aCat = articleCategory.toLowerCase()
+    const cCat = currentCategory.value.toLowerCase()
+    return aCat === cCat || (aCat === 'health' && cCat === 'wellbeing')
   })
 
   // Get some videos (optionally filter by category if you have that info)
@@ -276,6 +278,13 @@ const handleFollow = (authorId: string) => {
 <style scoped>
 .story-page {
   @apply fixed inset-0 bg-black;
+  /* Mobile viewport handling - layered fallbacks for Android address bar */
+  height: 100vh;
+  height: calc(var(--vh, 100vh));
+  height: 100dvh;
+  max-height: 100vh;
+  max-height: calc(var(--vh, 100vh));
+  max-height: 100dvh;
   overflow: hidden;
 }
 

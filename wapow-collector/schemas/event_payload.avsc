@@ -1,0 +1,68 @@
+{
+  "type": "record",
+  "name": "EventPayload",
+  "namespace": "com.wapow.collector",
+  "doc": "A single analytics event sent from the frontend. Mirrors models.EventPayload.",
+  "fields": [
+    {
+      "name": "event_type",
+      "type": "string",
+      "doc": "Event name, e.g. page_view, content_like, content_share. Max 64 chars."
+    },
+    {
+      "name": "user_id",
+      "type": "string",
+      "default": "",
+      "doc": "Authenticated user identifier. Empty string for anonymous users."
+    },
+    {
+      "name": "session_id",
+      "type": "string",
+      "default": "",
+      "doc": "Browser session UUID, generated once per tab session."
+    },
+    {
+      "name": "content_id",
+      "type": "string",
+      "default": "",
+      "doc": "Identifier of the content item this event relates to."
+    },
+    {
+      "name": "content_type",
+      "type": {
+        "type": "enum",
+        "name": "ContentType",
+        "symbols": ["article", "video", "podcast", "game", ""]
+      },
+      "default": "",
+      "doc": "Category of content: article, video, podcast, or game."
+    },
+    {
+      "name": "category",
+      "type": "string",
+      "default": "",
+      "doc": "Editorial category or tag for the content item."
+    },
+    {
+      "name": "timestamp",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "ISO-8601 event timestamp. If null or missing the server fills it in."
+    },
+    {
+      "name": "properties",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "default": {},
+      "doc": "Arbitrary key-value metadata specific to the event type."
+    },
+    {
+      "name": "referrer",
+      "type": "string",
+      "default": "",
+      "doc": "document.referrer value at the time of the event."
+    }
+  ]
+}

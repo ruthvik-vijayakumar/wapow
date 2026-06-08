@@ -11,6 +11,7 @@ from api.routers.articles import router as articles_router
 from api.routers.recommendations import router as recommendations_router
 from api.routers.saved_articles import router as saved_articles_router
 from api.routers.comments import router as comments_router
+from api.routers.conversion_jobs import router as conversion_jobs_router
 from api.config import (
     AUTH_ENABLED,
     CORS_ALLOW_CREDENTIALS,
@@ -26,10 +27,12 @@ from api.services import user as user_service
 async def lifespan(app: FastAPI):
     # Startup: ensure MongoDB client is created
     get_client()
-    from api.services import user as user_service
     from api.services import comments as comments_service
     user_service.ensure_indexes()
     comments_service.ensure_indexes()
+    from api.services.conversion_jobs import ensure_conversion_jobs_indexes
+
+    ensure_conversion_jobs_indexes()
     yield
     # Shutdown: close MongoDB client if needed
     # (PyMongo client is global; optional: close here)
@@ -61,6 +64,7 @@ app.include_router(
 )
 
 app.include_router(articles_router, prefix="/api")
+app.include_router(conversion_jobs_router, prefix="/api")
 app.include_router(recommendations_router, prefix="/api")
 app.include_router(saved_articles_router, prefix="/api")
 app.include_router(comments_router, prefix="/api")
@@ -80,6 +84,11 @@ async def root():
             "me": "GET /api/me (requires Bearer token when Auth0 is configured)",
             "saved_articles": "GET/POST/DELETE /api/saved-articles (save/list/unsave)",
             "comments": "GET/POST/DELETE /api/comments (list/create/delete/vote)",
+            "article_story_convert": "POST /api/articles/{id}/convert-to-story",
+            "article_story_preview": "POST /api/articles/{id}/preview-story",
+            "article_get": "GET /api/articles/{id}?ensure_story=true",
+            "batch_story_convert": "POST /api/articles/batch-convert-to-story → 202 + job_ids",
+            "conversion_job": "GET /api/conversion-jobs/{job_id}",
         },
         "database": "wapo_data (MongoDB) + Neo4j",
         "auth": "enabled" if AUTH_ENABLED else "disabled (set AUTH0_DOMAIN and AUTH0_AUDIENCE to enable)",

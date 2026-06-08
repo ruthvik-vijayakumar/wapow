@@ -15,17 +15,17 @@
 
       <!-- Center - Brand -->
       <div class="flex items-center justify-center flex-1">
-        <span class="top-bar-brand font-postoni">TunedIn</span>
+        <span class="top-bar-brand font-postoni font-bold">TunedIn</span>
       </div>
 
-      <!-- Right side - Notification -->
+      <!-- Right side - Search -->
       <div class="flex items-center justify-end w-12">
         <button
           class="top-bar-btn"
-          @click="handleNotification"
+          @click="handleSearch"
         >
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 15V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v4c0 .386-.146.735-.405 1.005L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
         </button>
       </div>
@@ -37,15 +37,15 @@
 
 const emit = defineEmits<{
   menu: []
-  notification: []
+  search: []
 }>()
 
 const handleMenu = () => {
   emit('menu')
 }
 
-const handleNotification = () => {
-  emit('notification')
+const handleSearch = () => {
+  emit('search')
 }
 </script>
 
@@ -67,7 +67,7 @@ const handleNotification = () => {
 
 .top-bar-brand {
   color: var(--text-primary);
-  @apply text-2xl tracking-wide;
+  @apply text-2xl tracking-wide font-bold;
   transition: color 0.3s ease;
 }
 </style>

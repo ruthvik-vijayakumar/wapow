@@ -383,11 +383,12 @@ onUnmounted(() => {
 }
 
 .video-controls {
-  @apply absolute bottom-0 left-0 right-0;
+  @apply absolute left-0 right-0 bottom-0;
   @apply bg-gradient-to-t from-black to-transparent;
   @apply p-4;
-  padding-bottom: calc(1rem + env(safe-area-inset-bottom));
-  bottom: env(safe-area-inset-bottom);
+  /* Extra padding at bottom to position controls above BottomControls while gradient extends to bottom */
+  padding-bottom: 6rem;
+  padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
 }
 
 .progress-container {

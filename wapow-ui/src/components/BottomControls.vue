@@ -1,6 +1,6 @@
 <template>
   <div class="podcast-bottom">
-    <div class="flex flex-col gap-y-4 flex-1">
+    <div class="flex flex-col gap-y-2 flex-1">
       <div v-if="showCategory" class="category-tag-container">
         <span class="category-tag">{{ category }}</span>
         <span class="decorative-text">
@@ -231,17 +231,16 @@ const shareImageAsset = async (blobImageAsset: Blob): Promise<boolean> => {
 
 <style scoped>
 .podcast-bottom {
-  @apply absolute bottom-0 left-0 right-0;
+  @apply absolute left-0 right-0;
   @apply flex items-center px-6;
-  @apply relative z-10;
+  @apply z-10;
+  /* Position from bottom with safe area */
+  bottom: 0;
   /* Mobile safe area handling with fallback */
   padding-bottom: 1.5rem;
   padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
-  /* Ensure it's above any mobile browser UI */
-  bottom: 0;
-  bottom: env(safe-area-inset-bottom, 0px);
   /* Fallback for browsers without env() support */
-  @supports not (bottom: env(safe-area-inset-bottom)) {
+  @supports not (padding-bottom: env(safe-area-inset-bottom)) {
     padding-bottom: 2rem;
   }
 }

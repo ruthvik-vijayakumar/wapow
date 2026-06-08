@@ -112,7 +112,14 @@ export const useAuthStore = defineStore('auth', () => {
   async function getAccessToken(): Promise<string | null> {
     if (!_client) return null
     try {
-      return (await _client.getAccessTokenSilently()) ?? null
+      return (
+        (await _client.getAccessTokenSilently({
+          authorizationParams: {
+            audience: import.meta.env.VITE_AUTH0_AUDIENCE as string,
+            scope: 'openid profile email',
+          },
+        })) ?? null
+      )
     } catch {
       return null
     }

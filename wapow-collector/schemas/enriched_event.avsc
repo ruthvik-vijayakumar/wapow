@@ -1,0 +1,90 @@
+{
+  "type": "record",
+  "name": "EnrichedEvent",
+  "namespace": "com.wapow.collector",
+  "doc": "An EventPayload enriched with server-side context (IP, geo, device) before being written to ClickHouse. Column order matches writer._COLUMNS.",
+  "fields": [
+    {
+      "name": "event_type",
+      "type": "string",
+      "doc": "Event name."
+    },
+    {
+      "name": "user_id",
+      "type": "string",
+      "default": ""
+    },
+    {
+      "name": "session_id",
+      "type": "string",
+      "default": ""
+    },
+    {
+      "name": "content_id",
+      "type": "string",
+      "default": ""
+    },
+    {
+      "name": "content_type",
+      "type": "string",
+      "default": "",
+      "doc": "article, video, podcast, or game."
+    },
+    {
+      "name": "category",
+      "type": "string",
+      "default": ""
+    },
+    {
+      "name": "timestamp",
+      "type": "string",
+      "doc": "ISO-8601 timestamp. Server fills this if the client omits it."
+    },
+    {
+      "name": "properties",
+      "type": "string",
+      "default": "{}",
+      "doc": "Event metadata serialised as a JSON string for ClickHouse storage."
+    },
+    {
+      "name": "ip",
+      "type": "string",
+      "default": "",
+      "doc": "Client IP extracted from X-Forwarded-For or the TCP connection."
+    },
+    {
+      "name": "user_agent",
+      "type": "string",
+      "default": "",
+      "doc": "Raw User-Agent header from the ingest request."
+    },
+    {
+      "name": "device_type",
+      "type": {
+        "type": "enum",
+        "name": "DeviceType",
+        "symbols": ["desktop", "mobile", "tablet"]
+      },
+      "default": "desktop",
+      "doc": "Device category inferred from User-Agent."
+    },
+    {
+      "name": "country",
+      "type": "string",
+      "default": "",
+      "doc": "ISO 3166-1 alpha-2 country code resolved from IP via GeoIP."
+    },
+    {
+      "name": "city",
+      "type": "string",
+      "default": "",
+      "doc": "City name resolved from IP via GeoIP."
+    },
+    {
+      "name": "referrer",
+      "type": "string",
+      "default": "",
+      "doc": "document.referrer forwarded by the client."
+    }
+  ]
+}

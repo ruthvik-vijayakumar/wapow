@@ -1,5 +1,6 @@
 <template>
   <div
+    ref="storyContainerRef"
     class="story-container"
   >
     <!-- Debug info (temporary) -->
@@ -21,7 +22,7 @@
           <div
             v-if="index === currentPageIndex"
             class="progress-fill"
-            :style="{ width: `${(currentPageIndex / (pages.length - 1)) * 100}%` }"
+            :style="{ width: `${pages.length > 1 ? (currentPageIndex / (pages.length - 1)) * 100 : 100}%` }"
           ></div>
         </div>
       </div>
@@ -58,8 +59,19 @@
 
     <!-- Main Content -->
     <div class="story-content" @click="handleContentClick">
+      <!-- Layout: Text only -->
+      <template v-if="currentPage.layout === 'text-only'">
+        <div class="text-only-container">
+          <div class="text-section-centered">
+            <p class="story-description text-left font-spectral text-xl leading-relaxed text-gray-100 max-w-sm mx-auto">
+              {{ currentPage.description }}
+            </p>
+          </div>
+        </div>
+      </template>
+
       <!-- Layout: Text on top, Image on bottom -->
-      <template v-if="currentPage.layout === 'text-top'">
+      <template v-else-if="currentPage.layout === 'text-top'">
         <div class="text-top-container">
           <div class="text-section">
             <p class="story-description">{{ currentPage.description }}</p>
@@ -91,61 +103,14 @@
           <div class="takeaways-header">
             <h1 class="takeaways-title">Key Takeaways</h1>
           </div>
-          <div class="takeaways-description">{{ currentPage.description }}</div>
-          <!-- <div class="takeaways-list">
-            <div class="takeaway-item">
+          <div class="takeaways-list">
+            <div
+              v-for="(item, idx) in takeawaysItems"
+              :key="idx"
+              class="takeaway-item"
+            >
               <div class="takeaway-bullet">•</div>
-              <div class="takeaway-text">The situation has evolved rapidly with new developments</div>
-            </div>
-            <div class="takeaway-item">
-              <div class="takeaway-bullet">•</div>
-              <div class="takeaway-text">Key stakeholders have responded to the changes</div>
-            </div>
-            <div class="takeaway-item">
-              <div class="takeaway-bullet">•</div>
-              <div class="takeaway-text">Experts predict significant future implications</div>
-            </div>
-            <div class="takeaway-item">
-              <div class="takeaway-bullet">•</div>
-              <div class="takeaway-text">The broader impact extends beyond initial expectations</div>
-            </div>
-          </div> -->
-
-          <div class="poll-section">
-            <div class="poll-question">What's your take on this story?</div>
-            <div class="poll-options">
-              <div class="poll-option" @click.stop="selectPollOption(1)" :class="{ 'voted': hasVoted }">
-                <div class="poll-radio" :class="{ 'selected': selectedPollOption === 1 }"></div>
-                <div class="poll-text">Very interesting</div>
-                <div v-if="hasVoted" class="poll-percentage">
-                  <div class="percentage-bar" :style="{ width: getPollPercentage(1) + '%' }"></div>
-                  <span class="percentage-text">{{ getPollPercentage(1) }}%</span>
-                </div>
-              </div>
-              <div class="poll-option" @click.stop="selectPollOption(2)" :class="{ 'voted': hasVoted }">
-                <div class="poll-radio" :class="{ 'selected': selectedPollOption === 2 }"></div>
-                <div class="poll-text">Somewhat relevant</div>
-                <div v-if="hasVoted" class="poll-percentage">
-                  <div class="percentage-bar" :style="{ width: getPollPercentage(2) + '%' }"></div>
-                  <span class="percentage-text">{{ getPollPercentage(2) }}%</span>
-                </div>
-              </div>
-              <div class="poll-option" @click.stop="selectPollOption(3)" :class="{ 'voted': hasVoted }">
-                <div class="poll-radio" :class="{ 'selected': selectedPollOption === 3 }"></div>
-                <div class="poll-text">Not my interest</div>
-                <div v-if="hasVoted" class="poll-percentage">
-                  <div class="percentage-bar" :style="{ width: getPollPercentage(3) + '%' }"></div>
-                  <span class="percentage-text">{{ getPollPercentage(3) }}%</span>
-                </div>
-              </div>
-              <div class="poll-option" @click.stop="selectPollOption(4)" :class="{ 'voted': hasVoted }">
-                <div class="poll-radio" :class="{ 'selected': selectedPollOption === 4 }"></div>
-                <div class="poll-text">Need more info</div>
-                <div v-if="hasVoted" class="poll-percentage">
-                  <div class="percentage-bar" :style="{ width: getPollPercentage(4) + '%' }"></div>
-                  <span class="percentage-text">{{ getPollPercentage(4) }}%</span>
-                </div>
-              </div>
+              <div class="takeaway-text">{{ item }}</div>
             </div>
           </div>
 
@@ -175,14 +140,12 @@
       :initial-liked="isLiked"
       :initial-listening="isListening"
       :show-category="true"
-      :show-reactions="true"
       :show-listen="true"
       :category="category"
       :article-content="props.content"
       @like="handleLike"
       @listen="handleListen"
       @comments="toggleComments"
-      @reaction="selectReaction"
     />
 
   </div>
@@ -256,12 +219,12 @@ const handleSave = async () => {
     }
   } catch (err) {
     console.error('[handleSave] Error:', err)
-    emit('save', { id: articleId, collection, saved: !currentlySaved })
   }
 }
 
 const { trackScrollDepth } = useAnalytics()
 
+const storyContainerRef = ref<HTMLElement | null>(null)
 const currentPageIndex = ref(0)
 const isLiked = ref(false)
 const isListening = ref(false)
@@ -271,14 +234,6 @@ const likeHoldTimer = ref<number | null>(null)
 const reactionHoldTimer = ref<number | null>(null)
 const autoAdvanceTimer = ref<NodeJS.Timeout | null>(null)
 const isVisible = ref(false)
-const selectedPollOption = ref<number | null>(null)
-const pollResults = ref<{ [key: number]: number }>({
-  1: 45, // Very interesting
-  2: 28, // Somewhat relevant
-  3: 15, // Not my interest
-  4: 12  // Need more info
-})
-const hasVoted = ref(false)
 
 // Create story pages from the content data
 const pages = computed(() => {
@@ -301,7 +256,7 @@ const pages = computed(() => {
   }
 
   const createdAt = props.content.createdAt || props.content.publish_date || new Date().toISOString()
-  const pages_data  = props.content.originalArticle.ai_summary?.pages?.filter((page: any) => page.page_type !=='hero') || []
+  const pages_data = props.content.originalArticle?.ai_summary?.pages?.filter((page: any) => page.page_type !== 'hero') || []
   return [
     {
       ...props.content,
@@ -312,14 +267,19 @@ const pages = computed(() => {
       createdAt: createdAt,
       layout: 'standard' // Image on top, text on bottom`
     },
-    ...pages_data.filter((page: any) => page.page_type === 'content').map((page: any, index: number) => ({
-      title: page.content.filter((item: any) => item && item['type'] === 'text')[0].content,
-      description: page.content.filter((item: any) => item && item['type'] === 'text')[0].content,
-      thumbnail: page.content.filter((item: any) => item && item['type'] === 'image')[0].content_url,
-      author: author,
-      createdAt: createdAt,
-      layout: index % 2 === 0 ? 'text-top' : 'image-top' // Image on top, text on bottom
-    })),
+    ...pages_data.filter((page: any) => page.page_type === 'content').map((page: any, index: number) => {
+      const textItem = page.content?.find((item: any) => item?.type === 'text')
+      const imageItem = page.content?.find((item: any) => item?.type === 'image')
+      if (!textItem) return null
+      return {
+        title: textItem.content,
+        description: textItem.content,
+        thumbnail: imageItem?.content_url,
+        author: author,
+        createdAt: createdAt,
+        layout: !imageItem?.content_url ? 'text-only' : (index % 2 === 0 ? 'text-top' : 'image-top')
+      }
+    }).filter(Boolean),
     // {
     //   title: "Breaking News",
     //   description: "This story continues with additional details and insights about the latest developments. The situation has evolved rapidly, with new information coming to light that changes our understanding of the events. Key stakeholders have responded, and the implications are far-reaching.",
@@ -336,14 +296,17 @@ const pages = computed(() => {
     //   createdAt: createdAt,
     //   layout: 'image-top' // Image on top, text on bottom
     // },
-    ...pages_data.filter((page: any) => page.page_type === 'overview').map((page: any, index: number) => ({
-      title: "Key Takeaways",
-      description: page.content.filter((item: any) => item && item['type'] === 'text')[0].content,
-      // thumbnail: page.content.filter((item: any) => item && item['type'] === 'image')[0].content_url,
-      author: author,
-      createdAt: createdAt,
-      layout: 'takeaways' // Image on top, text on bottom
-    })),
+    ...pages_data.filter((page: any) => page.page_type === 'overview').map((page: any) => {
+      const textItem = page.content?.find((item: any) => item?.type === 'text')
+      if (!textItem) return null
+      return {
+        title: "Key Takeaways",
+        description: textItem.content,
+        author: author,
+        createdAt: createdAt,
+        layout: 'takeaways'
+      }
+    }).filter(Boolean),
     // {
     //   title: "Key Takeaways",
     //   description: "Here are the main points to remember from this story.",
@@ -367,6 +330,14 @@ watch(currentPageIndex, (newIdx) => {
 const currentPage = computed(() => {
   const page = pages.value[currentPageIndex.value]
   return page
+})
+
+const takeawaysItems = computed(() => {
+  const desc = currentPage.value?.description || ''
+  return desc
+    .split('\n')
+    .map(line => line.replace(/^[•\-\*\s]+/, '').trim())
+    .filter(Boolean)
 })
 
 const handleContentClick = (event: MouseEvent) => {
@@ -448,7 +419,7 @@ const toggleComments = (articleContent?: any) => {
 
 const readFullArticle = () => {
   // Navigate to the article view with the canonical URL
-  if (props.content.originalArticle.canonical_url) {
+  if (props.content.originalArticle?.canonical_url) {
     const articleTitle = props.content.title || props.content.headlines?.basic || 'Article'
     const encodedUrl = encodeURIComponent(props.content.originalArticle.canonical_url)
     const encodedTitle = encodeURIComponent(articleTitle)
@@ -456,25 +427,6 @@ const readFullArticle = () => {
   } else {
     console.log('No canonical URL available')
   }
-}
-
-const selectPollOption = (option: number) => {
-  selectedPollOption.value = option
-  hasVoted.value = true
-
-  // Update poll results (simulate voting)
-  pollResults.value[option] = (pollResults.value[option] || 0) + 1
-
-  // Prevent auto-advance when poll is voted
-  stopAutoAdvance()
-
-  console.log('Selected poll option:', option)
-}
-
-const getPollPercentage = (option: number): number => {
-  const total = Object.values(pollResults.value).reduce((sum, count) => sum + count, 0)
-  const percentage = total > 0 ? Math.round((pollResults.value[option] || 0) / total * 100) : 0
-  return percentage
 }
 
 // Auto-advance functionality
@@ -501,7 +453,7 @@ const stopAutoAdvance = () => {
 
 // Intersection observer for visibility-based autoplay
 const setupIntersectionObserver = () => {
-  const storyContainer = document.querySelector('.story-container') as HTMLElement
+  const storyContainer = storyContainerRef.value
   if (!storyContainer) return
 
   const observer = new IntersectionObserver(
@@ -527,7 +479,16 @@ const setupIntersectionObserver = () => {
   observer.observe(storyContainer)
 }
 
+// Set --vh CSS variable for mobile viewport handling (Android address bar fix)
+const setVh = () => {
+  document.documentElement.style.setProperty('--vh', `${window.innerHeight}px`)
+}
+
 onMounted(() => {
+  // Setup viewport height for Android
+  setVh()
+  window.addEventListener('resize', setVh)
+  window.addEventListener('orientationchange', setVh)
   // Setup intersection observer for auto-advance
   setupIntersectionObserver()
 })
@@ -535,6 +496,9 @@ onMounted(() => {
 onUnmounted(() => {
   // Cleanup auto-advance timer
   stopAutoAdvance()
+  // Cleanup viewport listeners
+  window.removeEventListener('resize', setVh)
+  window.removeEventListener('orientationchange', setVh)
 })
 </script>
 
@@ -544,10 +508,15 @@ onUnmounted(() => {
   @apply flex flex-col;
   @apply touch-none;
   @apply w-full;
-  /* Mobile viewport handling */
-  height: 100vh;
-  height: 100dvh; /* Dynamic viewport height for mobile */
-  min-height: -webkit-fill-available;
+  /* Mobile viewport handling - layered fallbacks for Android address bar */
+  height: 100vh; /* Fallback for oldest browsers */
+  height: calc(var(--vh, 100vh)); /* JS-calculated actual viewport height */
+  height: 100dvh; /* Modern browsers with dynamic viewport support */
+  /* Prevent content from extending beyond visible area */
+  max-height: 100vh;
+  max-height: calc(var(--vh, 100vh));
+  max-height: 100dvh;
+  overflow: hidden;
   /* Safe area insets for notched devices */
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
@@ -621,6 +590,7 @@ onUnmounted(() => {
   @apply cursor-pointer;
   @apply h-full w-full;
   @apply overflow-hidden;
+  @apply font-spectral;
 }
 
 .content-image {
@@ -633,8 +603,11 @@ onUnmounted(() => {
 
 .content-text {
   @apply absolute bottom-0 left-0 right-0 z-10;
-  @apply px-6 pb-6 pt-20;
+  @apply px-6 pt-20;
   @apply text-white;
+  /* Extra bottom padding to clear the BottomControls bar */
+  padding-bottom: 5rem;
+  padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px));
   /* Readable copy on busy hero images without dimming the whole slide */
   background: linear-gradient(
     to top,
@@ -642,6 +615,15 @@ onUnmounted(() => {
     rgb(0 0 0 / 0.55) 38%,
     transparent 100%
   );
+}
+
+/* Text-only layout styles */
+.text-only-container {
+  @apply flex flex-col h-full w-full justify-center bg-black;
+}
+
+.text-section-centered {
+  @apply flex items-center justify-center p-8;
 }
 
 /* Text-top layout styles */
@@ -708,7 +690,7 @@ onUnmounted(() => {
 
 .text-section-bottom .story-title {
   @apply text-2xl font-bold mb-3;
-  @apply font-postoni;
+  @apply font-spectral;
   @apply text-white;
 }
 
@@ -730,7 +712,7 @@ onUnmounted(() => {
 
 .takeaways-title {
   @apply text-2xl font-bold;
-  @apply font-postoni;
+  @apply font-spectral;
   @apply text-white;
 }
 
@@ -781,93 +763,6 @@ onUnmounted(() => {
   @apply text-gray-300 text-sm;
 }
 
-/* Poll styles */
-.poll-section {
-  @apply mt-4;
-}
-
-.poll-question {
-  @apply text-white font-medium font-postoni text-xl;
-  @apply mb-4;
-}
-
-.poll-options {
-  @apply space-y-3;
-}
-
-.poll-option {
-  @apply flex items-center space-x-3;
-  @apply cursor-pointer;
-  @apply p-3;
-  @apply bg-gray-800 bg-opacity-50;
-  @apply rounded-lg;
-  @apply transition-colors duration-200;
-}
-
-.poll-option:hover {
-  @apply bg-gray-700 bg-opacity-70;
-}
-
-.poll-radio {
-  @apply w-5 h-5;
-  @apply border-2 border-gray-400;
-  @apply rounded-full;
-  @apply flex-shrink-0;
-  @apply transition-all duration-200;
-}
-
-.poll-radio.selected {
-  @apply border-blue-500;
-  @apply bg-blue-500;
-  @apply relative;
-}
-
-.poll-radio.selected::after {
-  content: '';
-  @apply absolute;
-  @apply w-2 h-2;
-  @apply bg-white;
-  @apply rounded-full;
-  @apply top-1/2 left-1/2;
-  @apply transform -translate-x-1/2 -translate-y-1/2;
-}
-
-.poll-text {
-  @apply text-white text-base;
-  @apply flex-1;
-}
-
-.poll-option.voted {
-  @apply relative;
-  @apply overflow-hidden;
-}
-
-.poll-percentage {
-  @apply absolute inset-0;
-  @apply flex items-center justify-between;
-  @apply px-3;
-  @apply pointer-events-none;
-}
-
-.percentage-bar {
-  @apply absolute left-0 top-0 bottom-0;
-  @apply bg-blue-500 bg-opacity-20;
-  @apply transition-all duration-1000 ease-out;
-  @apply z-0;
-}
-
-.percentage-text {
-  @apply text-white text-sm font-medium;
-  @apply z-10;
-  @apply relative;
-}
-
-.poll-option.voted .poll-radio,
-.poll-option.voted .poll-text {
-  @apply opacity-0;
-  @apply transition-opacity duration-300;
-}
-
 .read-full-button {
   @apply flex justify-center mt-6;
 }
@@ -882,7 +777,7 @@ onUnmounted(() => {
 
 .story-title {
   @apply text-3xl font-bold mb-2;
-  @apply font-postoni;
+  @apply font-spectral;
 }
 
 .story-description {

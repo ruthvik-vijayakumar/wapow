@@ -2,7 +2,7 @@
   <aside class="desktop-sidebar">
     <div class="desktop-sidebar__inner">
       <button class="desktop-sidebar__brand" @click="goHome" type="button">
-        <span class="desktop-sidebar__brand-text font-postoni">TunedIn</span>
+        <span class="desktop-sidebar__brand-text font-postoni font-bold">TunedIn</span>
       </button>
 
       <nav class="desktop-sidebar__nav" aria-label="Primary">
@@ -24,14 +24,6 @@
           <span class="desktop-sidebar__label">Search</span>
         </button>
 
-        <button class="desktop-sidebar__item" :class="{ active: isAskAi }" @click="emit('navigate', 'ask-ai')" type="button">
-          <span class="desktop-sidebar__icon" aria-hidden="true">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-            </svg>
-          </span>
-          <span class="desktop-sidebar__label">Ask AI</span>
-        </button>
 
         <button class="desktop-sidebar__item" :class="{ active: isGames }" @click="emit('navigate', 'games')" type="button">
           <span class="desktop-sidebar__icon" aria-hidden="true">
@@ -68,7 +60,6 @@ const route = useRoute()
 
 const isHome = computed(() => route.path === '/' || route.path.split('/').filter(Boolean).length <= 1)
 const isSearch = computed(() => route.path === '/search')
-const isAskAi = computed(() => false)
 const isGames = computed(() => false)
 const isProfile = computed(() => route.path === '/profile')
 
@@ -109,6 +100,7 @@ const goProfile = () => router.push('/profile')
 .desktop-sidebar__brand-text {
   font-size: 1.45rem;
   letter-spacing: 0.02em;
+  font-weight: bold;
 }
 
 .desktop-sidebar__nav {

@@ -4,7 +4,7 @@ import { useContentStore } from '@/stores/content'
 import TopBar from '@/components/TopBar.vue'
 import CategoryNavigation from '@/components/CategoryNavigation.vue'
 import ContentTile from '@/components/ContentTile.vue'
-import BottomNavigation from '@/components/BottomNavigation.vue'
+import NavigationDrawer from '@/components/NavigationDrawer.vue'
 import DesktopSidebar from '@/components/DesktopSidebar.vue'
 import DesktopTopHeader from '@/components/DesktopTopHeader.vue'
 import VueMasonryWall from '@yeger/vue-masonry-wall'
@@ -18,10 +18,12 @@ const route = useRoute()
 const router = useRouter()
 const contentStore = useContentStore()
 const isLoading = ref(false)
+const contentReady = ref(false) // Delay showing content to let masonry calculate
 
 // Desktop breakpoint handling (keep template logic simple)
 const isDesktop = ref(false)
 let mq: MediaQueryList | null = null
+let removeAfterEach: (() => void) | null = null
 const onMqChange = (e: MediaQueryListEvent) => {
   isDesktop.value = e.matches
 }
@@ -43,14 +45,14 @@ const categories = [
   // '/podcasts'
 ]
 
+const isDrawerOpen = ref(false)
+
 const handleSearch = () => {
-  console.log('Search clicked')
-  // TODO: Implement search functionality
+  router.push('/search')
 }
 
 const handleMenu = () => {
-  console.log('Menu clicked')
-  // TODO: Implement menu functionality
+  isDrawerOpen.value = true
 }
 
 const handleDesktopSearch = (query: string) => {
@@ -82,22 +84,26 @@ const handleSwipe = async (direction: 'left' | 'right') => {
     isAnimating.value = true
     currentCategoryIndex.value++
     const nextCategory = categories[currentCategoryIndex.value]
+    // Navigate to update URL and trigger CategoryNavigation sync
+    router.push(nextCategory)
     await handleCategoryChange(nextCategory)
     setTimeout(() => {
       slideDirection.value = null
       isAnimating.value = false
-    }, 300)
+    }, 250)
   } else if (direction === 'right' && currentCategoryIndex.value > 0) {
     // Swipe right - go to previous category
     slideDirection.value = 'right'
     isAnimating.value = true
     currentCategoryIndex.value--
     const prevCategory = categories[currentCategoryIndex.value]
+    // Navigate to update URL and trigger CategoryNavigation sync
+    router.push(prevCategory)
     await handleCategoryChange(prevCategory)
     setTimeout(() => {
       slideDirection.value = null
       isAnimating.value = false
-    }, 300)
+    }, 250)
   }
 }
 
@@ -129,11 +135,16 @@ const handleTouchEnd = (event: TouchEvent) => {
 const loadCategoryData = async (categoryId: string) => {
   try {
     isLoading.value = true
+    contentReady.value = false
     await contentStore.loadArticles(categoryId)
   } catch (error) {
     console.error('Error loading category data:', error)
   } finally {
     isLoading.value = false
+    // Small delay to let masonry calculate layout before showing
+    setTimeout(() => {
+      contentReady.value = true
+    }, 50)
   }
 }
 
@@ -157,8 +168,7 @@ const handleNavigation = (route: string) => {
       router.push('/search')
       break
     case 'ask-ai':
-      // TODO: Navigate to AI chat page
-      console.log('Navigate to Ask AI')
+      router.push({ path: '/search', query: { tab: 'chat' } })
       break
     case 'games':
       // TODO: Navigate to games page
@@ -200,6 +210,7 @@ const masonryConfig = computed(() => {
 const getWapoData = async () => {
   try {
     isLoading.value = true
+    contentReady.value = false
     // Get current route or default to sports
     const currentPath = router.currentRoute.value.path
     const defaultCategory = categories.includes(currentPath) ? currentPath : '/sports'
@@ -208,6 +219,10 @@ const getWapoData = async () => {
     console.error('Error loading initial data:', error)
   } finally {
     isLoading.value = false
+    // Small delay to let masonry calculate layout before showing
+    setTimeout(() => {
+      contentReady.value = true
+    }, 50)
   }
 }
 
@@ -218,16 +233,17 @@ onMounted(() => {
 
   getWapoData()
   // Watch for route changes
-  router.afterEach(handleRouteChange)
+  removeAfterEach = router.afterEach(handleRouteChange)
 })
 
 onUnmounted(() => {
   if (mq) mq.removeEventListener('change', onMqChange)
+  if (removeAfterEach) removeAfterEach()
 })
 </script>
 
 <template>
-  <div class="home-shell" @touchstart="handleTouchStart" @touchend="handleTouchEnd">
+  <div class="home-shell" @touchstart.passive="handleTouchStart" @touchend.passive="handleTouchEnd">
     <!-- Desktop layout -->
     <div class="desktop-layout" v-show="isDesktop">
       <DesktopSidebar @navigate="handleNavigation" />
@@ -240,7 +256,7 @@ onUnmounted(() => {
 
         <div class="desktop-content">
           <!-- Skeleton loading state -->
-          <div v-show="isLoading || contentStore.isLoading" class="skeleton-grid desktop">
+          <div v-show="isLoading || contentStore.isLoading || !contentReady" class="skeleton-grid desktop">
             <div v-for="n in 12" :key="n" class="skeleton-tile">
               <div class="skeleton-tile-image skeleton-pulse"></div>
               <div class="skeleton-tile-body">
@@ -251,10 +267,11 @@ onUnmounted(() => {
           </div>
 
           <!-- Content grid -->
-          <div v-show="!isLoading && !contentStore.isLoading" class="content-wrapper desktop">
+          <div v-if="contentReady && contentStore.articles.length > 0" class="content-wrapper desktop fade-in">
             <div class="content-inner">
               <div class="content-grid">
                 <VueMasonryWall
+                  :key="'desktop-' + currentCategoryIndex"
                   :items="contentStore.articles"
                   :ssr-columns="masonryConfig.ssrColumns"
                   :column-width="masonryConfig.columnWidth"
@@ -279,7 +296,7 @@ onUnmounted(() => {
 
       <div class="content-area">
         <!-- Skeleton loading state -->
-        <div v-show="isLoading || contentStore.isLoading" class="skeleton-grid">
+        <div v-show="isLoading || contentStore.isLoading || !contentReady" class="skeleton-grid">
           <div v-for="n in 8" :key="n" class="skeleton-tile">
             <div class="skeleton-tile-image skeleton-pulse"></div>
             <div class="skeleton-tile-body">
@@ -290,18 +307,17 @@ onUnmounted(() => {
         </div>
 
         <!-- Content Grid with Animation -->
-        <div v-show="!isLoading && !contentStore.isLoading" class="content-wrapper">
+        <div v-if="contentReady && contentStore.articles.length > 0" class="content-wrapper fade-in">
           <div class="content-inner">
             <div
               class="content-grid"
               :class="{
                 'slide-left': slideDirection === 'left',
-                'slide-right': slideDirection === 'right',
-                'swipe-hint': !isAnimating && !isLoading,
-                'slide-up': !isAnimating && !isLoading && contentStore.articles.length > 0
+                'slide-right': slideDirection === 'right'
               }"
             >
               <VueMasonryWall
+                :key="currentCategoryIndex"
                 :items="contentStore.articles"
                 :ssr-columns="masonryConfig.ssrColumns"
                 :column-width="masonryConfig.columnWidth"
@@ -339,7 +355,7 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <BottomNavigation @navigate="handleNavigation" />
+      <NavigationDrawer :isOpen="isDrawerOpen" @close="isDrawerOpen = false" />
     </div>
   </div>
 </template>
@@ -348,9 +364,12 @@ onUnmounted(() => {
 .home-shell {
   @apply min-h-screen;
   height: 100vh;
-  touch-action: pan-y;
   background-color: var(--bg-primary);
   transition: background-color 0.3s ease;
+  /* Only restrict touch actions on actual touch devices */
+  @media (pointer: coarse) {
+    touch-action: pan-y;
+  }
 }
 
 .desktop-layout {
@@ -453,13 +472,20 @@ onUnmounted(() => {
 
 .content-area {
   @apply flex-1;
-  @apply pb-20;
-  height: calc(100vh - 120px);
-  overflow-y: scroll;
+  @apply pb-4;
+  height: calc(100vh - 100px);
+  overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-  scrollbar-color: transparent transparent;
+  /* Hide scrollbar on mobile only */
+  @media (pointer: coarse) {
+    scrollbar-width: none;
+  }
+  /* Show thin scrollbar on desktop */
+  @media (pointer: fine) {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb, #888) transparent;
+  }
 }
 
 .content-area::-webkit-scrollbar {
@@ -484,28 +510,40 @@ onUnmounted(() => {
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
-  /* Ensure inner content uses full available width */
   margin: 0;
   padding: 0;
 }
 
+/* Fade in content after masonry layout calculates */
+.fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
 .content-grid {
-  @apply transition-all duration-300 ease-in-out;
-  @apply transform;
+  width: 100%;
+
+  /* GPU acceleration only during animations */
+  &.slide-left,
+  &.slide-right {
+    will-change: transform, opacity;
+  }
 }
 
 .slide-left {
-  @apply translate-x-4 opacity-50;
-  animation: slideInLeft 0.3s ease-out;
+  animation: slideInLeft 0.25s ease-out;
 }
 
 .slide-right {
-  @apply -translate-x-4 opacity-50;
-  animation: slideInRight 0.3s ease-out;
-}
-
-.slide-up {
-  animation: slideUpFromBottom 0.1s ease-out;
+  animation: slideInRight 0.25s ease-out;
 }
 
 .swipe-indicators {
@@ -543,33 +581,22 @@ onUnmounted(() => {
 
 @keyframes slideInLeft {
   0% {
-    transform: translateX(100%);
+    transform: translate3d(30px, 0, 0);
     opacity: 0;
   }
   100% {
-    transform: translateX(0);
+    transform: translate3d(0, 0, 0);
     opacity: 1;
   }
 }
 
 @keyframes slideInRight {
   0% {
-    transform: translateX(-100%);
+    transform: translate3d(-30px, 0, 0);
     opacity: 0;
   }
   100% {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-@keyframes slideUpFromBottom {
-  0% {
-    transform: translateY(20px);
-    opacity: 0;
-  }
-  100% {
-    transform: translateY(0);
+    transform: translate3d(0, 0, 0);
     opacity: 1;
   }
 }

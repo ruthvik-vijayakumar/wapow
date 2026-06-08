@@ -61,14 +61,14 @@
       </div>
     </div>
 
-    <BottomNavigation @navigate="handleNavigation" />
+
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import BottomNavigation from '@/components/BottomNavigation.vue'
+
 import { apiFetch } from '@/lib/api'
 
 const router = useRouter()
@@ -148,18 +148,7 @@ const loadSaved = async () => {
 }
 
 const handleBack = () => router.push('/profile')
-const handleNavigation = (route: string) => {
-  switch (route) {
-    case 'home':
-      router.push('/')
-      break
-    case 'profile':
-      router.push('/profile')
-      break
-    default:
-      break
-  }
-}
+
 
 const handleItemClick = (item: any) => {
   const id = item._id ?? item.id
@@ -194,7 +183,7 @@ onMounted(() => loadSaved())
   min-height: 100vh;
   background-color: var(--bg-primary);
   color: var(--text-primary);
-  padding-bottom: 5rem;
+  padding-bottom: 1.5rem;
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 

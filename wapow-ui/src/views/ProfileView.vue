@@ -1,6 +1,6 @@
 <template>
   <div class="profile-container">
-    <TopBar @menu="handleMenu" @notification="handleNotification" />
+    <TopBar @menu="handleMenu" @search="handleSearch" />
 
     <!-- Profile Info -->
     <div class="profile-info">
@@ -145,7 +145,7 @@
       </div>
     </div>
 
-    <BottomNavigation @navigate="handleNavigation" />
+    <NavigationDrawer :isOpen="isDrawerOpen" @close="isDrawerOpen = false" />
   </div>
 </template>
 
@@ -153,7 +153,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import TopBar from '@/components/TopBar.vue'
-import BottomNavigation from '@/components/BottomNavigation.vue'
+import NavigationDrawer from '@/components/NavigationDrawer.vue'
 import { useAuthStore } from '@/stores/auth'
 import { apiFetch } from '@/lib/api'
 import { useTheme } from '@/composables/useTheme'
@@ -198,31 +198,14 @@ onMounted(async () => {
   }
 })
 
+const isDrawerOpen = ref(false)
+
 const handleMenu = () => {
-  router.push('/')
+  isDrawerOpen.value = true
 }
 
-const handleNotification = () => {
-  console.log('Notification clicked')
-}
-
-const handleNavigation = (route: string) => {
-  switch (route) {
-    case 'home':
-      router.push('/')
-      break
-    case 'ask-ai':
-      console.log('Navigate to Ask AI')
-      break
-    case 'games':
-      console.log('Navigate to Games')
-      break
-    case 'profile':
-      router.push('/profile')
-      break
-    default:
-      console.log('Unknown route:', route)
-  }
+const handleSearch = () => {
+  router.push('/search')
 }
 
 const handleReadingPreferences = () => {
@@ -339,7 +322,7 @@ const handleSignOut = async () => {
 }
 
 .menu-item {
-  @apply flex items-center justify-between w-full text-base;
+  @apply flex items-center justify-between w-full;
   @apply px-0 py-3;
   @apply transition-colors duration-200;
   @apply text-left;

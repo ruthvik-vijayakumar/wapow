@@ -64,7 +64,8 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to, _from, next) => {
-  if (!isAuth0Configured || to.meta.public || PUBLIC_ROUTES.includes(to.name as string)) {
+  const guardedRoutes = ['profile', 'pin-board']
+  if (!isAuth0Configured || !guardedRoutes.includes(to.name as string)) {
     return next()
   }
   const authStore = useAuthStore()

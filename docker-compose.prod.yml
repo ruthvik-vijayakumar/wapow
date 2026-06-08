@@ -50,7 +50,8 @@ services:
       - AUTH0_DOMAIN=${AUTH0_DOMAIN:-}
       - AUTH0_AUDIENCE=${AUTH0_AUDIENCE:-}
       # Comma-separated browser origins (Vercel + custom domain), e.g. https://tunedin.live,https://www.tunedin.live
-      - CORS_ORIGINS=${CORS_ORIGINS:-*}
+      # REQUIRED: set CORS_ORIGINS in your environment or .env file (no wildcard default in prod)
+      - CORS_ORIGINS=${CORS_ORIGINS}
       - CLICKHOUSE_HOST=clickhouse
       - CLICKHOUSE_PORT=8123
       - CLICKHOUSE_DB=wapow_analytics
@@ -64,12 +65,24 @@ services:
     container_name: wapow-collector
     environment:
       - PORT=3002
-      - CORS_ORIGINS=${CORS_ORIGINS:-*}
+      - CORS_ORIGINS=${CORS_ORIGINS}
       - CLICKHOUSE_HOST=clickhouse
       - CLICKHOUSE_PORT=8123
       - CLICKHOUSE_DB=wapow_analytics
     depends_on:
       - clickhouse
+
+  scraper:
+    image: ${REGISTRY_PREFIX}/wapow-scraper:latest
+    container_name: wapow-scraper
+    environment:
+      - MONGODB_URI=${MONGODB_URI:-mongodb://mongo:27017/wapow-data}
+      - YOUTUBE_API_KEY=${YOUTUBE_API_KEY:-}
+      - SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID:-}
+      - SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET:-}
+    depends_on:
+      - mongo
+    restart: unless-stopped
 
   nginx:
     image: nginx:stable

@@ -3,7 +3,6 @@
     class="content-tile group cursor-pointer relative overflow-hidden"
     @click="handleClick"
     :class="{ 'clicked': isClicked }"
-    :style="{ animationDelay: `${index * 0.1}s` }"
   >
     <!-- Ripple effect -->
     <div
@@ -18,11 +17,13 @@
     ></div>
 
     <div class="relative overflow-hidden rounded-lg" :style="{ aspectRatio: content.subtype === 'audio' ? '1.77' : '0.67' }">
-      <!-- Thumbnail - using a placeholder since the new interface doesn't have media URLs -->
+      <!-- Thumbnail with lazy loading for performance -->
       <img
         :src="content.promo_items?.basic?.url"
         :alt="content.headlines?.basic || 'Article'"
-        class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+        class="w-full h-full object-cover tile-image"
+        loading="lazy"
+        decoding="async"
       />
 
       <!-- Time to read badge -->
@@ -50,7 +51,7 @@
       </div>
 
       <!-- Title -->
-      <h3 style="font-size: 1.1rem; line-height: 1.2;" class="text-xl tracking-wide font-bold tile-text-primary font-postoni">
+      <h3 style="font-size: 1.1rem; line-height: 1.2;" class="text-xl tracking-tight font-bold tile-text-primary font-postoni">
         {{ content.headlines?.basic || 'Article Title' }}
       </h3>
 
@@ -325,50 +326,55 @@ const getRecipeTotalTime = (): string => {
 
 .content-tile {
   @apply rounded-lg overflow-hidden;
-  @apply transition-all duration-300 ease-in-out;
-  @apply hover:scale-105 hover:shadow-lg;
   @apply relative;
-  animation: fadeInUp 0.6s ease-out both;
   background-color: var(--bg-elevated);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Only enable hover effects on devices that support hover (not touch) */
+@media (hover: hover) {
+  .content-tile {
+    @apply transition-transform duration-200 ease-out;
+  }
+  .content-tile:hover {
+    transform: scale(1.02) translateZ(0);
+  }
 }
 
 .content-tile.clicked {
-  @apply scale-95;
-  animation: ripple 0.6s ease-out;
+  transform: scale(0.98) translateZ(0);
 }
 
 .ripple-effect {
   @apply absolute rounded-full bg-white bg-opacity-20;
   @apply pointer-events-none;
-  @apply animate-ripple;
   @apply z-10;
+  animation: rippleExpand 0.4s ease-out forwards;
 }
 
-@keyframes ripple {
-  0% {
-    transform: scale(1);
+/* GPU-accelerated image scaling on hover */
+.tile-image {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+@media (hover: hover) {
+  .content-tile:hover .tile-image {
+    transform: scale(1.03) translateZ(0);
+    transition: transform 0.2s ease-out;
   }
-  50% {
-    transform: scale(0.95);
+}
+
+@keyframes rippleExpand {
+  0% {
+    transform: scale(0);
+    opacity: 0.5;
   }
   100% {
-    transform: scale(1);
-  }
-}
-
-@keyframes fadeInUp {
-  0% {
+    transform: scale(2);
     opacity: 0;
-    transform: translateY(30px);
   }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-ripple {
-  animation: ripple 0.6s ease-out;
 }
 
 .line-clamp-4 {

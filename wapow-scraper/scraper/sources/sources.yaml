@@ -1,0 +1,128 @@
+# WAPOW Content Sources Configuration
+# Categories: technology, sports, travel, style, wellbeing
+
+rss:
+  # Technology
+  - name: "TechCrunch"
+    url: "https://techcrunch.com/feed/"
+    category: "technology"
+    enabled: true
+
+  - name: "The Verge"
+    url: "https://www.theverge.com/rss/index.xml"
+    category: "technology"
+    enabled: true
+
+  - name: "Wired"
+    url: "https://www.wired.com/feed/rss"
+    category: "technology"
+    enabled: true
+
+  # Sports
+  - name: "ESPN"
+    url: "https://www.espn.com/espn/rss/news"
+    category: "sports"
+    enabled: true
+
+  - name: "Bleacher Report"
+    url: "https://bleacherreport.com/articles/feed"
+    category: "sports"
+    enabled: true
+
+  # Travel
+  - name: "Lonely Planet"
+    url: "https://www.lonelyplanet.com/blog/feed"
+    category: "travel"
+    enabled: true
+
+  - name: "Travel + Leisure"
+    url: "https://www.travelandleisure.com/feeds/all"
+    category: "travel"
+    enabled: true
+
+  # Style
+  - name: "Vogue"
+    url: "https://www.vogue.com/feed/rss"
+    category: "style"
+    enabled: true
+
+  - name: "GQ"
+    url: "https://www.gq.com/feed/rss"
+    category: "style"
+    enabled: true
+
+  # Wellbeing
+  - name: "Well+Good"
+    url: "https://www.wellandgood.com/feed/"
+    category: "wellbeing"
+    enabled: true
+
+  - name: "Healthline"
+    url: "https://www.healthline.com/rss/nutrition"
+    category: "wellbeing"
+    enabled: true
+
+# Web scraping sources (for sites without RSS)
+web:
+  # Example configuration - disabled by default
+  - name: "Example Site"
+    url: "https://example.com/news"
+    category: "technology"
+    enabled: false
+    use_playwright: false
+    selectors:
+      articles: "article"
+      title: "h2"
+      description: "p.excerpt"
+      image: "img"
+      link: "a"
+      author: ".author"
+      date: "time"
+
+# YouTube channels
+youtube:
+  - name: "TED"
+    channel_id: "UCAuUUnT6oDeKwE6v1US1Llw"
+    category: "technology"
+    max_results: 10
+    enabled: true
+
+  - name: "ESPN"
+    channel_id: "UCiWLfSweyRNmLpgEHekhoAg"
+    category: "sports"
+    max_results: 10
+    enabled: true
+
+  - name: "Vogue"
+    channel_id: "UCF9EzMZ8eFv4c4tYtUmTONg"
+    category: "style"
+    max_results: 10
+    enabled: true
+
+  - name: "National Geographic"
+    channel_id: "UCpVm7bg6pXKo1Pr6k5kxG9A"
+    category: "travel"
+    max_results: 10
+    enabled: true
+
+# Spotify podcasts
+spotify:
+  - name: "TED Talks Daily"
+    show_id: "1VXcH8QHkjRcTCEd88U3ti"
+    max_episodes: 10
+    enabled: true
+
+  - name: "The Daily"
+    show_id: "3IM0lmZxpFAY7CwMuv9H4g"
+    max_episodes: 10
+    enabled: true
+
+  - name: "Science Vs"
+    show_id: "5lY4b5PGOvMuOYOjOVEYeB"
+    max_episodes: 10
+    enabled: true
+
+  - name: "The Mindset Mentor"
+    show_id: "1FDkz8IOwDITGFzX1T7R14"
+    max_episodes: 10
+    enabled: true

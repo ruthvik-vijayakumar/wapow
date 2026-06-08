@@ -1,12 +1,20 @@
 """Unified articles endpoint + cross-collection by-IDs (MongoDB)."""
+import asyncio
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from api.db import get_db
 from api.config import ALL_COLLECTIONS, ARTICLE_CATEGORIES, ARTICLES_COLLECTION
 from api.services.content import _transform_content_item, _transform_video_item, _transform_podcast_item
+from api.services.conversion_jobs import create_job, run_conversion_jobs
+from api.services.story_pipeline.service import (
+    convert_article_to_story,
+    find_article_doc,
+    preview_story_for_article,
+)
 from bson import ObjectId
 
 router = APIRouter(prefix="/articles", tags=["articles"])
@@ -14,6 +22,11 @@ router = APIRouter(prefix="/articles", tags=["articles"])
 
 class ArticlesByIdsBody(BaseModel):
     ids: list[str]
+
+
+class BatchConvertToStoryBody(BaseModel):
+    ids: list[str]
+    force: bool = False
 
 
 COLLECTION_MAP = {
@@ -76,6 +89,27 @@ async def list_articles(
     }
 
 
+@router.post("/batch-convert-to-story")
+async def batch_convert_to_story(body: BatchConvertToStoryBody, background_tasks: BackgroundTasks):
+    """Queue story conversion jobs (async). Max 50 IDs. Returns 202 with job_ids."""
+    if len(body.ids) > 50:
+        raise HTTPException(
+            status_code=400,
+            detail="Maximum 50 article IDs per batch",
+        )
+    if not body.ids:
+        raise HTTPException(status_code=400, detail="ids must not be empty")
+    job_ids: list[str] = []
+    for aid in body.ids:
+        job = create_job(str(aid))
+        job_ids.append(job["job_id"])
+    background_tasks.add_task(run_conversion_jobs, job_ids, body.force)
+    return JSONResponse(
+        status_code=202,
+        content={"success": True, "job_ids": job_ids},
+    )
+
+
 @router.post("/by-ids")
 async def articles_by_ids(body: ArticlesByIdsBody):
     """Fetch articles by IDs across articles (by category), videos, podcasts."""
@@ -135,3 +169,45 @@ async def articles_by_ids(body: ArticlesByIdsBody):
         "limited": len(limited_ids) < len(ids),
         "summary": summary,
     }
+
+
+@router.get("/{article_id}")
+async def get_article(
+    article_id: str,
+    ensure_story: bool = Query(False, description="If true, generate ai_summary when missing"),
+):
+    """Fetch a single article from the unified articles collection by _id."""
+    doc = find_article_doc(article_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Article not found")
+    if ensure_story:
+        ai = doc.get("ai_summary") or {}
+        if not ai.get("pages"):
+            try:
+                loop = asyncio.get_running_loop()
+                await loop.run_in_executor(None, lambda: convert_article_to_story(article_id, force=False))
+                doc = find_article_doc(article_id) or doc
+            except ValueError:
+                pass
+    data = _transform_content_item(doc)
+    return {"success": True, "data": data}
+
+
+@router.post("/{article_id}/convert-to-story")
+async def convert_to_story(article_id: str, force: bool = Query(False)):
+    """Generate StoryView-compatible ai_summary.pages and persist on the article."""
+    try:
+        result = convert_article_to_story(article_id, force=force)
+        return {"success": True, **result}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+
+
+@router.post("/{article_id}/preview-story")
+async def preview_story(article_id: str):
+    """Generate ai_summary without persisting (for QA)."""
+    try:
+        result = preview_story_for_article(article_id)
+        return {"success": True, **result}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
