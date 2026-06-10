@@ -1,7 +1,8 @@
-"""Scraping job definitions."""
+"""Scraping job definitions with observability and metrics tracking."""
 
 import asyncio
 import logging
+import time
 from pathlib import Path
 from typing import Any
 
@@ -14,16 +15,13 @@ from scraper.models.source import (
     SourceConfig,
     RSSSource,
     WebSource,
-    YouTubeSource,
-    SpotifySource,
 )
 from scraper.scrapers.rss_scraper import RSSScraper
 from scraper.scrapers.web_scraper import WebScraper
 from scraper.scrapers.playwright_scraper import PlaywrightScraper
-from scraper.scrapers.api_scrapers.youtube import YouTubeScraper
-from scraper.scrapers.api_scrapers.spotify import SpotifyScraper
 from scraper.processors.normalizer import ContentNormalizer
 from scraper.processors.deduplicator import deduplicator
+from scraper.utils.metrics import ScraperRunTracker, update_source_status
 
 logger = logging.getLogger(__name__)
 
@@ -41,12 +39,10 @@ def load_sources() -> SourceConfig:
         with open(SOURCES_PATH) as f:
             data = yaml.safe_load(f) or {}
 
-        # Parse into typed models
+        # Parse into typed models (rss and web only)
         config = SourceConfig(
             rss=[RSSSource(**s) for s in data.get("rss", [])],
             web=[WebSource(**s) for s in data.get("web", [])],
-            youtube=[YouTubeSource(**s) for s in data.get("youtube", [])],
-            spotify=[SpotifySource(**s) for s in data.get("spotify", [])],
         )
         return config
 
@@ -77,7 +73,7 @@ async def _trigger_story_convert(article_id: str) -> None:
         logger.warning("Story convert request failed for %s: %s", article_id, e)
 
 
-async def _save_items(items: list[tuple[str, dict[str, Any]]]) -> int:
+async def _save_items(items: list[tuple[str, dict[str, Any]]]) -> list[tuple[str, str]]:
     """
     Save normalized items to MongoDB.
 
@@ -85,15 +81,16 @@ async def _save_items(items: list[tuple[str, dict[str, Any]]]) -> int:
         items: List of (collection_name, document) tuples
 
     Returns:
-        Number of items saved
+        List of (inserted_id, title) tuples of saved items
     """
-    saved = 0
+    saved = []
     for collection_name, doc in items:
         try:
             coll = get_collection(collection_name)
             result = coll.insert_one(doc)
             if result.inserted_id:
-                saved += 1
+                title = doc.get("headlines", {}).get("basic") or doc.get("title") or "Untitled"
+                saved.append((str(result.inserted_id), title))
                 # Update deduplication cache
                 url = doc.get("canonical_url", "")
                 if url:
@@ -111,167 +108,163 @@ async def _save_items(items: list[tuple[str, dict[str, Any]]]) -> int:
 
 
 async def run_rss_scrape() -> dict[str, Any]:
-    """Run RSS feed scraping job."""
+    """Run RSS feed scraping job with observability tracking."""
     logger.info("Starting RSS scrape job")
+    tracker = ScraperRunTracker("rss_feeds")
+    tracker.start()
+
     sources = load_sources()
     normalizer = ContentNormalizer()
 
     total_scraped = 0
     total_saved = 0
 
-    for source in sources.rss:
-        if not source.enabled:
-            continue
+    try:
+        for source in sources.rss:
+            if not source.enabled:
+                continue
 
-        try:
-            scraper = RSSScraper(source)
-            items = await scraper.scrape()
-            total_scraped += len(items)
+            start_src_time = time.time()
+            src_status = "success"
+            src_items_scraped = 0
+            src_items_saved = 0
+            src_error = ""
+            try:
+                scraper = RSSScraper(source)
+                items = await scraper.scrape()
+                src_items_scraped = len(items)
+                total_scraped += src_items_scraped
 
-            # Normalize items
-            normalized = [(normalizer.normalize(item)) for item in items]
+                # Normalize items
+                normalized = [(normalizer.normalize(item)) for item in items]
 
-            # Filter duplicates
-            unique = deduplicator.filter_duplicates(normalized)
+                # Filter duplicates
+                unique = deduplicator.filter_duplicates(normalized)
 
-            # Save to MongoDB
-            saved = await _save_items(unique)
-            total_saved += saved
+                # Save to MongoDB
+                saved_info = await _save_items(unique)
+                src_items_saved = len(saved_info)
+                total_saved += src_items_saved
+                for item_id, item_title in saved_info:
+                    tracker.add_saved_article(item_id, item_title)
 
-            logger.info(
-                f"RSS {source.name}: scraped={len(items)}, unique={len(unique)}, saved={saved}"
-            )
+                logger.info(
+                    f"RSS {source.name}: scraped={len(items)}, unique={len(unique)}, saved={len(saved_info)}"
+                )
 
-        except Exception as e:
-            logger.error(f"Error in RSS scrape for {source.name}: {e}")
+            except Exception as e:
+                src_status = "failed"
+                src_error = str(e)
+                err_msg = f"Error in RSS scrape for {source.name}: {e}"
+                logger.error(err_msg)
+                tracker.add_error(err_msg)
+            finally:
+                src_duration = time.time() - start_src_time
+                update_source_status(
+                    source_name=source.name,
+                    source_type="rss",
+                    url=source.url,
+                    category=source.category,
+                    enabled=source.enabled,
+                    status=src_status,
+                    items_scraped=src_items_scraped,
+                    items_saved=src_items_saved,
+                    duration=src_duration,
+                    error_msg=src_error
+                )
+
+        tracker.items_scraped = total_scraped
+        tracker.finish("success")
+    except Exception as e:
+        err_msg = f"Fatal error in RSS scrape: {e}"
+        logger.error(err_msg)
+        tracker.add_error(err_msg)
+        tracker.finish("failed")
 
     logger.info(f"RSS scrape complete: total_scraped={total_scraped}, total_saved={total_saved}")
     return {"scraped": total_scraped, "saved": total_saved}
 
 
 async def run_web_scrape() -> dict[str, Any]:
-    """Run web scraping job."""
+    """Run web scraping job with observability tracking."""
     logger.info("Starting web scrape job")
+    tracker = ScraperRunTracker("web_scrape")
+    tracker.start()
+
     sources = load_sources()
     normalizer = ContentNormalizer()
 
     total_scraped = 0
     total_saved = 0
 
-    for source in sources.web:
-        if not source.enabled:
-            continue
+    try:
+        for source in sources.web:
+            if not source.enabled:
+                continue
 
-        try:
-            # Use Playwright for JS-heavy sites
-            if source.use_playwright:
-                scraper = PlaywrightScraper(source)
-            else:
-                scraper = WebScraper(source)
+            start_src_time = time.time()
+            src_status = "success"
+            src_items_scraped = 0
+            src_items_saved = 0
+            src_error = ""
+            try:
+                # Use Playwright for JS-heavy sites
+                if source.use_playwright:
+                    scraper = PlaywrightScraper(source)
+                else:
+                    scraper = WebScraper(source)
 
-            items = await scraper.scrape()
-            total_scraped += len(items)
+                items = await scraper.scrape()
+                src_items_scraped = len(items)
+                total_scraped += src_items_scraped
 
-            # Normalize items
-            normalized = [(normalizer.normalize(item)) for item in items]
+                # Normalize items
+                normalized = [(normalizer.normalize(item)) for item in items]
 
-            # Filter duplicates
-            unique = deduplicator.filter_duplicates(normalized)
+                # Filter duplicates
+                unique = deduplicator.filter_duplicates(normalized)
 
-            # Save to MongoDB
-            saved = await _save_items(unique)
-            total_saved += saved
+                # Save to MongoDB
+                saved_info = await _save_items(unique)
+                src_items_saved = len(saved_info)
+                total_saved += src_items_saved
+                for item_id, item_title in saved_info:
+                    tracker.add_saved_article(item_id, item_title)
 
-            logger.info(
-                f"Web {source.name}: scraped={len(items)}, unique={len(unique)}, saved={saved}"
-            )
+                logger.info(
+                    f"Web {source.name}: scraped={len(items)}, unique={len(unique)}, saved={len(saved_info)}"
+                )
 
-        except Exception as e:
-            logger.error(f"Error in web scrape for {source.name}: {e}")
+            except Exception as e:
+                src_status = "failed"
+                src_error = str(e)
+                err_msg = f"Error in web scrape for {source.name}: {e}"
+                logger.error(err_msg)
+                tracker.add_error(err_msg)
+            finally:
+                src_duration = time.time() - start_src_time
+                update_source_status(
+                    source_name=source.name,
+                    source_type="web",
+                    url=source.url,
+                    category=source.category,
+                    enabled=source.enabled,
+                    status=src_status,
+                    items_scraped=src_items_scraped,
+                    items_saved=src_items_saved,
+                    duration=src_duration,
+                    error_msg=src_error
+                )
+
+        tracker.items_scraped = total_scraped
+        tracker.finish("success")
+    except Exception as e:
+        err_msg = f"Fatal error in web scrape: {e}"
+        logger.error(err_msg)
+        tracker.add_error(err_msg)
+        tracker.finish("failed")
 
     logger.info(f"Web scrape complete: total_scraped={total_scraped}, total_saved={total_saved}")
-    return {"scraped": total_scraped, "saved": total_saved}
-
-
-async def run_youtube_scrape() -> dict[str, Any]:
-    """Run YouTube scraping job."""
-    logger.info("Starting YouTube scrape job")
-    sources = load_sources()
-    normalizer = ContentNormalizer()
-
-    total_scraped = 0
-    total_saved = 0
-
-    for source in sources.youtube:
-        if not source.enabled:
-            continue
-
-        try:
-            scraper = YouTubeScraper(source)
-            items = await scraper.scrape()
-            total_scraped += len(items)
-
-            # Normalize items
-            normalized = [(normalizer.normalize(item)) for item in items]
-
-            # Filter duplicates
-            unique = deduplicator.filter_duplicates(normalized)
-
-            # Save to MongoDB
-            saved = await _save_items(unique)
-            total_saved += saved
-
-            logger.info(
-                f"YouTube {source.name}: scraped={len(items)}, unique={len(unique)}, saved={saved}"
-            )
-
-        except Exception as e:
-            logger.error(f"Error in YouTube scrape for {source.name}: {e}")
-
-    logger.info(
-        f"YouTube scrape complete: total_scraped={total_scraped}, total_saved={total_saved}"
-    )
-    return {"scraped": total_scraped, "saved": total_saved}
-
-
-async def run_spotify_scrape() -> dict[str, Any]:
-    """Run Spotify podcast scraping job."""
-    logger.info("Starting Spotify scrape job")
-    sources = load_sources()
-    normalizer = ContentNormalizer()
-
-    total_scraped = 0
-    total_saved = 0
-
-    for source in sources.spotify:
-        if not source.enabled:
-            continue
-
-        try:
-            scraper = SpotifyScraper(source)
-            items = await scraper.scrape()
-            total_scraped += len(items)
-
-            # Normalize items
-            normalized = [(normalizer.normalize(item)) for item in items]
-
-            # Filter duplicates
-            unique = deduplicator.filter_duplicates(normalized)
-
-            # Save to MongoDB
-            saved = await _save_items(unique)
-            total_saved += saved
-
-            logger.info(
-                f"Spotify {source.name}: scraped={len(items)}, unique={len(unique)}, saved={saved}"
-            )
-
-        except Exception as e:
-            logger.error(f"Error in Spotify scrape for {source.name}: {e}")
-
-    logger.info(
-        f"Spotify scrape complete: total_scraped={total_scraped}, total_saved={total_saved}"
-    )
     return {"scraped": total_scraped, "saved": total_saved}
 
 
@@ -282,8 +275,6 @@ async def run_all_scrapers() -> dict[str, Any]:
     results = {
         "rss": await run_rss_scrape(),
         "web": await run_web_scrape(),
-        "youtube": await run_youtube_scrape(),
-        "spotify": await run_spotify_scrape(),
     }
 
     total_scraped = sum(r.get("scraped", 0) for r in results.values())

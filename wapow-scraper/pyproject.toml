@@ -24,6 +24,7 @@ dependencies = [
     "google-api-python-client>=2.100.0",
     "spotipy>=2.23.0",
     "PyYAML>=6.0",
+    "readability-lxml>=0.8.1",
 ]
 
 [project.optional-dependencies]

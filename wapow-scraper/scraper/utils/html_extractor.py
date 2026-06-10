@@ -1,10 +1,11 @@
-"""Utility for fetching and parsing full article contents from HTML web pages."""
+"""Utility for fetching and parsing full article contents from HTML web pages using readability-lxml and custom parser fallbacks."""
 
 import logging
-from urllib.parse import urljoin
+import json
+import re
+from urllib.parse import urljoin, urlparse
 from typing import Optional, Any
 from datetime import datetime
-import aiohttp
 from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
@@ -12,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 async def fetch_html(url: str, timeout_seconds: int = 30) -> Optional[str]:
     """
-    Fetch raw HTML of a URL using Playwright (Puppeteer-like) for JS rendering.
+    Fetch raw HTML of a URL using Playwright for JS rendering.
 
     Args:
         url: The web page URL
@@ -55,9 +56,105 @@ async def fetch_html(url: str, timeout_seconds: int = 30) -> Optional[str]:
         return None
 
 
-def extract_metadata(soup: BeautifulSoup, url: str) -> dict[str, str]:
+def parse_date_string(date_str: str) -> Optional[datetime]:
+    """Helper to parse a date string into a datetime object."""
+    if not date_str:
+        return None
+    date_str = date_str.strip()
+    # Try ISO format formats
+    for fmt in (
+        "%Y-%m-%dT%H:%M:%S%z",
+        "%Y-%m-%dT%H:%M:%S.%f%z",
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%dT%H:%M:%S.%f",
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d",
+    ):
+        try:
+            s = date_str
+            if s.endswith("Z"):
+                s = s[:-1] + "+00:00"
+            return datetime.strptime(s, fmt)
+        except ValueError:
+            continue
+    # Try fromisoformat as fallback
+    try:
+        s = date_str
+        if s.endswith("Z"):
+            s = s[:-1] + "+00:00"
+        return datetime.fromisoformat(s)
+    except ValueError:
+        pass
+    return None
+
+
+def extract_json_ld(soup: BeautifulSoup) -> dict[str, Any]:
+    """Extract metadata from JSON-LD block if it is an article/story."""
+    metadata = {}
+    for script in soup.find_all("script", type="application/ld+json"):
+        try:
+            data = json.loads(script.string or "")
+            if isinstance(data, list):
+                graphs = data
+            elif isinstance(data, dict):
+                if "@graph" in data:
+                    graphs = data["@graph"]
+                else:
+                    graphs = [data]
+            else:
+                continue
+
+            for item in graphs:
+                if not isinstance(item, dict):
+                    continue
+                type_ = item.get("@type", "")
+                if isinstance(type_, list):
+                    is_article = any("Article" in t or "NewsArticle" in t or "BlogPosting" in t for t in type_)
+                else:
+                    is_article = isinstance(type_, str) and ("Article" in type_ or "NewsArticle" in type_ or "BlogPosting" in type_)
+
+                if is_article:
+                    if "headline" in item:
+                        metadata["headline"] = item["headline"]
+                    if "description" in item:
+                        metadata["sub_title"] = item["description"]
+                    if "datePublished" in item:
+                        metadata["publish_date"] = item["datePublished"]
+                    
+                    # Author
+                    author_data = item.get("author")
+                    if isinstance(author_data, list) and author_data:
+                        author_data = author_data[0]
+                    if isinstance(author_data, dict):
+                        metadata["author"] = author_data.get("name")
+                        metadata["author_link"] = author_data.get("url")
+                    elif isinstance(author_data, str):
+                        metadata["author"] = author_data
+
+                    # Publisher
+                    pub_data = item.get("publisher")
+                    if isinstance(pub_data, dict):
+                        metadata["publisher"] = pub_data.get("name")
+
+                    # Image
+                    img_data = item.get("image")
+                    if isinstance(img_data, dict):
+                        metadata["promo_image"] = img_data.get("url")
+                    elif isinstance(img_data, list) and img_data:
+                        if isinstance(img_data[0], dict):
+                            metadata["promo_image"] = img_data[0].get("url")
+                        else:
+                            metadata["promo_image"] = img_data[0]
+                    elif isinstance(img_data, str):
+                        metadata["promo_image"] = img_data
+        except Exception:
+            pass
+    return metadata
+
+
+def extract_metadata(soup: BeautifulSoup, url: str) -> dict[str, Any]:
     """
-    Extract meta details (title, description, author, header image) from soup.
+    Extract meta details (headline, sub_title, publish_date, author, author_link, publisher, promo_image) from soup.
 
     Args:
         soup: BeautifulSoup object
@@ -67,64 +164,131 @@ def extract_metadata(soup: BeautifulSoup, url: str) -> dict[str, str]:
         Dictionary of metadata fields
     """
     meta_data = {
-        "title": "",
-        "description": "",
+        "headline": "",
+        "sub_title": "",
+        "publish_date": None,
         "author": "",
-        "image_url": "",
+        "author_link": "",
+        "publisher": "",
+        "promo_image": "",
     }
 
-    # 1. Headline / Title
-    title_tag = (
-        soup.find("meta", attrs={"property": "og:title"})
-        or soup.find("meta", attrs={"name": "twitter:title"})
-        or soup.find("meta", attrs={"name": "title"})
-    )
-    if title_tag and title_tag.get("content"):
-        meta_data["title"] = title_tag["content"].strip()
-    elif soup.title:
-        meta_data["title"] = soup.title.get_text().strip()
-    elif soup.h1:
-        meta_data["title"] = soup.h1.get_text().strip()
+    # 1. Parse JSON-LD if available
+    json_ld = extract_json_ld(soup)
+    for k, v in json_ld.items():
+        if v:
+            meta_data[k] = v
 
-    # 2. Description
-    desc_tag = (
-        soup.find("meta", attrs={"property": "og:description"})
-        or soup.find("meta", attrs={"name": "twitter:description"})
-        or soup.find("meta", attrs={"name": "description"})
-    )
-    if desc_tag and desc_tag.get("content"):
-        meta_data["description"] = desc_tag["content"].strip()
+    # 2. Headline / Title fallback
+    if not meta_data["headline"]:
+        title_tag = (
+            soup.find("meta", attrs={"property": "og:title"})
+            or soup.find("meta", attrs={"name": "twitter:title"})
+            or soup.find("meta", attrs={"name": "title"})
+        )
+        if title_tag and title_tag.get("content"):
+            meta_data["headline"] = title_tag["content"].strip()
+        elif soup.title:
+            meta_data["headline"] = soup.title.get_text().strip()
+        elif soup.h1:
+            meta_data["headline"] = soup.h1.get_text().strip()
 
-    # 3. Author
-    author_tag = (
-        soup.find("meta", attrs={"name": "author"})
-        or soup.find("meta", attrs={"property": "og:author"})
-        or soup.find("meta", attrs={"name": "twitter:creator"})
-    )
-    if author_tag and author_tag.get("content"):
-        meta_data["author"] = author_tag["content"].strip()
-    else:
-        # Search for elements that might contain author name
-        byline_el = soup.find(class_=lambda c: c and any(w in c.lower() for w in ("author", "byline")))
-        if byline_el:
-            meta_data["author"] = byline_el.get_text().strip()
+    # 3. Sub-title / Description fallback
+    if not meta_data["sub_title"]:
+        desc_tag = (
+            soup.find("meta", attrs={"property": "og:description"})
+            or soup.find("meta", attrs={"name": "twitter:description"})
+            or soup.find("meta", attrs={"name": "description"})
+        )
+        if desc_tag and desc_tag.get("content"):
+            meta_data["sub_title"] = desc_tag["content"].strip()
 
-    # 4. Header Image URL
-    img_tag = (
-        soup.find("meta", attrs={"property": "og:image"})
-        or soup.find("meta", attrs={"name": "twitter:image"})
-        or soup.find("link", attrs={"rel": "image_src"})
-    )
-    img_url = ""
-    if img_tag:
-        img_url = img_tag.get("content") or img_tag.get("href") or ""
-    if img_url:
-        meta_data["image_url"] = urljoin(url, img_url)
+    # 4. Publish date fallback
+    if not meta_data["publish_date"]:
+        for name in (
+            "article:published_time",
+            "published_time",
+            "og:published_time",
+            "dc.date",
+            "dc.date.issued",
+            "pubdate",
+            "date",
+            "pubDate",
+            "sailthru.date",
+        ):
+            tag = soup.find("meta", attrs={"property": name}) or soup.find("meta", attrs={"name": name})
+            if tag and tag.get("content"):
+                meta_data["publish_date"] = tag["content"].strip()
+                break
+        
+        if not meta_data["publish_date"]:
+            time_tag = soup.find("time")
+            if time_tag:
+                meta_data["publish_date"] = time_tag.get("datetime") or time_tag.get_text()
+
+    # Convert publish_date from string to datetime
+    if isinstance(meta_data["publish_date"], str):
+        meta_data["publish_date"] = parse_date_string(meta_data["publish_date"])
+
+    # 5. Author fallback
+    if not meta_data["author"]:
+        author_tag = (
+            soup.find("meta", attrs={"name": "author"})
+            or soup.find("meta", attrs={"property": "og:author"})
+            or soup.find("meta", attrs={"name": "twitter:creator"})
+            or soup.find("meta", attrs={"property": "article:author"})
+        )
+        if author_tag and author_tag.get("content"):
+            meta_data["author"] = author_tag["content"].strip()
+        else:
+            byline_el = soup.find(class_=lambda c: c and any(w in c.lower() for w in ("author", "byline", "creator")))
+            if byline_el:
+                meta_data["author"] = byline_el.get_text().strip()
+
+    # 6. Author link fallback
+    if not meta_data["author_link"] and meta_data["author"]:
+        author_el = soup.find(class_=lambda c: c and any(w in c.lower() for w in ("author", "byline", "creator")))
+        if author_el:
+            if author_el.name == "a" and author_el.get("href"):
+                meta_data["author_link"] = urljoin(url, author_el["href"].strip())
+            else:
+                a_tag = author_el.find("a", href=True)
+                if a_tag:
+                    meta_data["author_link"] = urljoin(url, a_tag["href"].strip())
+
+    # 7. Publisher fallback
+    if not meta_data["publisher"]:
+        pub_tag = (
+            soup.find("meta", attrs={"property": "og:site_name"})
+            or soup.find("meta", attrs={"name": "dc.publisher"})
+            or soup.find("meta", attrs={"name": "publisher"})
+        )
+        if pub_tag and pub_tag.get("content"):
+            meta_data["publisher"] = pub_tag["content"].strip()
+        else:
+            parsed = urlparse(url)
+            domain = parsed.netloc
+            if domain.startswith("www."):
+                domain = domain[4:]
+            meta_data["publisher"] = domain
+
+    # 8. Promo image fallback
+    if not meta_data["promo_image"]:
+        img_tag = (
+            soup.find("meta", attrs={"property": "og:image"})
+            or soup.find("meta", attrs={"name": "twitter:image"})
+            or soup.find("link", attrs={"rel": "image_src"})
+        )
+        if img_tag:
+            img_url = img_tag.get("content") or img_tag.get("href") or ""
+            if img_url:
+                meta_data["promo_image"] = urljoin(url, img_url.strip())
 
     return meta_data
 
 
 def is_valid_article_image(url: str) -> bool:
+    """Validate if an image URL is likely a high-quality article body image rather than UI element."""
     if not url or not isinstance(url, str):
         return False
     url_lower = url.lower()
@@ -133,13 +297,11 @@ def is_valid_article_image(url: str) -> bool:
     if url_lower.startswith("data:"):
         return False
         
-    # Exclude SVG vector graphics (usually logos, icons, badges)
+    # Exclude SVG vector graphics
     if url_lower.endswith(".svg") or ".svg?" in url_lower:
         return False
         
     # Check for small size dimensions in URL query params or path (e.g. w=90, w_120, h=80)
-    # We look for w, width, h, height followed by = or _ and then digits
-    import re
     size_matches = re.findall(r'(?:[?&_]w(?:idth)?|[?&_]h(?:eight)?)[=_](\d+)', url_lower)
     for size_str in size_matches:
         try:
@@ -174,81 +336,17 @@ def is_valid_article_image(url: str) -> bool:
     return True
 
 
-
-def extract_body_elements(soup: BeautifulSoup, url: str) -> tuple[list[dict[str, Any]], str]:
+def extract_elements_from_container(container: BeautifulSoup, url: str) -> tuple[list[dict[str, Any]], str]:
     """
-    Extract structured content elements (paragraphs, headers, images, videos)
-    and assemble consolidated plain body text.
-
-    Args:
-        soup: BeautifulSoup object
-        url: Original page URL for resolving relative links
-
-    Returns:
-        Tuple of (content_elements list, full body_text string)
+    Traverse a container BeautifulSoup element and sequentially extract structured text, headers, images, and videos.
     """
-    body = soup.find("body") or soup
-
-    # Make a copy of body so we don't mutate original soup for other metadata parses
-    body_copy = BeautifulSoup(str(body), "lxml")
-
-    # Clean up non-content elements
-    for el in body_copy.find_all(
-        ["script", "style", "head", "nav", "footer", "header", "form", "aside", "select", "noscript"]
-    ):
-        el.decompose()
-
-    # Common semantic selectors for article content container
-    semantic_selectors = [
-        "article",
-        "[itemprop='articleBody']",
-        "div[class*='article-body']",
-        "div[class*='article-content']",
-        "div[class*='post-body']",
-        "div[class*='post-content']",
-        "div[class*='entry-content']",
-        "div[class*='story-body']",
-        "div[class*='story-content']",
-    ]
-
-    container = None
-    for sel in semantic_selectors:
-        elements = body_copy.select(sel)
-        for el in elements:
-            # Must contain at least two paragraphs or solid amount of text
-            if len(el.find_all("p")) >= 2 or len(el.get_text().strip()) > 300:
-                container = el
-                break
-        if container:
-            break
-
-    # If no semantic container matches, run tree-descending scoring heuristic
-    if not container:
-        container = body_copy
-        while True:
-            best_child = None
-            best_child_score = 0
-            # Search children that are candidate block containers
-            for child in container.find_all(["div", "article", "section", "main"], recursive=False):
-                child_score = sum(len(p.get_text().strip()) for p in child.find_all("p"))
-                if child_score > best_child_score:
-                    best_child_score = child_score
-                    best_child = child
-
-            current_container_score = sum(len(p.get_text().strip()) for p in container.find_all("p"))
-            if best_child and best_child_score > 0.8 * current_container_score and current_container_score > 0:
-                container = best_child
-            else:
-                break
-
-    # Traverse child elements in order and extract structure
     content_elements = []
     seen_elements = set()
     text_blocks = []
 
-    target_tags = ["p", "h2", "h3", "h4", "h5", "h6", "img", "iframe", "video"]
+    target_tags = ["p", "blockquote", "li", "h2", "h3", "h4", "h5", "h6", "img", "iframe", "video"]
     for el in container.find_all(target_tags):
-        # Prevent double-processing children of already processed containers (e.g. inline images/links inside P)
+        # Prevent double-processing children of already processed containers
         parent = el.parent
         is_nested = False
         while parent and parent != container:
@@ -262,7 +360,7 @@ def extract_body_elements(soup: BeautifulSoup, url: str) -> tuple[list[dict[str,
         seen_elements.add(el)
         tag_name = el.name
 
-        if tag_name == "p":
+        if tag_name in ("p", "blockquote", "li"):
             text = el.get_text().strip()
             if text:
                 text_blocks.append(text)
@@ -280,6 +378,11 @@ def extract_body_elements(soup: BeautifulSoup, url: str) -> tuple[list[dict[str,
                     "type": "text",
                     "content": text,
                 }
+                if tag_name == "blockquote":
+                    element_data["subtype"] = "blockquote"
+                elif tag_name == "li":
+                    element_data["subtype"] = "list_item"
+                
                 if links:
                     element_data["links"] = links
                 content_elements.append(element_data)
@@ -290,6 +393,7 @@ def extract_body_elements(soup: BeautifulSoup, url: str) -> tuple[list[dict[str,
                 content_elements.append({
                     "type": "header",
                     "content": text,
+                    "level": int(tag_name[1]),
                 })
 
         elif tag_name == "img":
@@ -333,16 +437,75 @@ def extract_body_elements(soup: BeautifulSoup, url: str) -> tuple[list[dict[str,
     return content_elements, body_text
 
 
+def extract_body_elements(soup: BeautifulSoup, url: str) -> tuple[list[dict[str, Any]], str]:
+    """
+    Extract structured content elements using a block container scoring heuristic.
+    This serves as a fallback when readability-lxml returns empty content.
+    """
+    body = soup.find("body") or soup
+
+    # Make a copy of body so we don't mutate original soup
+    body_copy = BeautifulSoup(str(body), "lxml")
+
+    # Clean up non-content elements
+    for el in body_copy.find_all(
+        ["script", "style", "head", "nav", "footer", "header", "form", "aside", "select", "noscript"]
+    ):
+        el.decompose()
+
+    # Common semantic selectors for article content container
+    semantic_selectors = [
+        "article",
+        "[itemprop='articleBody']",
+        "div[class*='article-body']",
+        "div[class*='article-content']",
+        "div[class*='post-body']",
+        "div[class*='post-content']",
+        "div[class*='entry-content']",
+        "div[class*='story-body']",
+        "div[class*='story-content']",
+    ]
+
+    container = None
+    for sel in semantic_selectors:
+        elements = body_copy.select(sel)
+        for el in elements:
+            if len(el.find_all("p")) >= 2 or len(el.get_text().strip()) > 300:
+                container = el
+                break
+        if container:
+            break
+
+    if not container:
+        container = body_copy
+        while True:
+            best_child = None
+            best_child_score = 0
+            for child in container.find_all(["div", "article", "section", "main"], recursive=False):
+                child_score = sum(len(p.get_text().strip()) for p in child.find_all("p"))
+                if child_score > best_child_score:
+                    best_child_score = child_score
+                    best_child = child
+
+            current_container_score = sum(len(p.get_text().strip()) for p in container.find_all("p"))
+            if best_child and best_child_score > 0.8 * current_container_score and current_container_score > 0:
+                container = best_child
+            else:
+                break
+
+    return extract_elements_from_container(container, url)
+
+
 async def extract_article_content(url: str) -> dict[str, Any]:
     """
     Fetch the article page, extract its full body content, media elements, and metadata.
+    Attempts to use readability-lxml first, falling back to a custom scoring parser if it fails.
 
     Args:
         url: Web URL of the article
 
     Returns:
         A dict containing parsed metadata, content_elements list, and full body_text.
-        Returns empty placeholders if fetching/parsing fails.
     """
     html = await fetch_html(url)
     if not html:
@@ -351,13 +514,45 @@ async def extract_article_content(url: str) -> dict[str, Any]:
     try:
         soup = BeautifulSoup(html, "lxml")
         metadata = extract_metadata(soup, url)
-        content_elements, body_text = extract_body_elements(soup, url)
+        
+        content_elements = []
+        body_text = ""
+        readability_success = False
+        
+        try:
+            from readability import Document
+            doc = Document(html)
+            summary_html = doc.summary()
+            if summary_html:
+                summary_soup = BeautifulSoup(summary_html, "lxml")
+                elements, text = extract_elements_from_container(summary_soup, url)
+                if len(text.strip()) > 150:
+                    content_elements = elements
+                    body_text = text
+                    readability_success = True
+                    logger.info(f"Successfully extracted article using Readability-lxml: {url}")
+        except Exception as read_err:
+            logger.warning(f"Readability parsing error, falling back to custom block parser: {read_err}")
+            
+        if not readability_success:
+            logger.info(f"Using fallback custom block parser for: {url}")
+            content_elements, body_text = extract_body_elements(soup, url)
+
+        # Fallback for promo_image to first body image if missing
+        if not metadata.get("promo_image") or metadata.get("promo_image") == "":
+            for elem in content_elements:
+                if elem.get("type") == "image" and elem.get("url"):
+                    metadata["promo_image"] = elem["url"]
+                    break
 
         return {
-            "title": metadata["title"],
-            "description": metadata["description"],
+            "title": metadata["headline"],
+            "description": metadata["sub_title"],
             "author": metadata["author"],
-            "image_url": metadata["image_url"],
+            "author_link": metadata["author_link"],
+            "publisher": metadata["publisher"],
+            "publish_date": metadata["publish_date"],
+            "image_url": metadata["promo_image"],
             "content_elements": content_elements,
             "body_text": body_text,
         }

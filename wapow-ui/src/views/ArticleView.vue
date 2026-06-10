@@ -28,7 +28,7 @@
         </div>
       </div>
       <iframe
-        :src="`https://washingtonpost.com/${articleUrl}`"
+        :src="resolvedUrl"
         class="article-iframe"
         @load="handleIframeLoad"
         frameborder="0"
@@ -54,6 +54,17 @@ const iframeLoaded = ref(false)
 // Get article URL from route params
 const articleUrl = computed(() => {
   return route.params.url as string || ''
+})
+
+// Resolve the iframe source URL: if absolute, use as-is; otherwise prepend the Washington Post domain
+const resolvedUrl = computed(() => {
+  const url = articleUrl.value
+  if (!url) return ''
+  if (/^https?:\/\//i.test(url)) {
+    return url
+  }
+  const cleanUrl = url.startsWith('/') ? url.slice(1) : url
+  return `https://washingtonpost.com/${cleanUrl}`
 })
 
 // Get article title from route params or use default

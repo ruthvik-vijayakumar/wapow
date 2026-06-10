@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-black text-[#f5f5f7]">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WAPOW! Scraper Ops</title>
+    <!-- Tailwind CSS v4 Browser Build -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Geist', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #000000;
+        }
+        .font-mono {
+            font-family: 'Geist Mono', monospace;
+        }
+        /* Custom scrollbar matching Vercel UI */
+        .custom-scroll::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #262626;
+            border-radius: 9999px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb:hover {
+            background: #404040;
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col antialiased selection:bg-[#333333] selection:text-white">
+    <!-- Vercel-like Top Navbar -->
+    <header class="flex-shrink-0 bg-black border-b border-[#1f1f1f] px-8 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-6">
+            <!-- Vercel logo style triangle -->
+            <svg class="h-5 w-5 text-white" fill="currentColor" viewBox="0 0 100 100"><polygon points="50,15 90,85 10,85"/></svg>
+            <div class="flex items-center gap-2 text-sm">
+                <span class="text-[#a1a1a1]">ruthvik-vijayakumar</span>
+                <span class="text-[#333333]">/</span>
+                <span class="font-medium text-white">wapow-scraper</span>
+                <span class="ml-2 bg-[#1f1f1f] text-xs font-mono text-[#a1a1a1] px-2 py-0.5 rounded border border-[#333333]">production</span>
+            </div>
+        </div>
+        <div class="flex items-center gap-4">
+            <span id="last-updated" class="text-xs text-[#666666]">Last synced: Just now</span>
+            <div class="flex items-center gap-2 px-3 py-1 rounded bg-[#111] border border-[#1f1f1f] text-xs font-medium" id="scheduler-badge">
+                <span class="h-1.5 w-1.5 rounded-full" id="scheduler-dot"></span>
+                <span id="scheduler-text" class="text-[#a1a1a1]">Scheduler: ...</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Sub-navigation Tabs -->
+    <div class="bg-black border-b border-[#1f1f1f] px-8 flex-shrink-0">
+        <div class="flex gap-6 text-sm">
+            <button onclick="switchTab('overview')" id="tab-btn-overview" class="tab-btn py-3 border-b-2 border-white text-white font-medium focus:outline-none transition cursor-pointer">Overview</button>
+            <button onclick="switchTab('sources')" id="tab-btn-sources" class="tab-btn py-3 border-b-2 border-transparent text-[#a1a1a1] hover:text-white transition focus:outline-none flex items-center gap-2 cursor-pointer">
+                Sources Telemetry
+                <span id="sources-count-badge" class="bg-[#1f1f1f] text-xs text-[#a1a1a1] px-1.5 py-0.2 rounded font-mono font-medium border border-[#333333]">27</span>
+            </button>
+            <button onclick="switchTab('logs')" id="tab-btn-logs" class="tab-btn py-3 border-b-2 border-transparent text-[#a1a1a1] hover:text-white transition focus:outline-none flex items-center gap-2 cursor-pointer">
+                <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                Live Console
+            </button>
+            <button onclick="switchTab('articles')" id="tab-btn-articles" class="tab-btn py-3 border-b-2 border-transparent text-[#a1a1a1] hover:text-white transition focus:outline-none cursor-pointer">Ingested Stories</button>
+        </div>
+    </div>
+
+    <!-- Main Container Area -->
+    <main class="flex-grow p-8 overflow-y-auto custom-scroll flex flex-col space-y-8 max-w-7xl w-full mx-auto">
+        <!-- TAB 1: OVERVIEW -->
+        <div id="tab-content-overview" class="tab-pane space-y-8">
+            <!-- Vercel Grid KPI counters -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div class="bg-[#0a0a0a] border border-[#1f1f1f] p-6 rounded-lg flex flex-col">
+                    <span class="text-xs font-semibold tracking-wider text-[#666666] uppercase">Total Ingested Articles</span>
+                    <span class="text-3xl font-bold font-mono mt-3 text-white tracking-tight" id="stat-total-articles">-</span>
+                </div>
+                <div class="bg-[#0a0a0a] border border-[#1f1f1f] p-6 rounded-lg flex flex-col">
+                    <span class="text-xs font-semibold tracking-wider text-[#666666] uppercase">Runs Recorded (100)</span>
+                    <span class="text-3xl font-bold font-mono mt-3 text-white tracking-tight" id="stat-total-runs">-</span>
+                </div>
+                <div class="bg-[#0a0a0a] border border-[#1f1f1f] p-6 rounded-lg flex flex-col">
+                    <span class="text-xs font-semibold tracking-wider text-[#666666] uppercase">Scrape Success Rate</span>
+                    <span class="text-3xl font-bold font-mono mt-3 text-white tracking-tight" id="stat-success-rate">-</span>
+                </div>
+                <div class="bg-[#0a0a0a] border border-[#1f1f1f] p-6 rounded-lg flex flex-col">
+                    <span class="text-xs font-semibold tracking-wider text-[#666666] uppercase">Scraped / Saved Items</span>
+                    <span class="text-3xl font-bold font-mono mt-3 text-white tracking-tight" id="stat-scraped-saved">-</span>
+                </div>
+            </div>
+
+            <!-- Manual Scrape Actions -->
+            <div class="bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg p-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div class="space-y-1">
+                    <h2 class="text-base font-bold text-white">Manual Deployment & Crawl Control</h2>
+                    <p class="text-xs text-[#a1a1a1]">Instantly trigger and sync the WAPOW scraper crawler instances for any enabled sources</p>
+                </div>
+                <div class="flex flex-wrap gap-3">
+                    <button onclick="triggerJob('rss_feeds')" class="btn-action bg-white text-black hover:bg-[#e0e0e0] font-medium text-xs py-2 px-4 rounded transition duration-200 cursor-pointer disabled:bg-neutral-800 disabled:text-neutral-500">
+                        Run RSS Feeds
+                    </button>
+                    <button onclick="triggerJob('web_scrape')" class="btn-action bg-transparent text-white hover:bg-neutral-900 font-medium text-xs py-2 px-4 rounded border border-[#333333] transition duration-200 cursor-pointer disabled:bg-neutral-800 disabled:text-neutral-500">
+                        Run Web Page Scraper
+                    </button>
+                    <button onclick="triggerJob('all')" class="btn-action bg-transparent text-[#e5e5e5] hover:bg-neutral-900 font-medium text-xs py-2 px-4 rounded border border-[#1f1f1f] transition duration-200 cursor-pointer disabled:bg-neutral-800 disabled:text-neutral-500">
+                        Run All Scrapers
+                    </button>
+                    <button onclick="loadStats()" class="bg-[#1f1f1f] text-[#a1a1a1] hover:text-white px-3 py-2 rounded border border-[#333333] transition flex items-center justify-center cursor-pointer">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H18.2M7 9a4 4 0 110-8h1.5"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Job Executions Log -->
+            <div class="bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg overflow-hidden">
+                <div class="p-6 border-b border-[#1f1f1f]">
+                    <h2 class="text-base font-bold text-white">Scraper Execution Runs</h2>
+                    <p class="text-xs text-[#666666] mt-0.5">Historical logs and runtime traces for scraper triggers</p>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-[#e5e5e5]">
+                        <thead class="text-xs uppercase bg-[#000] text-[#888888] border-b border-[#1f1f1f]">
+                            <tr>
+                                <th class="py-3.5 px-6 font-semibold">Job Name</th>
+                                <th class="py-3.5 px-6 font-semibold">Start Time</th>
+                                <th class="py-3.5 px-6 font-semibold">Duration</th>
+                                <th class="py-3.5 px-6 font-semibold">Status</th>
+                                <th class="py-3.5 px-6 font-semibold">Scraped</th>
+                                <th class="py-3.5 px-6 font-semibold">Saved</th>
+                                <th class="py-3.5 px-6 font-semibold">Saved Articles & Error Logs</th>
+                            </tr>
+                        </thead>
+                        <tbody id="overview-runs-tbody" class="divide-y divide-[#1f1f1f]">
+                            <tr>
+                                <td colspan="7" class="py-8 text-center text-[#666666]">Loading runs...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: SOURCES TELEMETRY -->
+        <div id="tab-content-sources" class="tab-pane hidden space-y-8">
+            <div class="bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg overflow-hidden">
+                <div class="p-6 border-b border-[#1f1f1f] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                        <h2 class="text-base font-bold text-white">Sources Configuration Status</h2>
+                        <p class="text-xs text-[#a1a1a1] mt-0.5">Crawler statistics and statuses per RSS feed and Web Page mapping</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-[#666666]">Filter status:</span>
+                        <select id="source-status-filter" onchange="filterSourcesTable()" class="bg-black border border-[#333333] text-xs text-[#fafafa] rounded px-3 py-1.5 focus:outline-none focus:border-[#444] cursor-pointer">
+                            <option value="all">All Sources</option>
+                            <option value="success">Success</option>
+                            <option value="failed">Failed</option>
+                            <option value="never run">Never Run</option>
+                            <option value="disabled">Disabled</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-[#e5e5e5]">
+                        <thead class="text-xs uppercase bg-[#000] text-[#888888] border-b border-[#1f1f1f]">
+                            <tr>
+                                <th class="py-3.5 px-6 font-semibold">Source Name</th>
+                                <th class="py-3.5 px-6 font-semibold">Type</th>
+                                <th class="py-3.5 px-6 font-semibold">Category</th>
+                                <th class="py-3.5 px-6 font-semibold">Last Crawl Time</th>
+                                <th class="py-3.5 px-6 font-semibold">Duration</th>
+                                <th class="py-3.5 px-6 font-semibold">Scraped / Saved</th>
+                                <th class="py-3.5 px-6 font-semibold">Status</th>
+                                <th class="py-3.5 px-6 font-semibold">Crawl URL / Errors</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sources-telemetry-tbody" class="divide-y divide-[#1f1f1f]">
+                            <tr>
+                                <td colspan="8" class="py-8 text-center text-[#666666]">Loading sources telemetry...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: LIVE PROCESS LOGGER -->
+        <div id="tab-content-logs" class="tab-pane hidden flex flex-col space-y-6">
+            <div class="bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg p-6 flex flex-col flex-grow">
+                <div class="flex items-center justify-between border-b border-[#1f1f1f] pb-4 mb-4">
+                    <div>
+                        <h2 class="text-base font-bold text-white flex items-center gap-2">
+                            Scraper Live Output Stream
+                            <span id="log-conn-status" class="text-xs bg-[#1f1f1f] text-[#a1a1a1] border border-[#333333] px-2 py-0.5 rounded font-normal">Connecting...</span>
+                        </h2>
+                        <p class="text-xs text-[#666666] mt-0.5">Live standard logging trace events streamed straight from the scraper container</p>
+                    </div>
+                    <div>
+                        <button onclick="clearConsole()" class="text-xs bg-transparent text-white border border-[#333333] hover:bg-neutral-900 px-3 py-1.5 rounded transition cursor-pointer">
+                            Clear Terminal
+                        </button>
+                    </div>
+                </div>
+                <!-- Real-time code panel -->
+                <div id="log-console" class="font-mono text-xs bg-black border border-[#1f1f1f] p-5 rounded overflow-y-auto h-[550px] leading-relaxed custom-scroll space-y-1 text-[#a1a1a1]">
+                    <div class="text-[#888888]">[READY] Live logs stream connected. Ready to crawl...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 4: RECENTLY SCRAPED -->
+        <div id="tab-content-articles" class="tab-pane hidden space-y-6">
+            <div class="bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg p-6">
+                <h2 class="text-base font-bold text-white mb-4 border-b border-[#1f1f1f] pb-3">Recently Ingested Stories</h2>
+                <div class="divide-y divide-[#1f1f1f]" id="articles-items-list">
+                    <div class="py-6 text-center text-[#666666]">Loading ingested articles...</div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Inline expandable article JSON is used instead of a modal dialog -->
+
+    <!-- Vercel Toast Notification style -->
+    <div id="toast-banner" class="fixed bottom-6 right-6 bg-[#0a0a0a] border border-[#333333] px-5 py-3.5 rounded shadow-2xl flex items-center gap-3 z-50 translate-y-36 opacity-0 transition-all duration-300">
+        <div class="h-2 w-2 rounded-full bg-white" id="toast-dot"></div>
+        <p id="toast-message" class="text-xs font-medium text-[#fafafa]"></p>
+    </div>
+
+    <script>
+        let cachedSourcesData = [];
+        let currentModalJSON = "";
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadStats();
+            connectLoggerStream();
+            setInterval(loadStats, 6000);
+        });
+
+        function switchTab(tabId) {
+            // Update Tab buttons styling
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.className = "tab-btn py-3 border-b-2 border-transparent text-[#a1a1a1] hover:text-white transition focus:outline-none cursor-pointer flex items-center gap-2";
+            });
+            const activeBtn = document.getElementById(`tab-btn-${tabId}`);
+            if (activeBtn) {
+                activeBtn.className = "tab-btn py-3 border-b-2 border-white text-white font-medium focus:outline-none transition cursor-pointer flex items-center gap-2";
+            }
+
+            // Update Tab panes
+            document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.add('hidden'));
+            const activePane = document.getElementById(`tab-content-${tabId}`);
+            if (activePane) activePane.classList.remove('hidden');
+        }
+
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast-banner');
+            const msgEl = document.getElementById('toast-message');
+            const dot = document.getElementById('toast-dot');
+            
+            msgEl.textContent = message;
+            if (isError) {
+                toast.className = "fixed bottom-6 right-6 bg-black border border-rose-800/60 px-5 py-3.5 rounded shadow-2xl flex items-center gap-3 z-50 transition-all duration-300";
+                dot.className = "h-2 w-2 rounded-full bg-rose-500 animate-pulse";
+            } else {
+                toast.className = "fixed bottom-6 right-6 bg-black border border-neutral-800 px-5 py-3.5 rounded shadow-2xl flex items-center gap-3 z-50 transition-all duration-300";
+                dot.className = "h-2 w-2 rounded-full bg-white";
+            }
+            
+            toast.style.opacity = "1";
+            toast.style.transform = "translateY(0)";
+            setTimeout(() => {
+                toast.style.opacity = "0";
+                toast.style.transform = "translateY(150px)";
+            }, 4000);
+        }
+
+        function clearConsole() {
+            const consoleEl = document.getElementById('log-console');
+            consoleEl.innerHTML = `<div class="text-[#888888]">[CONSOLE CLEARED]</div>`;
+        }
+
+        function connectLoggerStream() {
+            const consoleEl = document.getElementById('log-console');
+            const connBadge = document.getElementById('log-conn-status');
+            
+            try {
+                const eventSource = new EventSource('/api/logs/stream');
+                
+                eventSource.onopen = () => {
+                    connBadge.textContent = "Live Stream Active";
+                    connBadge.className = "text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded font-normal uppercase tracking-wider";
+                };
+
+                eventSource.onmessage = (event) => {
+                    const data = event.data;
+                    const lines = data.split('\n');
+                    
+                    lines.forEach(line => {
+                        if (!line.trim()) return;
+                        const logLineEl = document.createElement('div');
+                        
+                        if (line.includes('[ERROR]')) {
+                            logLineEl.className = "text-rose-500 font-semibold";
+                        } else if (line.includes('[WARNING]')) {
+                            logLineEl.className = "text-amber-500";
+                        } else if (line.includes('[SYSTEM]')) {
+                            logLineEl.className = "text-white font-semibold";
+                        } else if (line.includes('Successfully extracted article')) {
+                            logLineEl.className = "text-emerald-400";
+                        } else {
+                            logLineEl.className = "text-[#888888]";
+                        }
+                        
+                        logLineEl.textContent = line;
+                        consoleEl.appendChild(logLineEl);
+                    });
+                    
+                    consoleEl.scrollTop = consoleEl.scrollHeight;
+                };
+
+                eventSource.onerror = (err) => {
+                    console.error("SSE stream error:", err);
+                    connBadge.textContent = "Offline";
+                    connBadge.className = "text-[10px] bg-rose-500/10 text-rose-400 border border-rose-500/20 px-2 py-0.5 rounded font-normal uppercase tracking-wider";
+                };
+            } catch (e) {
+                console.error("Failed to connect to SSE logs stream:", e);
+            }
+        }
+
+        async function triggerJob(jobId) {
+            const buttons = document.querySelectorAll('.btn-action');
+            buttons.forEach(btn => btn.disabled = true);
+            showToast(`Scraper job [${jobId}] triggered...`);
+            switchTab('logs');
+
+            try {
+                const response = await fetch(`/jobs/${jobId}/trigger`, { method: 'POST' });
+                const result = await response.json();
+                if (response.ok) {
+                    const saved = result.result?.saved ?? result.result?.total_saved ?? 0;
+                    showToast(`Synced ${saved} new articles.`);
+                } else {
+                    showToast(`Error: ${result.detail || 'Scraper run failed'}`, true);
+                }
+            } catch (err) {
+                showToast(`Trigger failed: ${err.message}`, true);
+            } finally {
+                buttons.forEach(btn => btn.disabled = false);
+                await loadStats();
+            }
+        }
+
+        function filterSourcesTable() {
+            const filterVal = document.getElementById('source-status-filter').value;
+            renderSourcesTable(cachedSourcesData, filterVal);
+        }
+
+        function renderSourcesTable(sources, filterValue = "all") {
+            const tbody = document.getElementById('sources-telemetry-tbody');
+            
+            let filtered = sources;
+            if (filterValue !== "all") {
+                if (filterValue === "disabled") {
+                    filtered = sources.filter(s => !s.enabled);
+                } else {
+                    filtered = sources.filter(s => s.enabled && s.last_status === filterValue);
+                }
+            }
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-[#666666]">No sources match criteria.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(src => {
+                const dateStr = src.last_scraped_at ? new Date(src.last_scraped_at).toLocaleString() : 'Never';
+                const duration = src.last_duration_seconds ? `${src.last_duration_seconds.toFixed(2)}s` : '-';
+                
+                let badgeClass = '';
+                let statusText = '';
+                
+                if (!src.enabled) {
+                    badgeClass = 'bg-[#111] text-[#666666] border-[#1f1f1f]';
+                    statusText = 'disabled';
+                } else if (src.last_status === 'success') {
+                    badgeClass = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+                    statusText = 'success';
+                } else if (src.last_status === 'failed') {
+                    badgeClass = 'bg-rose-500/10 text-rose-400 border-rose-500/20';
+                    statusText = 'failed';
+                } else {
+                    badgeClass = 'bg-[#111] text-[#888888] border-[#333333]';
+                    statusText = 'never run';
+                }
+
+                const errorDisplay = src.last_error ? `
+                    <div class="text-[10px] text-rose-500 max-w-[200px] truncate cursor-help mt-1 font-mono" title="${src.last_error}">
+                        ${src.last_error}
+                    </div>
+                ` : '';
+
+                return `
+                    <tr class="hover:bg-[#0a0a0a] transition duration-150">
+                        <td class="py-3.5 px-6 font-medium text-white max-w-[180px] truncate" title="${src.name}">${src.name}</td>
+                        <td class="py-3.5 px-6 text-xs font-mono text-[#888888] uppercase">${src.type}</td>
+                        <td class="py-3.5 px-6 text-xs text-[#888888] capitalize">${src.category}</td>
+                        <td class="py-3.5 px-6 text-xs text-[#888888]">${dateStr}</td>
+                        <td class="py-3.5 px-6 text-xs font-mono text-[#888888]">${duration}</td>
+                        <td class="py-3.5 px-6 text-xs font-mono text-white">
+                            ${src.last_items_scraped} / <span class="text-blue-500">${src.last_items_saved}</span>
+                        </td>
+                        <td class="py-3.5 px-6">
+                            <span class="inline-flex border px-2 py-0.5 rounded text-[10px] font-medium tracking-wider lowercase ${badgeClass}">
+                                ${statusText}
+                            </span>
+                        </td>
+                        <td class="py-3.5 px-6 text-xs max-w-[240px]">
+                            <a href="${src.url}" target="_blank" class="text-blue-500 hover:underline block truncate font-mono text-[11px]" title="${src.url}">${src.url}</a>
+                            ${errorDisplay}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        const expandedArticles = new Set();
+        const loadedArticleJSONs = {};
+
+        async function toggleArticleExpand(articleId, customContainerId = null) {
+            const containerId = customContainerId ? `expand-container-${customContainerId}` : `expand-container-${articleId}`;
+            const chevronId = customContainerId ? `chevron-${customContainerId}` : `chevron-${articleId}`;
+            const preId = customContainerId ? `json-pre-${customContainerId}` : `json-pre-${articleId}`;
+            
+            const container = document.getElementById(containerId);
+            const chevron = document.getElementById(chevronId);
+            const pre = document.getElementById(preId);
+            
+            if (!container) return;
+            
+            const isHidden = container.classList.contains('hidden');
+            const targetId = customContainerId || articleId;
+            if (isHidden) {
+                container.classList.remove('hidden');
+                if (chevron) chevron.classList.add('rotate-90');
+                expandedArticles.add(targetId);
+                
+                if (!loadedArticleJSONs[articleId]) {
+                    if (pre) pre.textContent = "Fetching article document from MongoDB articles collection...";
+                    try {
+                        const res = await fetch(`/api/articles/${articleId}`);
+                        if (!res.ok) {
+                            throw new Error(`Error ${res.status}: ${res.statusText}`);
+                        }
+                        const data = await res.json();
+                        loadedArticleJSONs[articleId] = JSON.stringify(data, null, 2);
+                    } catch (err) {
+                        if (pre) pre.textContent = `Failed to retrieve document from MongoDB.\n\nDetails:\n${err.message}`;
+                        return;
+                    }
+                }
+                if (pre) pre.textContent = loadedArticleJSONs[articleId];
+            } else {
+                container.classList.add('hidden');
+                if (chevron) chevron.classList.remove('rotate-90');
+                expandedArticles.delete(targetId);
+            }
+        }
+
+        function copyArticleJSON(articleId) {
+            const jsonText = loadedArticleJSONs[articleId];
+            if (!jsonText) {
+                showToast("JSON content not loaded yet.", true);
+                return;
+            }
+            navigator.clipboard.writeText(jsonText).then(() => {
+                showToast("Copied JSON document to clipboard.");
+            }).catch(err => {
+                console.error("Failed to copy JSON:", err);
+            });
+        }
+
+        async function loadStats() {
+            try {
+                const res = await fetch('/api/stats');
+                const data = await res.json();
+
+                cachedSourcesData = data.sources || [];
+                document.getElementById('sources-count-badge').textContent = cachedSourcesData.length;
+
+                document.getElementById('stat-total-articles').textContent = data.total_articles.toLocaleString();
+                document.getElementById('stat-total-runs').textContent = data.summary.total_runs;
+                document.getElementById('stat-success-rate').textContent = `${data.summary.success_rate_percent}%`;
+                document.getElementById('stat-scraped-saved').textContent = `${data.summary.total_scraped} / ${data.summary.total_saved}`;
+
+                const schedulerRes = await fetch('/health');
+                const healthData = await schedulerRes.json();
+                const badge = document.getElementById('scheduler-badge');
+                const dot = document.getElementById('scheduler-dot');
+                const text = document.getElementById('scheduler-text');
+                
+                if (healthData.scheduler === 'running') {
+                    badge.className = "flex items-center gap-2 px-3 py-1 rounded bg-black border border-emerald-900/30 text-emerald-400 text-xs font-medium";
+                    dot.className = "h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse";
+                    text.textContent = "active";
+                } else {
+                    badge.className = "flex items-center gap-2 px-3 py-1 rounded bg-black border border-rose-900/30 text-rose-400 text-xs font-medium";
+                    dot.className = "h-1.5 w-1.5 rounded-full bg-rose-500";
+                    text.textContent = "inactive";
+                }
+
+                const overviewTbody = document.getElementById('overview-runs-tbody');
+                if (!data.recent_runs || data.recent_runs.length === 0) {
+                    overviewTbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-[#666666]">No runs recorded yet.</td></tr>`;
+                } else {
+                    overviewTbody.innerHTML = data.recent_runs.map(run => {
+                        const dateStr = run.start_time ? new Date(run.start_time).toLocaleString() : 'Unknown';
+                        const duration = run.duration_seconds ? `${run.duration_seconds.toFixed(1)}s` : '-';
+                        
+                        let statusBadge = '';
+                        if (run.status === 'success') {
+                            statusBadge = '<span class="inline-flex border border-emerald-500/20 bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded text-[10px] font-medium lowercase">success</span>';
+                        } else if (run.status === 'failed') {
+                            statusBadge = '<span class="inline-flex border border-rose-500/20 bg-rose-500/10 text-rose-400 px-2 py-0.5 rounded text-[10px] font-medium lowercase">failed</span>';
+                        } else {
+                            statusBadge = '<span class="inline-flex border border-amber-500/20 bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded text-[10px] font-medium lowercase animate-pulse">running</span>';
+                        }
+
+                        let articleListHtml = '';
+                        if (run.saved_articles && run.saved_articles.length > 0) {
+                            articleListHtml = `
+                                <div class="text-[11px] bg-black p-3 rounded border border-[#1f1f1f] mt-2 space-y-1 max-w-[450px]">
+                                    <strong class="text-[#666666] font-semibold uppercase text-[9px] tracking-wider block mb-1">Ingested (${run.saved_articles.length}):</strong>
+                                    <ul class="space-y-1 max-h-[200px] overflow-y-auto custom-scroll font-mono text-[10px] text-[#888888] divide-y divide-[#111]">
+                                        ${run.saved_articles.map(art => {
+                                            const customId = `run-${run._id || run.job_id}-${art.id}`;
+                                            const isExpanded = expandedArticles.has(customId);
+                                            const jsonText = loadedArticleJSONs[art.id] || 'Loading...';
+                                            return `
+                                                <li class="py-1.5 first:pt-0 last:pb-0 text-left">
+                                                    <div onclick="toggleArticleExpand('${art.id}', '${customId}')" class="flex items-center justify-between gap-3 cursor-pointer group py-1.5 px-2 -mx-2 rounded hover:bg-neutral-900/40 transition duration-150">
+                                                        <div class="text-left truncate flex items-center gap-1.5 text-[#a1a1a1] group-hover:text-blue-400 transition-colors">
+                                                            <svg id="chevron-${customId}" class="w-3 h-3 text-[#555] group-hover:text-blue-400 transition-transform duration-200 flex-shrink-0 ${isExpanded ? 'rotate-90' : ''}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                                            </svg>
+                                                            <span class="truncate">${art.title}</span>
+                                                        </div>
+                                                        <span class="text-[9px] text-[#444444] group-hover:text-white flex-shrink-0 transition-colors">${art.id}</span>
+                                                    </div>
+                                                    <div id="expand-container-${customId}" class="${isExpanded ? '' : 'hidden'} mt-2" onclick="event.stopPropagation()">
+                                                        <div class="relative bg-black border border-[#1f1f1f] rounded overflow-hidden">
+                                                            <div class="flex items-center justify-between px-2.5 py-1 border-b border-[#1f1f1f] bg-[#050505]">
+                                                                <span class="text-[9px] font-mono text-[#555]">database record json</span>
+                                                                <button onclick="copyArticleJSON('${art.id}')" class="text-[9px] bg-[#111] border border-[#33] hover:bg-neutral-900 text-white px-1.5 py-0.5 rounded transition cursor-pointer">
+                                                                    Copy
+                                                                </button>
+                                                            </div>
+                                                            <pre id="json-pre-${customId}" class="p-2.5 overflow-x-auto text-[10px] font-mono text-[#888] bg-black max-h-[180px] custom-scroll whitespace-pre-wrap select-text">${jsonText}</pre>
+                                                        </div>
+                                                    </div>
+                                                </li>
+                                            `;
+                                        }).join('')}
+                                    </ul>
+                                </div>
+                            `;
+                        }
+
+                        let errorListHtml = '';
+                        if (run.errors && run.errors.length > 0) {
+                            errorListHtml = `
+                                <div class="text-[11px] border border-rose-950/40 bg-rose-950/5 text-rose-400 p-3 rounded mt-2">
+                                    <strong class="text-[9px] uppercase font-semibold tracking-wider block mb-1">Errors:</strong>
+                                    <ul class="space-y-1 list-disc pl-4 max-h-[100px] overflow-y-auto custom-scroll font-mono text-[10px]">
+                                        ${run.errors.map(err => `<li>${err}</li>`).join('')}
+                                    </ul>
+                                </div>
+                            `;
+                        }
+
+                        return `
+                            <tr class="align-top hover:bg-[#0a0a0a] transition duration-150">
+                                <td class="py-4 px-6 font-semibold font-mono text-xs text-white">${run.job_id}</td>
+                                <td class="py-4 px-6 text-xs text-[#888888]">${dateStr}</td>
+                                <td class="py-4 px-6 text-xs font-mono text-[#888888]">${duration}</td>
+                                <td class="py-4 px-6">${statusBadge}</td>
+                                <td class="py-4 px-6 text-xs font-mono text-[#888888]">${run.items_scraped}</td>
+                                <td class="py-4 px-6 text-xs font-mono text-white font-medium">${run.items_saved}</td>
+                                <td class="py-4 px-6">
+                                    ${articleListHtml}
+                                    ${errorListHtml}
+                                    ${(!articleListHtml && !errorListHtml) ? '<span class="text-[#444444] italic text-xs">None</span>' : ''}
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+                }
+
+                filterSourcesTable();
+
+                const articlesListEl = document.getElementById('articles-items-list');
+                if (!data.recent_articles || data.recent_articles.length === 0) {
+                    articlesListEl.innerHTML = `<div class="py-8 text-center text-[#666666]">No articles ingested yet.</div>`;
+                } else {
+                    articlesListEl.innerHTML = data.recent_articles.map(art => {
+                        const dateStr = art.created_date ? new Date(art.created_date).toLocaleString() : 'Unknown';
+                        const isExpanded = expandedArticles.has(art.id);
+                        const jsonText = loadedArticleJSONs[art.id] || 'Loading...';
+                        return `
+                            <div class="py-4 border-b border-[#1f1f1f] last:border-0 text-left" id="article-item-${art.id}">
+                                <div onclick="toggleArticleExpand('${art.id}')" class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer hover:bg-neutral-900/40 p-2 -m-2 rounded transition duration-200 group">
+                                    <div class="space-y-1 bg-transparent">
+                                        <div class="text-sm font-semibold text-white group-hover:text-blue-400 transition text-left flex items-center gap-2 leading-snug">
+                                            <svg id="chevron-${art.id}" class="w-4 h-4 text-[#666] group-hover:text-blue-400 transition-transform duration-200 flex-shrink-0 ${isExpanded ? 'rotate-90' : ''}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                            </svg>
+                                            <span>${art.title}</span>
+                                        </div>
+                                        <div class="flex flex-wrap gap-2 items-center text-xs pl-6">
+                                            <span class="px-2 py-0.5 bg-[#111] border border-[#333333] text-white rounded font-mono text-[10px]">${art.publisher}</span>
+                                            <span class="px-2 py-0.5 bg-[#111] border border-[#1f1f1f] text-[#888888] rounded font-normal text-[10px] capitalize">${art.category}</span>
+                                            <span class="text-[#666666] text-[11px]">Ingested: ${dateStr}</span>
+                                        </div>
+                                    </div>
+                                    <div class="flex-shrink-0 flex items-center gap-3 pl-6 sm:pl-0">
+                                        <span class="text-[10px] font-mono text-[#666666] bg-black border border-[#1f1f1f] group-hover:border-[#333] group-hover:text-white px-2 py-1 rounded transition">ID: ${art.id}</span>
+                                        <a href="${art.url}" target="_blank" onclick="event.stopPropagation()" class="bg-black hover:bg-neutral-900 text-white px-3 py-1.5 rounded text-xs border border-[#333333] font-medium transition cursor-pointer">
+                                            Source
+                                        </a>
+                                    </div>
+                                </div>
+                                <!-- Expandable JSON Section -->
+                                <div id="expand-container-${art.id}" class="${isExpanded ? '' : 'hidden'} mt-4 pl-6" onclick="event.stopPropagation()">
+                                    <div class="relative bg-[#050505] border border-[#1f1f1f] rounded-lg overflow-hidden">
+                                        <div class="flex items-center justify-between px-4 py-2 border-b border-[#1f1f1f] bg-black">
+                                            <span class="text-[10px] font-mono text-[#555]">database record json</span>
+                                            <button onclick="copyArticleJSON('${art.id}')" class="text-[10px] bg-[#111] border border-[#33] hover:bg-neutral-900 text-white px-2.5 py-1 rounded transition cursor-pointer">
+                                                Copy JSON
+                                            </button>
+                                        </div>
+                                        <pre id="json-pre-${art.id}" class="p-4 overflow-x-auto text-xs font-mono text-[#a1a1a1] bg-black max-h-[450px] custom-scroll whitespace-pre-wrap select-text font-mono">${jsonText}</pre>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+
+                document.getElementById('last-updated').textContent = `Last synced: ${new Date().toLocaleTimeString()}`;
+            } catch (err) {
+                console.error("Failed to sync dashboard:", err);
+            }
+        }
+    </script>
+</body>
+</html>

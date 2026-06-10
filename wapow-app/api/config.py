@@ -3,10 +3,11 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Load .env.dev if present (dev overrides), then .env as fallback
+# Load environment variables. System/container environment variables (like those in Docker Compose)
+# should take highest precedence, so override=False is used.
 _config_dir = Path(__file__).resolve().parent.parent
-load_dotenv(_config_dir / ".env.dev", override=True)
-# load_dotenv(_config_dir / ".env")
+load_dotenv(_config_dir / ".env", override=False)
+load_dotenv(_config_dir / ".env.dev", override=False)
 
 # MongoDB
 MONGODB_URI = os.getenv(

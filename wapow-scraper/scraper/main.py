@@ -1,11 +1,15 @@
-"""FastAPI management API for WAPOW Scraper."""
+"""FastAPI management API and Operations Dashboard for WAPOW Scraper."""
 
 import logging
+import queue
+import asyncio
+from datetime import datetime
 from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, StreamingResponse
 
 from scraper.config import settings
 from scraper.db.mongodb import close_client
@@ -14,16 +18,34 @@ from scraper.tasks.scheduler import (
     start_scheduler,
     shutdown_scheduler,
     get_job_info,
-    trigger_job,
 )
 from scraper.tasks.jobs import (
     load_sources,
     run_rss_scrape,
     run_web_scrape,
-    run_youtube_scrape,
-    run_spotify_scrape,
     run_all_scrapers,
 )
+from scraper.utils.metrics import get_scraper_stats
+
+# Configure logging memory queue for real-time dashboard streaming
+log_queue = queue.Queue(maxsize=1500)
+
+
+class LogQueueHandler(logging.Handler):
+    """Thread-safe logging handler that directs application log messages to an in-memory queue."""
+
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            if log_queue.full():
+                try:
+                    log_queue.get_nowait()
+                except Exception:
+                    pass
+            log_queue.put_nowait(msg)
+        except Exception:
+            pass
+
 
 # Configure logging
 logging.basicConfig(
@@ -32,15 +54,20 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Attach Queue Logger Handler to root logger
+queue_handler = LogQueueHandler()
+queue_handler.setLevel(logging.INFO)
+formatter = logging.Formatter("%(asctime)s [%(levelname)s] (%(name)s) %(message)s", datefmt="%H:%M:%S")
+queue_handler.setFormatter(formatter)
+logging.getLogger().addHandler(queue_handler)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler."""
-    # Startup
     logger.info("Starting WAPOW Scraper service")
     start_scheduler()
     yield
-    # Shutdown
     logger.info("Shutting down WAPOW Scraper service")
     shutdown_scheduler()
     close_client()
@@ -91,16 +118,11 @@ async def trigger_job_endpoint(job_id: str) -> dict[str, Any]:
     Valid job IDs:
     - rss_feeds: RSS feed scraping
     - web_scrape: Web scraping
-    - youtube: YouTube video scraping
-    - spotify: Spotify podcast scraping
     - all: Run all scrapers
     """
-    # Map job IDs to functions for manual triggering
     job_map = {
         "rss_feeds": run_rss_scrape,
         "web_scrape": run_web_scrape,
-        "youtube": run_youtube_scrape,
-        "spotify": run_spotify_scrape,
         "all": run_all_scrapers,
     }
 
@@ -152,29 +174,9 @@ async def list_sources() -> dict[str, Any]:
             }
             for s in sources.web
         ],
-        "youtube": [
-            {
-                "name": s.name,
-                "channel_id": s.channel_id,
-                "playlist_id": s.playlist_id,
-                "category": s.category,
-                "enabled": s.enabled,
-            }
-            for s in sources.youtube
-        ],
-        "spotify": [
-            {
-                "name": s.name,
-                "show_id": s.show_id,
-                "enabled": s.enabled,
-            }
-            for s in sources.spotify
-        ],
         "totals": {
             "rss": len([s for s in sources.rss if s.enabled]),
             "web": len([s for s in sources.web if s.enabled]),
-            "youtube": len([s for s in sources.youtube if s.enabled]),
-            "spotify": len([s for s in sources.spotify if s.enabled]),
         },
     }
 
@@ -186,8 +188,6 @@ async def get_config() -> dict[str, Any]:
         "intervals": {
             "rss_minutes": settings.scrape_interval_rss,
             "web_minutes": settings.scrape_interval_web,
-            "youtube_minutes": settings.scrape_interval_youtube,
-            "spotify_minutes": settings.scrape_interval_spotify,
         },
         "limits": {
             "max_items_per_source": settings.max_items_per_source,
@@ -195,12 +195,127 @@ async def get_config() -> dict[str, Any]:
         },
         "features": {
             "respect_robots_txt": settings.respect_robots_txt,
-            "youtube_enabled": bool(settings.youtube_api_key),
-            "spotify_enabled": bool(
-                settings.spotify_client_id and settings.spotify_client_secret
-            ),
         },
     }
+
+
+@app.get("/api/stats")
+async def get_stats() -> dict[str, Any]:
+    """Get scraper runs metrics, sources crawl breakdown, and recent articles."""
+    stats = get_scraper_stats()
+    
+    # Cross-reference with YAML configurations to show all sources (including disabled / never run ones)
+    try:
+        sources_config = load_sources()
+        db_sources = {s.get("url"): s for s in stats.get("sources", [])}
+        
+        combined_sources = []
+        for r in sources_config.rss:
+            status_info = db_sources.get(r.url, {})
+            combined_sources.append({
+                "name": r.name,
+                "url": r.url,
+                "type": "rss",
+                "category": r.category,
+                "enabled": r.enabled,
+                "last_scraped_at": status_info.get("last_scraped_at"),
+                "last_duration_seconds": status_info.get("last_duration_seconds"),
+                "last_status": status_info.get("last_status", "never run"),
+                "last_items_scraped": status_info.get("last_items_scraped", 0),
+                "last_items_saved": status_info.get("last_items_saved", 0),
+                "last_error": status_info.get("last_error", "")
+            })
+            
+        for w in sources_config.web:
+            status_info = db_sources.get(w.url, {})
+            combined_sources.append({
+                "name": w.name,
+                "url": w.url,
+                "type": "web",
+                "category": w.category,
+                "enabled": w.enabled,
+                "last_scraped_at": status_info.get("last_scraped_at"),
+                "last_duration_seconds": status_info.get("last_duration_seconds"),
+                "last_status": status_info.get("last_status", "never run"),
+                "last_items_scraped": status_info.get("last_items_scraped", 0),
+                "last_items_saved": status_info.get("last_items_saved", 0),
+                "last_error": status_info.get("last_error", "")
+            })
+            
+        stats["sources"] = combined_sources
+    except Exception as e:
+        logger.error(f"Error merging sources details: {e}")
+        
+    return stats
+
+
+@app.get("/api/articles/{article_id}")
+async def get_article_json(article_id: str) -> dict[str, Any]:
+    """Retrieve full database JSON document of an article by ID."""
+    from bson import ObjectId
+    from scraper.db import get_collection
+    try:
+        coll = get_collection("articles")
+        # Try finding by string ID first, since article IDs are stored as strings
+        doc = coll.find_one({"_id": article_id})
+        if not doc and ObjectId.is_valid(article_id):
+            # Fallback to ObjectId query if valid format
+            doc = coll.find_one({"_id": ObjectId(article_id)})
+            
+        if not doc:
+            raise HTTPException(status_code=404, detail="Article not found")
+        
+        # Serialize ObjectId and datetime objects recursively
+        def serialize_doc(d):
+            if isinstance(d, dict):
+                return {k: serialize_doc(v) for k, v in d.items()}
+            elif isinstance(d, list):
+                return [serialize_doc(x) for x in d]
+            elif isinstance(d, datetime):
+                return d.isoformat()
+            elif isinstance(d, ObjectId):
+                return str(d)
+            return d
+
+        return serialize_doc(doc)
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=400, detail=f"Error retrieving article: {str(e)}")
+
+
+@app.get("/api/logs/stream")
+async def stream_logs():
+    """Stream application log messages in real-time to the dashboard via SSE."""
+    async def log_generator():
+        # Send a connection confirmation
+        yield "data: [SYSTEM] Connected to live WAPOW scraper logs...\n\n"
+        while True:
+            lines = []
+            while not log_queue.empty():
+                try:
+                    lines.append(log_queue.get_nowait())
+                except Exception:
+                    break
+            if lines:
+                data = "\n".join(lines)
+                yield f"data: {data}\n\n"
+            await asyncio.sleep(0.5)
+
+    return StreamingResponse(log_generator(), media_type="text/event-stream")
+
+
+@app.get("/dashboard", response_class=HTMLResponse)
+async def get_dashboard() -> HTMLResponse:
+    """Operations dashboard for WAPOW Scraper styled like a premium, sleek Vercel UI using Tailwind CSS v4."""
+    from pathlib import Path
+    template_path = Path(__file__).resolve().parent / "templates" / "dashboard.html"
+    try:
+        with open(template_path, "r", encoding="utf-8") as f:
+            html_content = f.read()
+        return HTMLResponse(content=html_content, status_code=200)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Dashboard template not found")
 
 
 if __name__ == "__main__":

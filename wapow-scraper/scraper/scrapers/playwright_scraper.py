@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup
 from scraper.scrapers.base import BaseScraper, ScrapedItem
 from scraper.models.source import WebSource
 from scraper.config import settings
+from scraper.utils.html_extractor import extract_article_content
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +100,28 @@ class PlaywrightScraper(BaseScraper):
 
             # Parse with BeautifulSoup
             soup = BeautifulSoup(html, "lxml")
-            items = self._parse_page(soup)
+            raw_items = self._parse_page(soup)
+
+            items = []
+            for item in raw_items:
+                if item.url:
+                    if await self.can_scrape(item.url):
+                        await self.wait_for_rate_limit(item.url)
+                        article_data = await extract_article_content(item.url)
+                        if article_data:
+                            item.raw_data["content_elements"] = article_data.get("content_elements") or []
+                            item.raw_data["body_text"] = article_data.get("body_text") or ""
+                            
+                            # Fallback if fields are missing in listing
+                            if not item.title and article_data.get("title"):
+                                item.title = article_data["title"]
+                            if not item.description and article_data.get("description"):
+                                item.description = article_data["description"]
+                            if not item.author and article_data.get("author"):
+                                item.author = article_data["author"]
+                            if not item.image_url and article_data.get("image_url"):
+                                item.image_url = article_data["image_url"]
+                    items.append(item)
 
             logger.info(
                 f"Scraped {len(items)} items via Playwright: {self.source.name}"

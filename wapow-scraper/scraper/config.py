@@ -22,16 +22,9 @@ class Settings(BaseSettings):
     port: int = 3003
     debug: bool = False
 
-    # API Keys (optional - features disabled if not set)
-    youtube_api_key: str = ""
-    spotify_client_id: str = ""
-    spotify_client_secret: str = ""
-
     # Scraping settings
     scrape_interval_rss: int = 60  # minutes
     scrape_interval_web: int = 120  # minutes
-    scrape_interval_youtube: int = 360  # minutes
-    scrape_interval_spotify: int = 720  # minutes
 
     # Rate limiting
     default_rate_limit_delay: float = 1.0  # seconds between requests per domain
@@ -60,5 +53,3 @@ ARTICLE_CATEGORIES = [
     "wellbeing",
 ]
 ARTICLES_COLLECTION = "articles"
-VIDEO_COLLECTION = "videos"
-PODCAST_COLLECTION = "podcasts"

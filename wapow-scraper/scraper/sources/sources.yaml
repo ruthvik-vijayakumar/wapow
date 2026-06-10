@@ -18,6 +18,21 @@ rss:
     category: "technology"
     enabled: true
 
+  - name: "Engadget"
+    url: "https://www.engadget.com/rss.xml"
+    category: "technology"
+    enabled: true
+
+  - name: "Ars Technica"
+    url: "https://feeds.arstechnica.com/arstechnica/index"
+    category: "technology"
+    enabled: true
+
+  - name: "Gizmodo"
+    url: "https://gizmodo.com/feed"
+    category: "technology"
+    enabled: true
+
   # Sports
   - name: "ESPN"
     url: "https://www.espn.com/espn/rss/news"
@@ -26,6 +41,26 @@ rss:
 
   - name: "Bleacher Report"
     url: "https://bleacherreport.com/articles/feed"
+    category: "sports"
+    enabled: true
+
+  - name: "Sky Sports"
+    url: "https://www.skysports.com/rss/12040"
+    category: "sports"
+    enabled: true
+
+  - name: "Yahoo Sports"
+    url: "https://sports.yahoo.com/rss/"
+    category: "sports"
+    enabled: true
+
+  - name: "CBS Sports"
+    url: "https://www.cbssports.com/rss/news/"
+    category: "sports"
+    enabled: true
+
+  - name: "NBC Sports"
+    url: "https://www.nbcsports.com/feed"
     category: "sports"
     enabled: true
 
@@ -40,6 +75,16 @@ rss:
     category: "travel"
     enabled: true
 
+  - name: "Condé Nast Traveler"
+    url: "https://www.cntraveler.com/feed/rss"
+    category: "travel"
+    enabled: true
+
+  - name: "Fodor's Travel"
+    url: "https://www.fodors.com/news/feed"
+    category: "travel"
+    enabled: true
+
   # Style
   - name: "Vogue"
     url: "https://www.vogue.com/feed/rss"
@@ -48,6 +93,21 @@ rss:
 
   - name: "GQ"
     url: "https://www.gq.com/feed/rss"
+    category: "style"
+    enabled: true
+
+  - name: "Hypebeast"
+    url: "https://hypebeast.com/feed"
+    category: "style"
+    enabled: true
+
+  - name: "Esquire"
+    url: "https://www.esquire.com/rss/all.xml"
+    category: "style"
+    enabled: true
+
+  - name: "Fashionista"
+    url: "https://fashionista.com/.rss/full/"
     category: "style"
     enabled: true
 
@@ -62,67 +122,34 @@ rss:
     category: "wellbeing"
     enabled: true
 
+  - name: "Psychology Today"
+    url: "https://www.psychologytoday.com/us/front/feed"
+    category: "wellbeing"
+    enabled: true
+
+  - name: "MindBodyGreen"
+    url: "https://www.mindbodygreen.com/rss/feed.xml"
+    category: "wellbeing"
+    enabled: true
+
+  - name: "Self Magazine"
+    url: "https://www.self.com/feed/rss"
+    category: "wellbeing"
+    enabled: true
+
 # Web scraping sources (for sites without RSS)
 web:
-  # Example configuration - disabled by default
-  - name: "Example Site"
-    url: "https://example.com/news"
-    category: "technology"
-    enabled: false
-    use_playwright: false
+  - name: "The Washington Post"
+    url: "https://www.washingtonpost.com/"
+    category: "politics"
+    enabled: true
+    use_playwright: true
     selectors:
       articles: "article"
-      title: "h2"
-      description: "p.excerpt"
+      title: "a h3"
+      description: "p"
       image: "img"
       link: "a"
       author: ".author"
       date: "time"
 
-# YouTube channels
-youtube:
-  - name: "TED"
-    channel_id: "UCAuUUnT6oDeKwE6v1US1Llw"
-    category: "technology"
-    max_results: 10
-    enabled: true
-
-  - name: "ESPN"
-    channel_id: "UCiWLfSweyRNmLpgEHekhoAg"
-    category: "sports"
-    max_results: 10
-    enabled: true
-
-  - name: "Vogue"
-    channel_id: "UCF9EzMZ8eFv4c4tYtUmTONg"
-    category: "style"
-    max_results: 10
-    enabled: true
-
-  - name: "National Geographic"
-    channel_id: "UCpVm7bg6pXKo1Pr6k5kxG9A"
-    category: "travel"
-    max_results: 10
-    enabled: true
-
-# Spotify podcasts
-spotify:
-  - name: "TED Talks Daily"
-    show_id: "1VXcH8QHkjRcTCEd88U3ti"
-    max_episodes: 10
-    enabled: true
-
-  - name: "The Daily"
-    show_id: "3IM0lmZxpFAY7CwMuv9H4g"
-    max_episodes: 10
-    enabled: true
-
-  - name: "Science Vs"
-    show_id: "5lY4b5PGOvMuOYOjOVEYeB"
-    max_episodes: 10
-    enabled: true
-
-  - name: "The Mindset Mentor"
-    show_id: "1FDkz8IOwDITGFzX1T7R14"
-    max_episodes: 10
-    enabled: true

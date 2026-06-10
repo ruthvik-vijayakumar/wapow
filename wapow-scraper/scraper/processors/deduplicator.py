@@ -7,7 +7,7 @@ from typing import Optional
 from pymongo.collection import Collection
 
 from scraper.db import get_collection
-from scraper.config import ARTICLES_COLLECTION, VIDEO_COLLECTION, PODCAST_COLLECTION
+from scraper.config import ARTICLES_COLLECTION
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +19,6 @@ class Deduplicator:
         """Initialize deduplicator."""
         self._url_cache: dict[str, set[str]] = {
             ARTICLES_COLLECTION: set(),
-            VIDEO_COLLECTION: set(),
-            PODCAST_COLLECTION: set(),
         }
         self._cache_loaded = False
 
@@ -29,7 +27,7 @@ class Deduplicator:
         if self._cache_loaded:
             return
 
-        for collection_name in [ARTICLES_COLLECTION, VIDEO_COLLECTION, PODCAST_COLLECTION]:
+        for collection_name in [ARTICLES_COLLECTION]:
             try:
                 coll = get_collection(collection_name)
                 # Get all existing URL hashes from scraped content

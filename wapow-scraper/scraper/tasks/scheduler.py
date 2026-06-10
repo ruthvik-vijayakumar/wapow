@@ -17,8 +17,6 @@ def start_scheduler() -> None:
     from scraper.tasks.jobs import (
         run_rss_scrape,
         run_web_scrape,
-        run_youtube_scrape,
-        run_spotify_scrape,
     )
 
     # RSS feeds - every hour
@@ -36,24 +34,6 @@ def start_scheduler() -> None:
         trigger=IntervalTrigger(minutes=settings.scrape_interval_web),
         id="web_scrape",
         name="Web Scraper",
-        replace_existing=True,
-    )
-
-    # YouTube - every 6 hours
-    scheduler.add_job(
-        run_youtube_scrape,
-        trigger=IntervalTrigger(minutes=settings.scrape_interval_youtube),
-        id="youtube",
-        name="YouTube Scraper",
-        replace_existing=True,
-    )
-
-    # Spotify podcasts - every 12 hours
-    scheduler.add_job(
-        run_spotify_scrape,
-        trigger=IntervalTrigger(minutes=settings.scrape_interval_spotify),
-        id="spotify",
-        name="Spotify Podcast Scraper",
         replace_existing=True,
     )
 

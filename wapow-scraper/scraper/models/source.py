@@ -11,8 +11,6 @@ class SourceType(str, Enum):
 
     RSS = "rss"
     WEB = "web"
-    YOUTUBE = "youtube"
-    SPOTIFY = "spotify"
 
 
 class BaseSource(BaseModel):
@@ -49,27 +47,8 @@ class WebSource(BaseSource):
     use_playwright: bool = False  # Set True for JS-heavy sites
 
 
-class YouTubeSource(BaseSource):
-    """YouTube channel/playlist source configuration."""
-
-    type: SourceType = SourceType.YOUTUBE
-    channel_id: Optional[str] = None
-    playlist_id: Optional[str] = None
-    max_results: int = 10
-
-
-class SpotifySource(BaseSource):
-    """Spotify podcast source configuration."""
-
-    type: SourceType = SourceType.SPOTIFY
-    show_id: str
-    max_episodes: int = 10
-
-
 class SourceConfig(BaseModel):
     """Complete source configuration loaded from YAML."""
 
     rss: list[RSSSource] = Field(default_factory=list)
     web: list[WebSource] = Field(default_factory=list)
-    youtube: list[YouTubeSource] = Field(default_factory=list)
-    spotify: list[SpotifySource] = Field(default_factory=list)
