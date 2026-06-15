@@ -36,10 +36,10 @@ jobs:
           docker build -t "${REGISTRY_PREFIX}/wapow-collector:latest" -f wapow-collector/Dockerfile wapow-collector
           docker push "${REGISTRY_PREFIX}/wapow-collector:latest"
 
-      - name: Build and push wapow-scraper
+      - name: Build and push wapow-worker
         run: |
-          docker build -t "${REGISTRY_PREFIX}/wapow-scraper:latest" -f wapow-scraper/Dockerfile wapow-scraper
-          docker push "${REGISTRY_PREFIX}/wapow-scraper:latest"
+          docker build -t "${REGISTRY_PREFIX}/wapow-worker:latest" -f wapow-worker/Dockerfile wapow-worker
+          docker push "${REGISTRY_PREFIX}/wapow-worker:latest"
 
       # Remote shell does NOT inherit GitHub env — pass tokens and registry via envs
       - name: Deploy to Droplet
@@ -59,7 +59,7 @@ jobs:
             echo "$DO_API_TOKEN" | docker login registry.digitalocean.com -u "$DO_API_TOKEN" --password-stdin
             docker pull "${REGISTRY_PREFIX}/wapow-app:latest"
             docker pull "${REGISTRY_PREFIX}/wapow-collector:latest"
-            docker pull "${REGISTRY_PREFIX}/wapow-scraper:latest"
+            docker pull "${REGISTRY_PREFIX}/wapow-worker:latest"
             cd "${DEPLOY_PATH:-/app}"
             if [ -d .git ]; then git pull --ff-only; fi
             export REGISTRY_PREFIX="$REGISTRY_PREFIX"
