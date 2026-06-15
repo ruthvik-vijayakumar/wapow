@@ -851,6 +851,7 @@ function convertArticleToStoryContent(article: Article): any {
     title: article.headlines?.basic || 'Untitled Article',
     description: article.description?.basic || article.subheadlines?.basic || 'No description available',
     thumbnail: article.promo_items?.basic?.url || 'https://picsum.photos/400/600?random=article',
+    focalPoint: (article as any).promo_items?.basic?.focal_point || (article as any).imageFocalPoint || null,
     author: {
       name: article.credits?.by?.[0]?.name || 'Unknown Author',
       username: `@${article.credits?.by?.[0]?.name?.toLowerCase().replace(/\s+/g, '') || 'unknown'}`,

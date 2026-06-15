@@ -937,6 +937,31 @@ onUnmounted(() => {
   @apply relative z-0 w-full h-full object-cover block;
 }
 
+/* Focal point: contain mode with blurred background fill */
+.image-section--contain,
+.content-image--contain {
+  @apply relative;
+}
+
+.story-image-blur-bg {
+  @apply absolute inset-0 w-full h-full object-cover block;
+  filter: blur(20px) brightness(0.4);
+  transform: scale(1.1); /* Prevent blur edge artifacts */
+  z-index: 0;
+}
+
+.image-section--contain .story-image,
+.content-image--contain .story-image {
+  @apply relative z-[1] w-full h-full block;
+  /* object-fit is set inline via :style binding */
+}
+
+/* Ensure gradients still overlay in contain mode */
+.image-section--contain::before,
+.image-section--contain::after {
+  z-index: 2;
+}
+
 /* Image-top layout styles */
 .image-top-container {
   @apply flex flex-col h-full w-full;

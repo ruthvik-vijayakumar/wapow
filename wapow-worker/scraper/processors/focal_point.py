@@ -13,7 +13,6 @@ import struct
 import urllib.request
 import urllib.error
 from typing import Any, Optional
-from io import BytesIO
 
 import aiohttp
 
@@ -193,6 +192,39 @@ async def _gemini_detect_focal(image_url: str) -> Optional[dict[str, float]]:
     Call Gemini Vision to identify the main subject position in an image.
     Returns {"x": 0-1, "y": 0-1} or None on failure.
     """
+    import base64
+
+    # Download the image (limited to 4MB) for inline submission
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                image_url,
+                timeout=aiohttp.ClientTimeout(total=12),
+                headers={"User-Agent": "WAPOWBot/1.0"},
+            ) as resp:
+                if resp.status != 200:
+                    return None
+                content_type = resp.headers.get("Content-Type", "image/jpeg")
+                # Limit to 4MB
+                image_data = await resp.content.read(4 * 1024 * 1024)
+    except Exception as e:
+        logger.debug(f"Failed to download image for focal point: {e}")
+        return None
+
+    if not image_data or len(image_data) < 100:
+        return None
+
+    # Determine MIME type
+    mime_type = "image/jpeg"
+    if "png" in content_type:
+        mime_type = "image/png"
+    elif "webp" in content_type:
+        mime_type = "image/webp"
+    elif "gif" in content_type:
+        mime_type = "image/gif"
+
+    b64_image = base64.b64encode(image_data).decode("utf-8")
+
     prompt = (
         "You are an image analysis tool. Look at this image and identify the main subject "
         "(person, object, or focal point of interest). Return ONLY a JSON object with the "
@@ -208,12 +240,9 @@ async def _gemini_detect_focal(image_url: str) -> Optional[dict[str, float]]:
                     {"text": prompt},
                     {
                         "inline_data": {
-                            "mime_type": "image/jpeg",
-                        },
-                        "file_data": {
-                            "mime_type": "image/jpeg",
-                            "file_uri": image_url,
-                        },
+                            "mime_type": mime_type,
+                            "data": b64_image,
+                        }
                     },
                 ]
             }
@@ -223,17 +252,6 @@ async def _gemini_detect_focal(image_url: str) -> Optional[dict[str, float]]:
             "temperature": 0.1,
         },
     }
-
-    # Use the URL-based image reference instead of inline_data
-    payload["contents"][0]["parts"] = [
-        {"text": prompt},
-        {
-            "file_data": {
-                "mime_type": "image/jpeg",
-                "file_uri": image_url,
-            }
-        },
-    ]
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
 
@@ -246,7 +264,7 @@ async def _gemini_detect_focal(image_url: str) -> Optional[dict[str, float]]:
             method="POST",
         )
 
-        with urllib.request.urlopen(req, timeout=15) as resp:
+        with urllib.request.urlopen(req, timeout=20) as resp:
             raw = json.loads(resp.read().decode("utf-8"))
 
         candidates = raw.get("candidates") or []

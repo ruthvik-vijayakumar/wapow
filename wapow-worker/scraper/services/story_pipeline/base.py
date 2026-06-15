@@ -18,6 +18,7 @@ class SemanticBlock(BaseModel):
     url: Optional[str] = None  # Image or video URL
     level: Optional[int] = None  # Header level (2-6)
     original_index: int  # Original sequential index in the document elements list
+    focal_point: Optional[dict] = None  # {"focal_x": 0-1, "focal_y": 0-1, "width", "height", "aspect_ratio", "display_mode"}
 
 
 class DocumentTree(BaseModel):
@@ -29,6 +30,7 @@ class DocumentTree(BaseModel):
     publisher: str = ""
     publish_date: Optional[datetime] = None
     promo_image: str = ""
+    promo_image_focal_point: Optional[dict] = None  # focal point data for hero image
     blocks: List[SemanticBlock] = Field(default_factory=list)
 
     @classmethod
@@ -62,8 +64,10 @@ class DocumentTree(BaseModel):
         promo_image = doc.get("image_url") or doc.get("promo_image") or ""
         promo_items = doc.get("promo_items") or {}
         basic = promo_items.get("basic") or {}
+        promo_image_focal_point = None
         if isinstance(basic, dict) and basic.get("url"):
             promo_image = basic["url"]
+            promo_image_focal_point = basic.get("focal_point")
         
         # Build SemanticBlocks list
         blocks: List[SemanticBlock] = []
@@ -101,11 +105,13 @@ class DocumentTree(BaseModel):
                         url = ap.get("fullSizeResizeUrl") or ap.get("url")
                     if url and isinstance(url, str) and url.startswith("http") and is_valid_article_image(url):
                         caption = _strip_html(el.get("caption") or el.get("content") or "")
+                        focal_point = el.get("focal_point")
                         blocks.append(SemanticBlock(
                             type="image",
                             content=caption,
                             url=url,
-                            original_index=idx
+                            original_index=idx,
+                            focal_point=focal_point,
                         ))
                 elif typ == "video":
                     url = el.get("url") or el.get("content_url")
@@ -142,6 +148,7 @@ class DocumentTree(BaseModel):
             publisher=publisher,
             publish_date=publish_date,
             promo_image=promo_image,
+            promo_image_focal_point=promo_image_focal_point,
             blocks=blocks
         )
 
@@ -185,6 +192,24 @@ class DocumentTree(BaseModel):
                 block = self.blocks[next_idx]
                 if block.type == "image" and block.url:
                     return block.url
+        return None
+
+    def get_adjacent_image_with_focal(self, block_index: int, max_distance: int = 3) -> Optional[dict]:
+        """
+        Like get_adjacent_image but returns a dict with url and focal_point data.
+        """
+        num_blocks = len(self.blocks)
+        for dist in range(1, max_distance + 1):
+            prev_idx = block_index - dist
+            if prev_idx >= 0:
+                block = self.blocks[prev_idx]
+                if block.type == "image" and block.url:
+                    return {"url": block.url, "focal_point": block.focal_point}
+            next_idx = block_index + dist
+            if next_idx < num_blocks:
+                block = self.blocks[next_idx]
+                if block.type == "image" and block.url:
+                    return {"url": block.url, "focal_point": block.focal_point}
         return None
 
     def get_videos(self) -> List[dict]:

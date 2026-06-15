@@ -5,9 +5,9 @@ import os
 import urllib.request
 import urllib.error
 import logging
-from typing import Any, List, Dict, Optional
+from typing import Any, Dict, List, Optional
 
-from .base import BasePipeline, DocumentTree, SemanticBlock
+from .base import BasePipeline, DocumentTree
 
 logger = logging.getLogger(__name__)
 
@@ -18,10 +18,10 @@ class StoryPipeline(BasePipeline):
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = (api_key or os.getenv("GEMINI_API_KEY", "")).strip()
 
-    def storyboard(self, tree: DocumentTree, n_slides: int) -> Optional[Dict[str, Any]]:
+    def storyboard(self, tree: DocumentTree, min_slides: int, max_slides: int) -> Optional[Dict[str, Any]]:
         """
         Stage 1: Narrative Storyboarding.
-        Asks Gemini to segment the article into exactly n_slides beats,
+        Asks Gemini to segment the article into between min_slides and max_slides beats,
         providing both a short and long summary version of each beat for layout flexibility.
         """
         if not self.api_key:
@@ -29,11 +29,13 @@ class StoryPipeline(BasePipeline):
             return None
 
         prompt = f"""You are an expert editor creating a mobile visual story (like Instagram/Snapchat Stories) from a news article.
-Your task is to summarize the article into exactly {n_slides} sequential narrative segments that explain the entire story.
+Your task is to summarize the article into between {min_slides} and {max_slides} sequential narrative segments (beats) that explain the entire story.
+Determine the optimal number of segments (within the range {min_slides} to {max_slides}) based on the actual complexity and length of the article.
+If the article is simple or short, favor a smaller number of segments (even just {min_slides}) so that the story is concise and doesn't drag.
 For each segment, you must provide both a short and long summary version to accommodate different slide layouts.
 
 Output a JSON object with:
-1. "segments": A list of exactly {n_slides} objects. Each segment object MUST contain:
+1. "segments": A list of the generated segment objects. Each segment object MUST contain:
    - "key_phrases": A list of 2-3 unique key phrases or keyword groups that are highly specific to this part of the article.
    - "short_summary": A highly concise summary of this segment. Keep it strictly MAXIMUM 120 characters (a single short sentence).
    - "long_summary": A detailed, descriptive summary of this segment. Keep it strictly between 250 and 450 characters (3-4 sentences) to explain the segment fully.
@@ -60,7 +62,32 @@ ARTICLE_BODY:
                 }
             ],
             "generationConfig": {
-                "responseMimeType": "application/json"
+                "responseMimeType": "application/json",
+                "responseSchema": {
+                    "type": "object",
+                    "properties": {
+                        "segments": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "key_phrases": {
+                                        "type": "array",
+                                        "items": {"type": "string"}
+                                    },
+                                    "short_summary": {"type": "string"},
+                                    "long_summary": {"type": "string"}
+                                },
+                                "required": ["key_phrases", "short_summary", "long_summary"]
+                            }
+                        },
+                        "takeaways": {
+                            "type": "array",
+                            "items": {"type": "string"}
+                        }
+                    },
+                    "required": ["segments", "takeaways"]
+                }
             }
         }
 
@@ -73,7 +100,7 @@ ARTICLE_BODY:
         )
 
         try:
-            logger.info(f"Calling Gemini to storyboard {n_slides} segments for: {tree.title}")
+            logger.info(f"Calling Gemini to storyboard dynamic segments ({min_slides}-{max_slides}) for: {tree.title}")
             with urllib.request.urlopen(req, timeout=45) as resp:
                 raw_data = json.loads(resp.read().decode("utf-8"))
 
@@ -94,8 +121,11 @@ ARTICLE_BODY:
                     lines = lines[:-1]
                 cleaned_text = "\n".join(lines).strip()
 
-            return json.loads(cleaned_text)
-
+            try:
+                return json.loads(cleaned_text)
+            except json.JSONDecodeError as jde:
+                logger.error(f"JSON Decode Error in StoryPipeline storyboard: {jde}\nRaw text:\n{cleaned_text}")
+                return None
         except Exception as e:
             logger.error(f"Error in StoryPipeline storyboard: {e}")
             return None
@@ -186,7 +216,7 @@ ARTICLE_BODY:
 
         # Fallback 1: If no media was matched at all, try to assign the promo_image to the first slide
         has_any_media = bool(used_images) or bool(used_videos)
-        if not has_any_media and tree.promo_image:
+        if not has_any_media and tree.promo_image and aligned_segments:
             aligned_segments[0]["image_url"] = tree.promo_image
             aligned_segments[0]["focal_point"] = tree.promo_image_focal_point
             used_images.add(tree.promo_image)
@@ -284,12 +314,17 @@ ARTICLE_BODY:
 
     def execute(self, tree: DocumentTree) -> Optional[List[Dict[str, Any]]]:
         """Orchestrate the 3-stage visual slides generation flow."""
-        # Determine number of content slides (beats)
+        # Determine number of content slides (beats) adaptively based on word count
         word_count = len(tree.get_plaintext().split())
-        n_slides = 4 if word_count < 600 else 5
+        if word_count < 150:
+            min_slides, max_slides = 1, 2
+        elif word_count < 600:
+            min_slides, max_slides = 2, 4
+        else:
+            min_slides, max_slides = 3, 5
 
         # Stage 1: Storyboard
-        storyboard_data = self.storyboard(tree, n_slides)
+        storyboard_data = self.storyboard(tree, min_slides, max_slides)
         if not storyboard_data:
             return None
 

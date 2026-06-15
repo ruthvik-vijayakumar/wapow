@@ -13,16 +13,21 @@ def build_pages_with_gemini(analyzed: AnalyzedArticle) -> list[dict] | None:
     if not api_key:
         return None
         
-    # Determine target number of slides (content slides). Set to 4 or 5 content slides
-    # so that total slides (content slides + takeaways) is strictly 5-6.
-    if analyzed.word_count < 600:
-        n_slides = 4
+    # Determine target range of slides (content slides) adaptively based on word count
+    word_count = len(analyzed.body_text.split()) if analyzed.body_text else analyzed.word_count
+    if word_count < 150:
+        min_slides, max_slides = 1, 2
+    elif word_count < 600:
+        min_slides, max_slides = 2, 4
     else:
-        n_slides = 5
+        min_slides, max_slides = 3, 5
         
     prompt = f"""You are an expert editor creating a mobile visual story (like Instagram/Snapchat Stories) from a news article.
-Your task is to summarize the article into exactly {n_slides} content slides and 1 key takeaways overview slide.
+Your task is to summarize the article into between {min_slides} and {max_slides} content slides and 1 key takeaways overview slide.
+Determine the optimal number of content slides (within the range {min_slides} to {max_slides}) based on the actual complexity and length of the article.
+If the article is simple or short, favor a smaller number of slides (even just {min_slides}) so that the story is concise and doesn't drag.
 Ensure the slides flow logically to explain the entire narrative of the article.
+Flag layout templates accordingly.
 
 You are provided with a list of IMAGE_URLS associated with the article.
 For each content slide:
@@ -36,7 +41,7 @@ Text character limit constraints:
 - If a slide does NOT have an accompanying image (i.e. "image_url" is null), the summary text MUST be significantly longer and more detailed: between 250 and 450 characters (3-4 sentences) to explain this part of the narrative fully. Do not make it short.
 
 Output a JSON object with:
-1. "slides": A list of exactly {n_slides} objects. Each slide object MUST contain:
+1. "slides": A list of generated slide objects (between {min_slides} and {max_slides} objects). Each slide object MUST contain:
    - "text": The summary text following the character limit constraints above.
    - "image_url": The matched unique image URL from the provided list, or null if no unique image is appropriate or available.
 2. "takeaways": A list of 3-5 short bullet points summarizing the key takeaways of the whole article.
@@ -75,7 +80,7 @@ ARTICLE_BODY:
       )
       
     try:
-        logger.info(f"Calling Gemini API to generate {n_slides} slides for article: {analyzed.title}")
+        logger.info(f"Calling Gemini API to generate adaptive slides ({min_slides}-{max_slides}) for article: {analyzed.title}")
         with urllib.request.urlopen(req, timeout=45) as resp:
             raw_data = json.loads(resp.read().decode("utf-8"))
             

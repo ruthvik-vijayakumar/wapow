@@ -22,6 +22,7 @@
         :src="content.promo_items?.basic?.url"
         :alt="content.headlines?.basic || 'Article'"
         class="w-full h-full object-cover tile-image"
+        :style="tileImageStyle"
         loading="lazy"
         decoding="async"
       />
@@ -105,7 +106,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import type { Article } from '@/stores/content'
 import { useRoute } from 'vue-router'
 
@@ -123,6 +124,17 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   click: [content: Article]
 }>()
+
+/** Compute object-position from focal point data for tile thumbnails */
+const tileImageStyle = computed(() => {
+  const fp = (props.content as any)?.promo_items?.basic?.focal_point
+  if (!fp || !fp.focal_x || !fp.focal_y) {
+    return {}
+  }
+  const x = Math.round((fp.focal_x ?? 0.5) * 100)
+  const y = Math.round((fp.focal_y ?? 0.5) * 100)
+  return { objectPosition: `${x}% ${y}%` }
+})
 
 // Transition state
 const isClicked = ref(false)
