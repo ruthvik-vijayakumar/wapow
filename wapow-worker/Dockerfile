@@ -1,3 +1,12 @@
+# Stage 1: Build the Vue.js dashboard
+FROM node:20-slim AS frontend-builder
+WORKDIR /app/dashboard
+COPY dashboard/package*.json ./
+RUN npm ci
+COPY dashboard/ .
+RUN npm run build
+
+# Stage 2: Python runtime environment
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -33,6 +42,9 @@ RUN playwright install chromium
 
 # Copy application code
 COPY scraper/ ./scraper/
+
+# Copy compiled Vue frontend assets
+COPY --from=frontend-builder /app/scraper/dist ./scraper/dist
 
 # Expose port
 EXPOSE 3003

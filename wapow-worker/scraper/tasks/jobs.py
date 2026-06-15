@@ -55,6 +55,39 @@ def load_sources() -> SourceConfig:
         return SourceConfig()
 
 
+def save_sources(config: SourceConfig) -> None:
+    """Save source configuration back to the YAML file."""
+    try:
+        data = {
+            "rss": [
+                {
+                    "name": s.name,
+                    "url": s.url,
+                    "category": s.category,
+                    "enabled": s.enabled,
+                }
+                for s in config.rss
+            ],
+            "web": [
+                {
+                    "name": s.name,
+                    "url": s.url,
+                    "category": s.category,
+                    "enabled": s.enabled,
+                    "use_playwright": s.use_playwright,
+                    "selectors": s.selectors,
+                }
+                for s in config.web
+            ]
+        }
+        with open(SOURCES_PATH, "w") as f:
+            yaml.safe_dump(data, f, sort_keys=False, default_flow_style=False)
+        logger.info(f"Successfully saved updated sources configuration to {SOURCES_PATH}")
+    except Exception as e:
+        logger.error(f"Error saving sources: {e}")
+        raise e
+
+
 async def _save_items(items: list[tuple[str, dict[str, Any]]]) -> list[tuple[str, str]]:
     """
     Save normalized items to MongoDB.

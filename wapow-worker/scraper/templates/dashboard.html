@@ -118,6 +118,17 @@
                 </div>
             </div>
 
+            <!-- Scheduler & Worker Control -->
+            <div class="bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg overflow-hidden">
+                <div class="p-6 border-b border-[#1f1f1f]">
+                    <h2 class="text-base font-bold text-white">Scheduler & Worker Control</h2>
+                    <p class="text-xs text-[#666666] mt-0.5">Pause/resume scheduled crawling jobs and background slide conversion tasks</p>
+                </div>
+                <div id="scheduler-control-list" class="divide-y divide-[#1f1f1f]">
+                    <div class="p-6 text-center text-[#666666] text-xs">Loading controls...</div>
+                </div>
+            </div>
+
             <!-- Job Executions Log -->
             <div class="bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg overflow-hidden">
                 <div class="p-6 border-b border-[#1f1f1f]">
@@ -155,8 +166,11 @@
                         <h2 class="text-base font-bold text-white">Sources Configuration Status</h2>
                         <p class="text-xs text-[#a1a1a1] mt-0.5">Crawler statistics and statuses per RSS feed and Web Page mapping</p>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <span class="text-xs text-[#666666]">Filter status:</span>
+                    <div class="flex items-center gap-3">
+                        <button onclick="openAddSourceModal()" class="bg-white text-black hover:bg-[#e0e0e0] font-medium text-xs py-1.5 px-3 rounded transition duration-200 cursor-pointer">
+                            + Add Source
+                        </button>
+                        <span class="text-xs text-[#666666]">Filter:</span>
                         <select id="source-status-filter" onchange="filterSourcesTable()" class="bg-black border border-[#333333] text-xs text-[#fafafa] rounded px-3 py-1.5 focus:outline-none focus:border-[#444] cursor-pointer">
                             <option value="all">All Sources</option>
                             <option value="success">Success</option>
@@ -178,11 +192,12 @@
                                 <th class="py-3.5 px-6 font-semibold">Scraped / Saved</th>
                                 <th class="py-3.5 px-6 font-semibold">Status</th>
                                 <th class="py-3.5 px-6 font-semibold">Crawl URL / Errors</th>
+                                <th class="py-3.5 px-6 font-semibold">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="sources-telemetry-tbody" class="divide-y divide-[#1f1f1f]">
                             <tr>
-                                <td colspan="8" class="py-8 text-center text-[#666666]">Loading sources telemetry...</td>
+                                <td colspan="9" class="py-8 text-center text-[#666666]">Loading sources telemetry...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -376,7 +391,7 @@
             }
 
             if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-[#666666]">No sources match criteria.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="9" class="py-8 text-center text-[#666666]">No sources match criteria.</td></tr>`;
                 return;
             }
 
@@ -425,6 +440,19 @@
                         <td class="py-3.5 px-6 text-xs max-w-[240px]">
                             <a href="${src.url}" target="_blank" class="text-blue-500 hover:underline block truncate font-mono text-[11px]" title="${src.url}">${src.url}</a>
                             ${errorDisplay}
+                        </td>
+                        <td class="py-3.5 px-6 text-xs flex gap-2">
+                            <button onclick="toggleSource('${src.type}', '${src.name}')" class="text-[#a1a1a1] hover:text-white transition cursor-pointer font-medium">
+                                ${src.enabled ? 'Disable' : 'Enable'}
+                            </button>
+                            <span class="text-[#333333]">|</span>
+                            <button onclick="openEditSourceModal('${src.type}', '${src.name}')" class="text-blue-500 hover:text-blue-400 transition cursor-pointer font-medium">
+                                Edit
+                            </button>
+                            <span class="text-[#333333]">|</span>
+                            <button onclick="deleteSource('${src.type}', '${src.name}')" class="text-rose-500 hover:text-rose-400 transition cursor-pointer font-medium">
+                                Delete
+                            </button>
                         </td>
                     </tr>
                 `;
@@ -654,10 +682,358 @@
                 }
 
                 document.getElementById('last-updated').textContent = `Last synced: ${new Date().toLocaleTimeString()}`;
+                await loadJobsList();
             } catch (err) {
                 console.error("Failed to sync dashboard:", err);
             }
         }
+
+        async function loadJobsList() {
+            try {
+                const res = await fetch('/jobs');
+                const data = await res.json();
+                const listEl = document.getElementById('scheduler-control-list');
+                
+                let jobsHtml = data.jobs.map(job => {
+                    const isPaused = job.status === 'paused';
+                    const badgeClass = isPaused 
+                        ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' 
+                        : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+                    const toggleAction = isPaused ? 'resume' : 'pause';
+                    const toggleBtnText = isPaused ? 'Resume' : 'Pause';
+                    const toggleBtnClass = isPaused 
+                        ? 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/30' 
+                        : 'bg-rose-500/15 text-rose-400 hover:bg-rose-500/25 border border-rose-500/30';
+                    
+                    return `
+                        <div class="p-6 flex items-center justify-between gap-6 hover:bg-[#050505] transition duration-150">
+                            <div class="space-y-1 bg-transparent">
+                                <div class="flex items-center gap-2.5 bg-transparent">
+                                    <h3 class="text-sm font-bold text-white">${job.name}</h3>
+                                    <span class="inline-flex border px-2 py-0.5 rounded text-[9px] font-mono tracking-wider lowercase ${badgeClass}">
+                                        ${job.status}
+                                    </span>
+                                </div>
+                                <div class="text-xs text-[#888888] font-mono">
+                                    Job ID: <span class="text-[#a1a1a1]">${job.id}</span> | Next Run: <span class="text-white">${job.next_run ? new Date(job.next_run).toLocaleString() : 'Never'}</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <button onclick="toggleJobSchedule('${job.id}', '${toggleAction}')" class="text-xs py-1.5 px-3 rounded font-medium transition cursor-pointer ${toggleBtnClass}">
+                                    ${toggleBtnText}
+                                </button>
+                                <button onclick="triggerJob('${job.id}')" class="bg-[#111] hover:bg-neutral-900 border border-[#333] text-white text-xs py-1.5 px-3 rounded font-medium transition cursor-pointer">
+                                    Run Now
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                const workerPaused = data.worker_paused;
+                const workerBadgeClass = workerPaused 
+                    ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' 
+                    : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+                const workerToggleAction = workerPaused ? 'resume' : 'pause';
+                const workerToggleText = workerPaused ? 'Resume Worker' : 'Pause Worker';
+                const workerToggleClass = workerPaused 
+                    ? 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/30' 
+                    : 'bg-rose-500/15 text-rose-400 hover:bg-rose-500/25 border border-rose-500/30';
+                
+                jobsHtml += `
+                    <div class="p-6 flex items-center justify-between gap-6 hover:bg-[#050505] transition duration-150">
+                        <div class="space-y-1 bg-transparent">
+                            <div class="flex items-center gap-2.5 bg-transparent">
+                                <h3 class="text-sm font-bold text-white">AI Slide Conversion Worker</h3>
+                                <span class="inline-flex border px-2 py-0.5 rounded text-[9px] font-mono tracking-wider lowercase ${workerBadgeClass}">
+                                    ${workerPaused ? 'paused' : 'active'}
+                                </span>
+                            </div>
+                            <div class="text-xs text-[#888888]">
+                                Background process polling the <span class="font-mono text-white">conversion_jobs</span> queue to build Instagram-style stories
+                            </div>
+                        </div>
+                        <div>
+                            <button onclick="toggleWorkerState('${workerToggleAction}')" class="text-xs py-1.5 px-3 rounded font-medium transition cursor-pointer ${workerToggleClass}">
+                                ${workerToggleText}
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                listEl.innerHTML = jobsHtml;
+            } catch (err) {
+                console.error("Failed to load jobs list:", err);
+            }
+        }
+
+        async function toggleJobSchedule(jobId, action) {
+            try {
+                const response = await fetch(`/jobs/${jobId}/${action}`, { method: 'POST' });
+                const result = await response.json();
+                if (response.ok) {
+                    showToast(result.message);
+                    await loadStats();
+                } else {
+                    showToast(`Failed: ${result.detail || 'API error'}`, true);
+                }
+            } catch (err) {
+                showToast(`Request failed: ${err.message}`, true);
+            }
+        }
+
+        async function toggleWorkerState(action) {
+            try {
+                const response = await fetch(`/worker/${action}`, { method: 'POST' });
+                const result = await response.json();
+                if (response.ok) {
+                    showToast(result.message);
+                    await loadStats();
+                } else {
+                    showToast(`Failed: ${result.detail || 'API error'}`, true);
+                }
+            } catch (err) {
+                showToast(`Request failed: ${err.message}`, true);
+            }
+        }
+
+        // Sources Modal Controls
+        function openAddSourceModal() {
+            document.getElementById('source-mode').value = "add";
+            document.getElementById('modal-title').textContent = "Add New Content Source";
+            document.getElementById('source-form').reset();
+            document.getElementById('source-name').disabled = false;
+            toggleModalTypeFields();
+            document.getElementById('source-modal').classList.remove('hidden');
+        }
+
+        function openEditSourceModal(type, name) {
+            const source = cachedSourcesData.find(s => s.type === type && s.name === name);
+            if (!source) return;
+
+            document.getElementById('source-mode').value = "edit";
+            document.getElementById('source-old-name').value = name;
+            document.getElementById('modal-title').textContent = `Edit Content Source: ${name}`;
+            
+            document.getElementById('source-type').value = type;
+            document.getElementById('source-name').value = source.name;
+            document.getElementById('source-url').value = source.url;
+            document.getElementById('source-category').value = source.category;
+            
+            if (type === 'web') {
+                document.getElementById('source-playwright').checked = source.use_playwright;
+                const sel = source.selectors || {};
+                document.getElementById('sel-articles').value = sel.articles || '';
+                document.getElementById('sel-title').value = sel.title || '';
+                document.getElementById('sel-desc').value = sel.description || '';
+                document.getElementById('sel-image').value = sel.image || '';
+                document.getElementById('sel-link').value = sel.link || '';
+                document.getElementById('sel-author').value = sel.author || '';
+            }
+
+            toggleModalTypeFields();
+            document.getElementById('source-modal').classList.remove('hidden');
+        }
+
+        function closeSourceModal() {
+            document.getElementById('source-modal').classList.add('hidden');
+        }
+
+        function toggleModalTypeFields() {
+            const type = document.getElementById('source-type').value;
+            const webFields = document.getElementById('web-only-fields');
+            if (type === 'web') {
+                webFields.classList.remove('hidden');
+            } else {
+                webFields.classList.add('hidden');
+            }
+        }
+
+        async function handleSourceSubmit(event) {
+            event.preventDefault();
+            const mode = document.getElementById('source-mode').value;
+            const oldName = document.getElementById('source-old-name').value;
+            
+            const type = document.getElementById('source-type').value;
+            const name = document.getElementById('source-name').value.trim();
+            const url = document.getElementById('source-url').value.trim();
+            const category = document.getElementById('source-category').value;
+            
+            const payload = {
+                type,
+                name,
+                url,
+                category,
+                enabled: true
+            };
+
+            if (type === 'web') {
+                payload.use_playwright = document.getElementById('source-playwright').checked;
+                payload.selectors = {
+                    articles: document.getElementById('sel-articles').value.trim() || 'article',
+                    title: document.getElementById('sel-title').value.trim() || 'h1, h2, .title',
+                    description: document.getElementById('sel-desc').value.trim() || 'p, .description',
+                    image: document.getElementById('sel-image').value.trim() || 'img',
+                    link: document.getElementById('sel-link').value.trim() || 'a',
+                    author: document.getElementById('sel-author').value.trim() || '.author'
+                };
+            }
+
+            const endpoint = mode === 'add' ? '/api/sources/add' : '/api/sources/edit';
+            if (mode === 'edit') {
+                payload.old_name = oldName;
+            }
+
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    showToast(result.message);
+                    closeSourceModal();
+                    await loadStats();
+                } else {
+                    showToast(`Error: ${result.detail || 'Operation failed'}`, true);
+                }
+            } catch (err) {
+                showToast(`Request failed: ${err.message}`, true);
+            }
+        }
+
+        async function toggleSource(type, name) {
+            try {
+                const response = await fetch('/api/sources/toggle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type, name })
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    showToast(result.message);
+                    await loadStats();
+                } else {
+                    showToast(`Error: ${result.detail || 'Toggle failed'}`, true);
+                }
+            } catch (err) {
+                showToast(`Request failed: ${err.message}`, true);
+            }
+        }
+
+        async function deleteSource(type, name) {
+            if (!confirm(`Are you sure you want to delete source '${name}'?`)) return;
+
+            try {
+                const response = await fetch('/api/sources/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type, name })
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    showToast(result.message);
+                    await loadStats();
+                } else {
+                    showToast(`Error: ${result.detail || 'Delete failed'}`, true);
+                }
+            } catch (err) {
+                showToast(`Request failed: ${err.message}`, true);
+            }
+        }
     </script>
+
+    <!-- Add / Edit Source Modal -->
+    <div id="source-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div class="bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg max-w-lg w-full p-6 shadow-2xl flex flex-col space-y-4 max-h-[90vh] overflow-y-auto custom-scroll">
+            <div class="flex items-center justify-between border-b border-[#1f1f1f] pb-3">
+                <h3 id="modal-title" class="text-base font-bold text-white">Add New Content Source</h3>
+                <button onclick="closeSourceModal()" class="text-neutral-400 hover:text-white text-lg transition cursor-pointer">&times;</button>
+            </div>
+            
+            <form id="source-form" onsubmit="handleSourceSubmit(event)" class="space-y-4 text-sm">
+                <input type="hidden" id="source-mode" value="add"> <!-- add or edit -->
+                <input type="hidden" id="source-old-name" value="">
+
+                <div class="flex flex-col space-y-1">
+                    <label class="text-[10px] font-semibold text-[#888888] uppercase">Source Type</label>
+                    <select id="source-type" onchange="toggleModalTypeFields()" class="bg-black border border-[#333333] rounded px-3 py-2 text-white focus:outline-none focus:border-[#555] cursor-pointer">
+                        <option value="rss">RSS Feed</option>
+                        <option value="web">Web Scraper (Playwright/HTML)</option>
+                    </select>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="flex flex-col space-y-1">
+                        <label class="text-[10px] font-semibold text-[#888888] uppercase">Name</label>
+                        <input type="text" id="source-name" required class="bg-black border border-[#333333] rounded px-3 py-2 text-white focus:outline-none focus:border-[#555]">
+                    </div>
+                    <div class="flex flex-col space-y-1">
+                        <label class="text-[10px] font-semibold text-[#888888] uppercase">Category</label>
+                        <select id="source-category" required class="bg-black border border-[#333333] rounded px-3 py-2 text-white focus:outline-none focus:border-[#555] cursor-pointer">
+                            <option value="technology">Technology</option>
+                            <option value="sports">Sports</option>
+                            <option value="travel">Travel</option>
+                            <option value="style">Style</option>
+                            <option value="wellbeing">Wellbeing</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex flex-col space-y-1">
+                    <label class="text-[10px] font-semibold text-[#888888] uppercase">URL</label>
+                    <input type="url" id="source-url" required class="bg-black border border-[#333333] rounded px-3 py-2 text-white focus:outline-none focus:border-[#555]">
+                </div>
+
+                <!-- Web Specific Fields -->
+                <div id="web-only-fields" class="hidden space-y-4 border-t border-[#1f1f1f] pt-4">
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" id="source-playwright" class="rounded bg-black border-[#333] text-white focus:ring-0">
+                        <label for="source-playwright" class="text-xs font-semibold text-[#a1a1a1] uppercase">Use Playwright (JS Rendering)</label>
+                    </div>
+
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-semibold text-[#888888] uppercase block">CSS Selectors</label>
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div class="flex flex-col space-y-1">
+                                <span class="text-[#666]">Articles Block</span>
+                                <input type="text" id="sel-articles" placeholder="article" class="bg-black border border-[#333333] rounded px-2 py-1 text-white focus:outline-none">
+                            </div>
+                            <div class="flex flex-col space-y-1">
+                                <span class="text-[#666]">Title Link</span>
+                                <input type="text" id="sel-title" placeholder="h1, h2, .title" class="bg-black border border-[#333333] rounded px-2 py-1 text-white focus:outline-none">
+                            </div>
+                            <div class="flex flex-col space-y-1">
+                                <span class="text-[#666]">Description</span>
+                                <input type="text" id="sel-desc" placeholder="p, .description" class="bg-black border border-[#333333] rounded px-2 py-1 text-white focus:outline-none">
+                            </div>
+                            <div class="flex flex-col space-y-1">
+                                <span class="text-[#666]">Image Element</span>
+                                <input type="text" id="sel-image" placeholder="img" class="bg-black border border-[#333333] rounded px-2 py-1 text-white focus:outline-none">
+                            </div>
+                            <div class="flex flex-col space-y-1">
+                                <span class="text-[#666]">Link Element</span>
+                                <input type="text" id="sel-link" placeholder="a" class="bg-black border border-[#333333] rounded px-2 py-1 text-white focus:outline-none">
+                            </div>
+                            <div class="flex flex-col space-y-1">
+                                <span class="text-[#666]">Author Element</span>
+                                <input type="text" id="sel-author" placeholder=".author" class="bg-black border border-[#333333] rounded px-2 py-1 text-white focus:outline-none">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-3 border-t border-[#1f1f1f] pt-4">
+                    <button type="button" onclick="closeSourceModal()" class="bg-transparent text-white border border-[#333333] hover:bg-neutral-900 px-4 py-2 rounded text-xs transition cursor-pointer">
+                        Cancel
+                    </button>
+                    <button type="submit" class="bg-white text-black hover:bg-[#e0e0e0] font-medium px-4 py-2 rounded text-xs transition cursor-pointer">
+                        Save Source
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </body>
 </html>

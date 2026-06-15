@@ -9,7 +9,9 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
+import os
 
 from scraper.config import settings
 from scraper.db.mongodb import close_client
@@ -18,13 +20,22 @@ from scraper.tasks.scheduler import (
     start_scheduler,
     shutdown_scheduler,
     get_job_info,
+    pause_job,
+    resume_job,
 )
 from scraper.tasks.jobs import (
     load_sources,
+    save_sources,
     run_rss_scrape,
     run_web_scrape,
     run_all_scrapers,
 )
+from scraper.services.conversion_jobs import (
+    is_worker_paused,
+    pause_worker,
+    resume_worker,
+)
+from scraper.models.source import RSSSource, WebSource
 from scraper.utils.metrics import get_scraper_stats
 
 # Configure logging memory queue for real-time dashboard streaming
@@ -99,6 +110,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Mount static files for Vue frontend dashboard assets
+dist_assets_dir = os.path.join(os.path.dirname(__file__), "dist", "assets")
+os.makedirs(dist_assets_dir, exist_ok=True)
+app.mount("/assets", StaticFiles(directory=dist_assets_dir), name="assets")
+
 
 @app.get("/health")
 async def health_check() -> dict[str, str]:
@@ -117,7 +133,47 @@ async def list_jobs() -> dict[str, Any]:
     return {
         "jobs": jobs,
         "scheduler_running": scheduler.running,
+        "worker_paused": is_worker_paused(),
     }
+
+
+@app.post("/jobs/{job_id}/pause")
+async def pause_job_endpoint(job_id: str) -> dict[str, Any]:
+    """Pause a scheduled scraping job."""
+    if pause_job(job_id):
+        return {"success": True, "message": f"Job {job_id} paused successfully"}
+    raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
+
+
+@app.post("/jobs/{job_id}/resume")
+async def resume_job_endpoint(job_id: str) -> dict[str, Any]:
+    """Resume a paused scheduled scraping job."""
+    if resume_job(job_id):
+        return {"success": True, "message": f"Job {job_id} resumed successfully"}
+    raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
+
+
+@app.get("/worker/status")
+async def worker_status_endpoint() -> dict[str, Any]:
+    """Retrieve background conversion worker pause status."""
+    return {
+        "paused": is_worker_paused(),
+        "running": not is_worker_paused()
+    }
+
+
+@app.post("/worker/pause")
+async def pause_worker_endpoint() -> dict[str, Any]:
+    """Pause the background slide conversion worker."""
+    pause_worker()
+    return {"success": True, "message": "Background conversion worker paused successfully"}
+
+
+@app.post("/worker/resume")
+async def resume_worker_endpoint() -> dict[str, Any]:
+    """Resume the background slide conversion worker."""
+    resume_worker()
+    return {"success": True, "message": "Background conversion worker resumed successfully"}
 
 
 @app.post("/jobs/{job_id}/trigger")
@@ -181,6 +237,7 @@ async def list_sources() -> dict[str, Any]:
                 "category": s.category,
                 "enabled": s.enabled,
                 "use_playwright": s.use_playwright,
+                "selectors": s.selectors,
             }
             for s in sources.web
         ],
@@ -189,6 +246,178 @@ async def list_sources() -> dict[str, Any]:
             "web": len([s for s in sources.web if s.enabled]),
         },
     }
+
+
+from pydantic import BaseModel
+from typing import Optional
+
+class SourceInput(BaseModel):
+    type: str  # "rss" or "web"
+    name: str
+    url: str
+    category: str
+    enabled: bool = True
+    use_playwright: bool = False
+    selectors: dict[str, str] = {
+        "articles": "article",
+        "title": "h1, h2, .title",
+        "description": "p, .description, .excerpt",
+        "image": "img",
+        "link": "a",
+        "author": ".author, .byline",
+        "date": "time, .date, .published",
+    }
+
+
+class SourceEditInput(BaseModel):
+    type: str  # "rss" or "web"
+    old_name: str
+    name: str
+    url: str
+    category: str
+    enabled: bool = True
+    use_playwright: bool = False
+    selectors: Optional[dict[str, str]] = None
+
+
+class SourceToggleInput(BaseModel):
+    type: str  # "rss" or "web"
+    name: str
+
+
+class SourceDeleteInput(BaseModel):
+    type: str  # "rss" or "web"
+    name: str
+
+
+@app.post("/api/sources/add")
+async def add_source_endpoint(input_data: SourceInput) -> dict[str, Any]:
+    """Add a new RSS or Web source to sources.yaml."""
+    config = load_sources()
+    
+    # Check for duplicate name
+    all_names = [s.name for s in config.rss + config.web]
+    if input_data.name in all_names:
+        raise HTTPException(status_code=400, detail=f"Source with name '{input_data.name}' already exists.")
+        
+    if input_data.type == "rss":
+        new_src = RSSSource(
+            name=input_data.name,
+            url=input_data.url,
+            category=input_data.category,
+            enabled=input_data.enabled
+        )
+        config.rss.append(new_src)
+    elif input_data.type == "web":
+        new_src = WebSource(
+            name=input_data.name,
+            url=input_data.url,
+            category=input_data.category,
+            enabled=input_data.enabled,
+            use_playwright=input_data.use_playwright,
+            selectors=input_data.selectors
+        )
+        config.web.append(new_src)
+    else:
+        raise HTTPException(status_code=400, detail="Invalid source type. Must be 'rss' or 'web'.")
+        
+    save_sources(config)
+    return {"success": True, "message": f"Successfully added source '{input_data.name}'"}
+
+
+@app.post("/api/sources/edit")
+async def edit_source_endpoint(input_data: SourceEditInput) -> dict[str, Any]:
+    """Edit properties of an existing source in sources.yaml."""
+    config = load_sources()
+    
+    # Find and update
+    found = False
+    if input_data.type == "rss":
+        for i, s in enumerate(config.rss):
+            if s.name == input_data.old_name:
+                config.rss[i] = RSSSource(
+                    name=input_data.name,
+                    url=input_data.url,
+                    category=input_data.category,
+                    enabled=input_data.enabled
+                )
+                found = True
+                break
+    elif input_data.type == "web":
+        for i, s in enumerate(config.web):
+            if s.name == input_data.old_name:
+                config.web[i] = WebSource(
+                    name=input_data.name,
+                    url=input_data.url,
+                    category=input_data.category,
+                    enabled=input_data.enabled,
+                    use_playwright=input_data.use_playwright,
+                    selectors=input_data.selectors or s.selectors
+                )
+                found = True
+                break
+                
+    if not found:
+        raise HTTPException(status_code=404, detail=f"Source '{input_data.old_name}' not found.")
+        
+    save_sources(config)
+    return {"success": True, "message": f"Successfully updated source '{input_data.name}'"}
+
+
+@app.post("/api/sources/toggle")
+async def toggle_source_endpoint(input_data: SourceToggleInput) -> dict[str, Any]:
+    """Toggle enabled status of a source in sources.yaml."""
+    config = load_sources()
+    
+    found = False
+    new_state = False
+    if input_data.type == "rss":
+        for s in config.rss:
+            if s.name == input_data.name:
+                s.enabled = not s.enabled
+                new_state = s.enabled
+                found = True
+                break
+    elif input_data.type == "web":
+        for s in config.web:
+            if s.name == input_data.name:
+                s.enabled = not s.enabled
+                new_state = s.enabled
+                found = True
+                break
+                
+    if not found:
+        raise HTTPException(status_code=404, detail=f"Source '{input_data.name}' not found.")
+        
+    save_sources(config)
+    state_str = "enabled" if new_state else "disabled"
+    return {"success": True, "message": f"Source '{input_data.name}' is now {state_str}"}
+
+
+@app.post("/api/sources/delete")
+async def delete_source_endpoint(input_data: SourceDeleteInput) -> dict[str, Any]:
+    """Delete a source from sources.yaml."""
+    config = load_sources()
+    
+    found = False
+    if input_data.type == "rss":
+        for s in config.rss:
+            if s.name == input_data.name:
+                config.rss.remove(s)
+                found = True
+                break
+    elif input_data.type == "web":
+        for s in config.web:
+            if s.name == input_data.name:
+                config.web.remove(s)
+                found = True
+                break
+                
+    if not found:
+        raise HTTPException(status_code=404, detail=f"Source '{input_data.name}' not found.")
+        
+    save_sources(config)
+    return {"success": True, "message": f"Successfully deleted source '{input_data.name}'"}
 
 
 @app.get("/config")
@@ -315,15 +544,18 @@ async def stream_logs():
     return StreamingResponse(log_generator(), media_type="text/event-stream")
 
 
-@app.get("/dashboard", response_class=HTMLResponse)
-async def get_dashboard() -> HTMLResponse:
-    """Operations dashboard for WAPOW Scraper styled like a premium, sleek Vercel UI using Tailwind CSS v4."""
+@app.get("/dashboard")
+async def get_dashboard():
+    """Operations dashboard for WAPOW Scraper. Serves the Vue SPA if built, falling back to legacy template."""
     from pathlib import Path
+    dist_index = Path(__file__).resolve().parent / "dist" / "index.html"
+    if dist_index.exists():
+        return FileResponse(dist_index)
+        
+    # Fallback to legacy single-file dashboard
     template_path = Path(__file__).resolve().parent / "templates" / "dashboard.html"
     try:
-        with open(template_path, "r", encoding="utf-8") as f:
-            html_content = f.read()
-        return HTMLResponse(content=html_content, status_code=200)
+        return FileResponse(template_path)
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Dashboard template not found")
 

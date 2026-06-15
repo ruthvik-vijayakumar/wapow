@@ -1,155 +1,123 @@
-# WAPOW Content Sources Configuration
-# Categories: technology, sports, travel, style, wellbeing
-
 rss:
-  # Technology
-  - name: "TechCrunch"
-    url: "https://techcrunch.com/feed/"
-    category: "technology"
-    enabled: true
-
-  - name: "The Verge"
-    url: "https://www.theverge.com/rss/index.xml"
-    category: "technology"
-    enabled: true
-
-  - name: "Wired"
-    url: "https://www.wired.com/feed/rss"
-    category: "technology"
-    enabled: true
-
-  - name: "Engadget"
-    url: "https://www.engadget.com/rss.xml"
-    category: "technology"
-    enabled: true
-
-  - name: "Ars Technica"
-    url: "https://feeds.arstechnica.com/arstechnica/index"
-    category: "technology"
-    enabled: true
-
-  - name: "Gizmodo"
-    url: "https://gizmodo.com/feed"
-    category: "technology"
-    enabled: true
-
-  # Sports
-  - name: "ESPN"
-    url: "https://www.espn.com/espn/rss/news"
-    category: "sports"
-    enabled: true
-
-  - name: "Bleacher Report"
-    url: "https://bleacherreport.com/articles/feed"
-    category: "sports"
-    enabled: true
-
-  - name: "Sky Sports"
-    url: "https://www.skysports.com/rss/12040"
-    category: "sports"
-    enabled: true
-
-  - name: "Yahoo Sports"
-    url: "https://sports.yahoo.com/rss/"
-    category: "sports"
-    enabled: true
-
-  - name: "CBS Sports"
-    url: "https://www.cbssports.com/rss/news/"
-    category: "sports"
-    enabled: true
-
-  - name: "NBC Sports"
-    url: "https://www.nbcsports.com/feed"
-    category: "sports"
-    enabled: true
-
-  # Travel
-  - name: "Lonely Planet"
-    url: "https://www.lonelyplanet.com/blog/feed"
-    category: "travel"
-    enabled: true
-
-  - name: "Travel + Leisure"
-    url: "https://www.travelandleisure.com/feeds/all"
-    category: "travel"
-    enabled: true
-
-  - name: "Condé Nast Traveler"
-    url: "https://www.cntraveler.com/feed/rss"
-    category: "travel"
-    enabled: true
-
-  - name: "Fodor's Travel"
-    url: "https://www.fodors.com/news/feed"
-    category: "travel"
-    enabled: true
-
-  # Style
-  - name: "Vogue"
-    url: "https://www.vogue.com/feed/rss"
-    category: "style"
-    enabled: true
-
-  - name: "GQ"
-    url: "https://www.gq.com/feed/rss"
-    category: "style"
-    enabled: true
-
-  - name: "Hypebeast"
-    url: "https://hypebeast.com/feed"
-    category: "style"
-    enabled: true
-
-  - name: "Esquire"
-    url: "https://www.esquire.com/rss/all.xml"
-    category: "style"
-    enabled: true
-
-  - name: "Fashionista"
-    url: "https://fashionista.com/.rss/full/"
-    category: "style"
-    enabled: true
-
-  # Wellbeing
-  - name: "Well+Good"
-    url: "https://www.wellandgood.com/feed/"
-    category: "wellbeing"
-    enabled: true
-
-  - name: "Healthline"
-    url: "https://www.healthline.com/rss/nutrition"
-    category: "wellbeing"
-    enabled: true
-
-  - name: "Psychology Today"
-    url: "https://www.psychologytoday.com/us/front/feed"
-    category: "wellbeing"
-    enabled: true
-
-  - name: "MindBodyGreen"
-    url: "https://www.mindbodygreen.com/rss/feed.xml"
-    category: "wellbeing"
-    enabled: true
-
-  - name: "Self Magazine"
-    url: "https://www.self.com/feed/rss"
-    category: "wellbeing"
-    enabled: true
-
-# Web scraping sources (for sites without RSS)
+- name: TechCrunch
+  url: https://techcrunch.com/feed/
+  category: technology
+  enabled: true
+- name: The Verge
+  url: https://www.theverge.com/rss/index.xml
+  category: technology
+  enabled: true
+- name: Wired
+  url: https://www.wired.com/feed/rss
+  category: technology
+  enabled: true
+- name: Engadget
+  url: https://www.engadget.com/rss.xml
+  category: technology
+  enabled: true
+- name: Ars Technica
+  url: https://feeds.arstechnica.com/arstechnica/index
+  category: technology
+  enabled: true
+- name: Gizmodo
+  url: https://gizmodo.com/feed
+  category: technology
+  enabled: true
+- name: ESPN
+  url: https://www.espn.com/espn/rss/news
+  category: sports
+  enabled: true
+- name: Bleacher Report
+  url: https://bleacherreport.com/articles/feed
+  category: sports
+  enabled: true
+- name: Sky Sports
+  url: https://www.skysports.com/rss/12040
+  category: sports
+  enabled: true
+- name: Yahoo Sports
+  url: https://sports.yahoo.com/rss/
+  category: sports
+  enabled: true
+- name: CBS Sports
+  url: https://www.cbssports.com/rss/news/
+  category: sports
+  enabled: true
+- name: NBC Sports
+  url: https://www.nbcsports.com/feed
+  category: sports
+  enabled: true
+- name: Lonely Planet
+  url: https://www.lonelyplanet.com/blog/feed
+  category: travel
+  enabled: true
+- name: Travel + Leisure
+  url: https://www.travelandleisure.com/feeds/all
+  category: travel
+  enabled: true
+- name: "Cond\xE9 Nast Traveler"
+  url: https://www.cntraveler.com/feed/rss
+  category: travel
+  enabled: true
+- name: Fodor's Travel
+  url: https://www.fodors.com/news/feed
+  category: travel
+  enabled: true
+- name: Vogue
+  url: https://www.vogue.com/feed/rss
+  category: style
+  enabled: true
+- name: GQ
+  url: https://www.gq.com/feed/rss
+  category: style
+  enabled: true
+- name: Hypebeast
+  url: https://hypebeast.com/feed
+  category: style
+  enabled: true
+- name: Esquire
+  url: https://www.esquire.com/rss/all.xml
+  category: style
+  enabled: true
+- name: Fashionista
+  url: https://fashionista.com/.rss/full/
+  category: style
+  enabled: true
+- name: Well+Good
+  url: https://www.wellandgood.com/feed/
+  category: wellbeing
+  enabled: true
+- name: Healthline
+  url: https://www.healthline.com/rss/nutrition
+  category: wellbeing
+  enabled: true
+- name: Psychology Today
+  url: https://www.psychologytoday.com/us/front/feed
+  category: wellbeing
+  enabled: true
+- name: MindBodyGreen
+  url: https://www.mindbodygreen.com/rss/feed.xml
+  category: wellbeing
+  enabled: true
+- name: Self Magazine
+  url: https://www.self.com/feed/rss
+  category: wellbeing
+  enabled: true
+- name: Test RSS
+  url: https://testrss.com/feed/
+  category: tech
+  enabled: true
 web:
-  - name: "The Washington Post"
-    url: "https://www.washingtonpost.com/"
-    category: "politics"
-    enabled: true
-    use_playwright: true
-    selectors:
-      articles: "article"
-      title: "a h3"
-      description: "p"
-      image: "img"
-      link: "a"
-      author: ".author"
-      date: "time"
-
+- name: The Washington Post
+  url: https://www.washingtonpost.com/
+  category: politics
+  enabled: true
+  use_playwright: true
+  selectors:
+    articles: article
+    title: a h3
+    description: p
+    image: img
+    link: a
+    author: .author
+    date: time

@@ -72,6 +72,24 @@ def serialize_job(doc: dict) -> dict:
 
 
 _worker_should_stop = False
+_worker_paused = False
+
+
+def is_worker_paused() -> bool:
+    """Check if the slide conversion worker is currently paused."""
+    return _worker_paused
+
+
+def pause_worker() -> None:
+    """Pause the background slide conversion worker."""
+    global _worker_paused
+    _worker_paused = True
+
+
+def resume_worker() -> None:
+    """Resume the background slide conversion worker."""
+    global _worker_paused
+    _worker_paused = False
 
 
 async def start_conversion_worker() -> None:
@@ -91,6 +109,9 @@ async def start_conversion_worker() -> None:
     coll = db[JOBS_COLLECTION]
     
     while not _worker_should_stop:
+        if _worker_paused:
+            await asyncio.sleep(5)
+            continue
         try:
             now = datetime.now(timezone.utc)
             # Atomic find and modify to acquire lease on pending or expired processing jobs

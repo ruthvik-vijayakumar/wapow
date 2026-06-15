@@ -52,14 +52,36 @@ def get_job_info() -> list[dict]:
     """Get information about all scheduled jobs."""
     jobs = []
     for job in scheduler.get_jobs():
+        # A manual/one-off run job doesn't represent a main scraper task
+        if job.id.endswith("_manual"):
+            continue
         next_run = job.next_run_time
         jobs.append({
             "id": job.id,
             "name": job.name,
             "next_run": next_run.isoformat() if next_run else None,
             "trigger": str(job.trigger),
+            "status": "paused" if next_run is None else "active",
         })
     return jobs
+
+
+def pause_job(job_id: str) -> bool:
+    """Pause a scheduled scraping job."""
+    job = scheduler.get_job(job_id)
+    if job is None:
+        return False
+    scheduler.pause_job(job_id)
+    return True
+
+
+def resume_job(job_id: str) -> bool:
+    """Resume a paused scheduled scraping job."""
+    job = scheduler.get_job(job_id)
+    if job is None:
+        return False
+    scheduler.resume_job(job_id)
+    return True
 
 
 def trigger_job(job_id: str) -> bool:
