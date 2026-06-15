@@ -338,6 +338,9 @@ const isDescriptionExpanded = ref(false)
 
 const shouldTruncateDescription = (text: string | null | undefined) => {
   if (!text) return false
+  if (currentPage.value?.layout === 'text-only') {
+    return false
+  }
   return text.length > 180
 }
 
