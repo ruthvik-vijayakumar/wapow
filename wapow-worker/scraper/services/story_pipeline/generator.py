@@ -60,23 +60,40 @@ def _pick_image(urls: list[str], index: int) -> str:
     return urls[min(index, len(urls) - 1)]
 
 
+def _get_first_sentences(text: str, max_chars: int = 220) -> str:
+    import re
+    cleaned = text.strip().replace("\n", " ")
+    sentences = re.split(r'(?<=[.!?])\s+', cleaned)
+    current = []
+    length = 0
+    for s in sentences:
+        if not s:
+            continue
+        if length + len(s) > max_chars and current:
+            break
+        current.append(s)
+        length += len(s) + 1
+    res = " ".join(current)
+    if not res:
+        res = cleaned[:max_chars]
+        if len(cleaned) > max_chars:
+            res += "…"
+    return res
+
+
 def _make_content_page(body: str, image_url: str) -> dict:
-    snippet = body.strip().replace("\n", " ")
-    title = snippet[:_TITLE_MAX] + ("…" if len(snippet) > _TITLE_MAX else "")
-    if not title:
-        title = "Details"
-    text_body = body[:_BODY_MAX] + ("…" if len(body) > _BODY_MAX else "")
+    text_body = _get_first_sentences(body, 220)
     return {
         "page_type": "content",
         "content": [
-            {"type": "text", "content": text_body or title},
+            {"type": "text", "content": text_body},
             {"type": "image", "content_url": image_url},
         ],
     }
 
 
 def _takeaways_from_chunks(title: str, chunks: list[str]) -> str:
-    lines = [f"• {c.strip().replace(chr(10), ' ')[:200]}{'…' if len(c) > 200 else ''}" for c in chunks[:5]]
+    lines = [f"• {_get_first_sentences(c, 150)}" for c in chunks[:5]]
     if not lines:
         return f"• {title}"
     return "\n".join(lines)

@@ -20,9 +20,15 @@ def build_pages_with_gemini(analyzed: AnalyzedArticle) -> list[dict] | None:
     else:
         n_slides = 5
         
-    prompt = f"""You are an expert editor creating a mobile visual story (like Instagram/Snapchat Stories) from a news article.
-Your task is to summarize the article into exactly {n_slides} content slides and 1 key takeaways overview slide.
-Ensure the slides flow logically to explain the entire narrative of the article.
+    prompt = f"""You are an expert mobile editor. Your task is to storyboard a mobile visual story (like Instagram/Snapchat Stories) from a news article.
+Summarize the article into exactly {n_slides} content slides and 1 key takeaways overview slide.
+Ensure the slides tell an engaging, progressive narrative that explains the entire story.
+
+CRITICAL INSTRUCTIONS FOR TEXT QUALITY:
+1. DO NOT copy-paste sentences or paragraphs directly from the article body. Summarize and rewrite the content in a fresh, engaging, storytelling editor-curated voice.
+2. Keep the language active, punchy, and highly readable.
+3. If a slide has an accompanying image (i.e. "image_url" is set to a URL), keep its summary text highly concise: MAXIMUM 100 characters (1-2 punchy lines).
+4. If a slide does NOT have an accompanying image (i.e. "image_url" is null), the summary text must be between 200 and 320 characters (2-3 short sentences) to explain this part of the story fully.
 
 You are provided with a list of IMAGE_URLS associated with the article.
 For each content slide:
@@ -31,13 +37,9 @@ For each content slide:
 - If no unique image from the list is appropriate for that part of the summary, or if the list is empty, set its "image_url" to null.
 - A slide can be text-only (with "image_url" set to null) whenever an image is not appropriate or would be repeated. Do not force an image match if it's not a good fit.
 
-Text character limit constraints:
-- If a slide has an accompanying image (i.e. "image_url" is set to a URL), keep its summary text highly concise: MAXIMUM 120 characters (a single short sentence).
-- If a slide does NOT have an accompanying image (i.e. "image_url" is null), the summary text MUST be significantly longer and more detailed: between 250 and 450 characters (3-4 sentences) to explain this part of the narrative fully. Do not make it short.
-
 Output a JSON object with:
 1. "slides": A list of exactly {n_slides} objects. Each slide object MUST contain:
-   - "text": The summary text following the character limit constraints above.
+   - "text": The summary text following the constraints above.
    - "image_url": The matched unique image URL from the provided list, or null if no unique image is appropriate or available.
 2. "takeaways": A list of 3-5 short bullet points summarizing the key takeaways of the whole article.
 

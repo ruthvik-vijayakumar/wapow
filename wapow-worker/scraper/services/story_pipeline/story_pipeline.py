@@ -28,16 +28,47 @@ class StoryPipeline(BasePipeline):
             logger.warning("No Gemini API key available for StoryPipeline storyboard stage.")
             return None
 
-        prompt = f"""You are an expert editor creating a mobile visual story (like Instagram/Snapchat Stories) from a news article.
-Your task is to summarize the article into exactly {n_slides} sequential narrative segments that explain the entire story.
-For each segment, you must provide both a short and long summary version to accommodate different slide layouts.
+        # Collect available images with captions for LLM contextual matching
+        images_data = []
+        for block in tree.blocks:
+            if block.type == "image" and block.url:
+                images_data.append({
+                    "url": block.url,
+                    "caption": block.content or ""
+                })
+        
+        # Include promo image if not already present
+        if tree.promo_image and not any(img["url"] == tree.promo_image for img in images_data):
+            images_data.insert(0, {
+                "url": tree.promo_image,
+                "caption": "Promo cover/featured image"
+            })
+
+        prompt = f"""You are an expert mobile editor. Your task is to storyboard a mobile visual story (like Instagram/Snapchat Stories) from a news article.
+Distill the article into exactly {n_slides} sequential narrative segments that tell a compelling, progressive story.
+
+CRITICAL INSTRUCTIONS FOR TEXT QUALITY:
+1. DO NOT copy-paste sentences or paragraphs directly from the article body. Summarize and rewrite the content in a fresh, engaging, storytelling editor-curated voice.
+2. Keep the narrative progression clear, logical, and flowing smoothly across the slides.
+3. Avoid dry, blocky, or academic language. Write in a punchy, active, and interesting style.
+4. "short_summary" must be a highly concise, punchy slide caption. Keep it strictly MAXIMUM 100 characters (1-2 lines) for use when an image is shown.
+5. "long_summary" must be a descriptive, engaging narrative paragraph (strictly between 200 and 320 characters, 2-3 sentences max) for text-only layouts.
+
+IMAGE SELECTION:
+You are provided with a list of images available in this article along with their captions.
+For each segment, select the most relevant image URL from the list that fits the semantic context of that slide's beat. If no image fits, set "suggested_image_url" to null.
+Each image URL should be used at most once across the story.
 
 Output a JSON object with:
 1. "segments": A list of exactly {n_slides} objects. Each segment object MUST contain:
-   - "key_phrases": A list of 2-3 unique key phrases or keyword groups that are highly specific to this part of the article.
-   - "short_summary": A highly concise summary of this segment. Keep it strictly MAXIMUM 120 characters (a single short sentence).
-   - "long_summary": A detailed, descriptive summary of this segment. Keep it strictly between 250 and 450 characters (3-4 sentences) to explain the segment fully.
+   - "key_phrases": A list of 2-3 unique key phrases specific to this beat.
+   - "short_summary": A punchy caption (max 100 characters).
+   - "long_summary": A short storytelling paragraph (200-320 characters).
+   - "suggested_image_url": A unique URL from the provided image list, or null.
 2. "takeaways": A list of 3-5 short bullet points summarizing the key takeaways of the whole article.
+
+AVAILABLE IMAGES:
+{json.dumps(images_data, indent=2)}
 
 TITLE:
 {tree.title}
@@ -138,7 +169,7 @@ ARTICLE_BODY:
     def align_media(self, tree: DocumentTree, segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
         Stage 2: Contextual Media Alignment.
-        Maps each storyboard segment to a video or an image in the DocumentTree using spatial proximity heuristics.
+        Maps each storyboard segment to a video or an image in the DocumentTree using LLM suggestions or proximity heuristics.
         """
         aligned_segments = []
         used_images = set()
@@ -148,11 +179,23 @@ ARTICLE_BODY:
             key_phrases = segment.get("key_phrases") or []
             short_summary = segment.get("short_summary") or ""
             long_summary = segment.get("long_summary") or ""
+            suggested_img = segment.get("suggested_image_url")
             
-            # Find closest matching text block index in tree
+            # 1. First, prioritize using the LLM's selected image if valid and unused
+            all_images = tree.get_images()
+            if suggested_img and suggested_img in all_images and suggested_img not in used_images:
+                used_images.add(suggested_img)
+                aligned_segments.append({
+                    "short_summary": short_summary,
+                    "long_summary": long_summary,
+                    "video_url": None,
+                    "embed_code": None,
+                    "image_url": suggested_img
+                })
+                continue
+
+            # 2. Otherwise, check for layout adjacent video
             match_block_idx = self._find_best_block_match(tree, key_phrases, short_summary or long_summary)
-            
-            # 1. Prioritize scanning for adjacent videos in original layout
             matched_video = tree.get_adjacent_video(match_block_idx, max_distance=4)
             if matched_video and matched_video["url"] not in used_videos:
                 used_videos.add(matched_video["url"])
@@ -165,7 +208,7 @@ ARTICLE_BODY:
                 })
                 continue
 
-            # 2. Fallback to scanning for adjacent image
+            # 3. Fallback to scanning for adjacent image in layout
             matched_image = tree.get_adjacent_image(match_block_idx, max_distance=4)
             if matched_image and matched_image not in used_images:
                 used_images.add(matched_image)
