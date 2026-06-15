@@ -23,10 +23,26 @@ class StoryPipeline(BasePipeline):
         Stage 1: Narrative Storyboarding.
         Asks Gemini to segment the article into between min_slides and max_slides beats,
         providing both a short and long summary version of each beat for layout flexibility.
+        Also asks Gemini to select a relevant image from the article for each beat.
         """
         if not self.api_key:
             logger.warning("No Gemini API key available for StoryPipeline storyboard stage.")
             return None
+
+        # Gather available images with their captions from the article tree
+        images_data = []
+        for b in tree.blocks:
+            if b.type == "image" and b.url:
+                images_data.append({
+                    "url": b.url,
+                    "caption": b.content or ""
+                })
+        # Add the promo image if available and not already added
+        if tree.promo_image and not any(img["url"] == tree.promo_image for img in images_data):
+            images_data.append({
+                "url": tree.promo_image,
+                "caption": tree.title or ""
+            })
 
         prompt = f"""You are an expert editor creating a mobile visual story (like Instagram/Snapchat Stories) from a news article.
 Your task is to summarize the article into between {min_slides} and {max_slides} sequential narrative segments (beats) that explain the entire story.
@@ -34,12 +50,23 @@ Determine the optimal number of segments (within the range {min_slides} to {max_
 If the article is simple or short, favor a smaller number of segments (even just {min_slides}) so that the story is concise and doesn't drag.
 For each segment, you must provide both a short and long summary version to accommodate different slide layouts.
 
+IMAGE SELECTION:
+You are provided with a list of AVAILABLE IMAGES associated with this article.
+For each segment, select the most relevant image URL from the list that has a strong semantic connection and directly supports that slide's narrative beat.
+Each image URL from the list of AVAILABLE IMAGES must be suggested AT MOST ONCE across all segments. Do not repeat the same image URL.
+If no image has a strong connection to the narrative beat, or if the list of AVAILABLE IMAGES is empty, set "suggested_image_url" to null.
+Do not force an image match if it's not a highly relevant fit; in that case, set it to null so the slide renders as a clean text-only template.
+
 Output a JSON object with:
 1. "segments": A list of the generated segment objects. Each segment object MUST contain:
    - "key_phrases": A list of 2-3 unique key phrases or keyword groups that are highly specific to this part of the article.
    - "short_summary": A highly concise summary of this segment. Keep it strictly MAXIMUM 120 characters (a single short sentence).
    - "long_summary": A detailed, descriptive summary of this segment. Keep it strictly between 250 and 450 characters (3-4 sentences) to explain the segment fully.
+   - "suggested_image_url": A unique, relevant image URL from the list of AVAILABLE IMAGES, or null.
 2. "takeaways": A list of 3-5 short bullet points summarizing the key takeaways of the whole article.
+
+AVAILABLE IMAGES:
+{json.dumps(images_data, indent=2)}
 
 TITLE:
 {tree.title}
@@ -76,7 +103,8 @@ ARTICLE_BODY:
                                         "items": {"type": "string"}
                                     },
                                     "short_summary": {"type": "string"},
-                                    "long_summary": {"type": "string"}
+                                    "long_summary": {"type": "string"},
+                                    "suggested_image_url": {"type": "string"}
                                 },
                                 "required": ["key_phrases", "short_summary", "long_summary"]
                             }
@@ -168,7 +196,9 @@ ARTICLE_BODY:
     def align_media(self, tree: DocumentTree, segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
         Stage 2: Contextual Media Alignment.
-        Maps each storyboard segment to a video or an image in the DocumentTree using spatial proximity heuristics.
+        Maps each storyboard segment to its corresponding matched media.
+        If the model suggested a relevant image, uses it. Otherwise, defaults to text-only template
+        unless there's a nearby video, preserving text-only templates where images are irrelevant.
         """
         aligned_segments = []
         used_images = set()
@@ -178,11 +208,33 @@ ARTICLE_BODY:
             key_phrases = segment.get("key_phrases") or []
             short_summary = segment.get("short_summary") or ""
             long_summary = segment.get("long_summary") or ""
+            suggested_img = segment.get("suggested_image_url")
             
-            # Find closest matching text block index in tree
+            # 1. Prioritize using the LLM's selected image if valid and unused
+            all_images = tree.get_images()
+            if suggested_img and suggested_img in all_images and suggested_img not in used_images:
+                used_images.add(suggested_img)
+                # Find focal point from the SemanticBlock if it exists
+                focal_point = None
+                for block in tree.blocks:
+                    if block.type == "image" and block.url == suggested_img:
+                        focal_point = block.focal_point
+                        break
+                if not focal_point and suggested_img == tree.promo_image:
+                    focal_point = tree.promo_image_focal_point
+
+                aligned_segments.append({
+                    "short_summary": short_summary,
+                    "long_summary": long_summary,
+                    "video_url": None,
+                    "embed_code": None,
+                    "image_url": suggested_img,
+                    "focal_point": focal_point,
+                })
+                continue
+
+            # 2. Otherwise, check for layout adjacent video
             match_block_idx = self._find_best_block_match(tree, key_phrases, short_summary or long_summary)
-            
-            # 1. Prioritize scanning for adjacent videos in original layout
             matched_video = tree.get_adjacent_video(match_block_idx, max_distance=4)
             if matched_video and matched_video["url"] not in used_videos:
                 used_videos.add(matched_video["url"])
@@ -196,54 +248,23 @@ ARTICLE_BODY:
                 })
                 continue
 
-            # 2. Fallback to scanning for adjacent image (with focal point)
-            matched_image_data = tree.get_adjacent_image_with_focal(match_block_idx, max_distance=4)
-            matched_image = None
-            focal_point = None
-            if matched_image_data and matched_image_data["url"] not in used_images:
-                matched_image = matched_image_data["url"]
-                focal_point = matched_image_data.get("focal_point")
-                used_images.add(matched_image)
-                
+            # 3. Otherwise, keep it as a clean text-only segment (no fallbacks forcing irrelevant images)
             aligned_segments.append({
                 "short_summary": short_summary,
                 "long_summary": long_summary,
                 "video_url": None,
                 "embed_code": None,
-                "image_url": matched_image,
-                "focal_point": focal_point,
+                "image_url": None,
+                "focal_point": None,
             })
 
-        # Fallback 1: If no media was matched at all, try to assign the promo_image to the first slide
+        # Safeguard Fallback: If no media was matched at all across the entire story, 
+        # assign the promo_image to the first slide as a cover card.
         has_any_media = bool(used_images) or bool(used_videos)
         if not has_any_media and tree.promo_image and aligned_segments:
             aligned_segments[0]["image_url"] = tree.promo_image
             aligned_segments[0]["focal_point"] = tree.promo_image_focal_point
             used_images.add(tree.promo_image)
-
-        # Fallback 2: Assign remaining unused videos to segments without media
-        all_doc_videos = tree.get_videos()
-        for vid in all_doc_videos:
-            if vid["url"] not in used_videos:
-                # Find first segment without media and assign it
-                for seg in aligned_segments:
-                    if not seg["video_url"] and not seg["image_url"]:
-                        seg["video_url"] = vid["url"]
-                        seg["embed_code"] = vid["embed_code"]
-                        used_videos.add(vid["url"])
-                        break
-
-        # Fallback 3: Assign remaining unused images to segments without media
-        all_image_blocks = [b for b in tree.blocks if b.type == "image" and b.url]
-        for block in all_image_blocks:
-            if block.url not in used_images:
-                # Find the first segment without media and assign it
-                for seg in aligned_segments:
-                    if not seg["video_url"] and not seg["image_url"]:
-                        seg["image_url"] = block.url
-                        seg["focal_point"] = block.focal_point
-                        used_images.add(block.url)
-                        break
 
         return aligned_segments
 
