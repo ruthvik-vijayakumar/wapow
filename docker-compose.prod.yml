@@ -95,6 +95,7 @@ services:
     depends_on:
       - app
       - collector
+      - worker
     # Must publish host ports or the Droplet cannot reach Nginx from the internet.
     # If `docker ps` shows no PORTS for wapow-nginx, recreate: docker compose -f docker-compose.prod.yml up -d --force-recreate nginx
     ports:
