@@ -81,14 +81,14 @@ def _get_first_sentences(text: str, max_chars: int = 220) -> str:
     return res
 
 
-def _make_content_page(body: str, image_url: str) -> dict:
+def _make_content_page(body: str, image_url: str | None) -> dict:
     text_body = _get_first_sentences(body, 220)
+    content = [{"type": "text", "content": text_body}]
+    if image_url:
+        content.append({"type": "image", "content_url": image_url})
     return {
         "page_type": "content",
-        "content": [
-            {"type": "text", "content": text_body},
-            {"type": "image", "content_url": image_url},
-        ],
+        "content": content,
     }
 
 
@@ -105,7 +105,7 @@ def build_pages(analyzed: AnalyzedArticle) -> list[dict]:
     chunks = _split_into_chunks(analyzed.body_text, n)
     pages: list[dict] = []
     for i, chunk in enumerate(chunks):
-        img = _pick_image(analyzed.image_urls, i)
+        img = analyzed.image_urls[i] if i < len(analyzed.image_urls) else None
         pages.append(_make_content_page(chunk, img))
 
     takeaways = _takeaways_from_chunks(analyzed.title, chunks)

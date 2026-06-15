@@ -64,7 +64,14 @@
         <div class="text-only-container">
           <div class="text-section-centered">
             <p class="story-description text-left font-spectral text-xl leading-relaxed text-gray-100 max-w-sm mx-auto">
-              {{ currentPage.description }}
+              <template v-if="shouldTruncateDescription(currentPage.description) && !isDescriptionExpanded">
+                {{ truncateText(currentPage.description, 180) }}
+                <span @click.stop="isDescriptionExpanded = true" class="text-blue-400 font-semibold ml-1 cursor-pointer">more</span>
+              </template>
+              <template v-else>
+                {{ currentPage.description }}
+                <span v-if="shouldTruncateDescription(currentPage.description) && isDescriptionExpanded" @click.stop="isDescriptionExpanded = false" class="text-blue-400 font-semibold ml-1 cursor-pointer">less</span>
+              </template>
             </p>
           </div>
         </div>
@@ -74,7 +81,16 @@
       <template v-else-if="currentPage.layout === 'text-top'">
         <div class="text-top-container">
           <div class="text-section">
-            <p class="story-description">{{ currentPage.description }}</p>
+            <p class="story-description">
+              <template v-if="shouldTruncateDescription(currentPage.description) && !isDescriptionExpanded">
+                {{ truncateText(currentPage.description, 180) }}
+                <span @click.stop="isDescriptionExpanded = true" class="text-blue-400 font-semibold ml-1 cursor-pointer">more</span>
+              </template>
+              <template v-else>
+                {{ currentPage.description }}
+                <span v-if="shouldTruncateDescription(currentPage.description) && isDescriptionExpanded" @click.stop="isDescriptionExpanded = false" class="text-blue-400 font-semibold ml-1 cursor-pointer">less</span>
+              </template>
+            </p>
           </div>
 
           <div class="image-section">
@@ -90,10 +106,17 @@
             <img :src="currentPage.thumbnail" :alt="currentPage.title" class="story-image" />
           </div>
           <div class="text-section">
-            <p class="story-description">{{ currentPage.description }}</p>
+            <p class="story-description">
+              <template v-if="shouldTruncateDescription(currentPage.description) && !isDescriptionExpanded">
+                {{ truncateText(currentPage.description, 180) }}
+                <span @click.stop="isDescriptionExpanded = true" class="text-blue-400 font-semibold ml-1 cursor-pointer">more</span>
+              </template>
+              <template v-else>
+                {{ currentPage.description }}
+                <span v-if="shouldTruncateDescription(currentPage.description) && isDescriptionExpanded" @click.stop="isDescriptionExpanded = false" class="text-blue-400 font-semibold ml-1 cursor-pointer">less</span>
+              </template>
+            </p>
           </div>
-
-
         </div>
       </template>
 
@@ -141,7 +164,16 @@
           <div class="video-click-overlay"></div>
           <!-- Slide caption text overlaid on top -->
           <div class="video-text-overlay">
-            <p class="story-description">{{ currentPage.description }}</p>
+            <p class="story-description">
+              <template v-if="shouldTruncateDescription(currentPage.description) && !isDescriptionExpanded">
+                {{ truncateText(currentPage.description, 180) }}
+                <span @click.stop="isDescriptionExpanded = true" class="text-blue-400 font-semibold ml-1 cursor-pointer">more</span>
+              </template>
+              <template v-else>
+                {{ currentPage.description }}
+                <span v-if="shouldTruncateDescription(currentPage.description) && isDescriptionExpanded" @click.stop="isDescriptionExpanded = false" class="text-blue-400 font-semibold ml-1 cursor-pointer">less</span>
+              </template>
+            </p>
           </div>
         </div>
       </template>
@@ -154,10 +186,22 @@
 
         <div class="content-text">
           <h1 class="story-title">{{ currentPage.title }}</h1>
-          <p class="story-description">{{ currentPage.description }}</p>
+          <p class="story-description">
+            <template v-if="shouldTruncateDescription(currentPage.description) && !isDescriptionExpanded">
+              {{ truncateText(currentPage.description, 180) }}
+              <span @click.stop="isDescriptionExpanded = true" class="text-blue-400 font-semibold ml-1 cursor-pointer">more</span>
+            </template>
+            <template v-else>
+              {{ currentPage.description }}
+              <span v-if="shouldTruncateDescription(currentPage.description) && isDescriptionExpanded" @click.stop="isDescriptionExpanded = false" class="text-blue-400 font-semibold ml-1 cursor-pointer">less</span>
+            </template>
+          </p>
         </div>
       </template>
     </div>
+
+    <!-- Gradient Overlay for Bottom Controls & Text readability -->
+    <div class="bottom-gradient-overlay"></div>
 
     <!-- Bottom Controls -->
     <BottomControls
@@ -250,6 +294,23 @@ const { trackScrollDepth } = useAnalytics()
 
 const storyContainerRef = ref<HTMLElement | null>(null)
 const currentPageIndex = ref(0)
+const isDescriptionExpanded = ref(false)
+
+const shouldTruncateDescription = (text: string | null | undefined) => {
+  if (!text) return false
+  return text.length > 180
+}
+
+const truncateText = (text: string | null | undefined, limit: number = 180) => {
+  if (!text) return ''
+  if (text.length <= limit) return text
+  return text.substring(0, limit) + '...'
+}
+
+watch(currentPageIndex, () => {
+  isDescriptionExpanded.value = false
+})
+
 const isLiked = ref(false)
 const isListening = ref(false)
 const showReactions = ref(false)
@@ -1152,5 +1213,22 @@ onUnmounted(() => {
 .send-button {
   @apply text-blue-500 hover:text-blue-400;
   @apply transition-colors duration-200;
+}
+
+.bottom-gradient-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 40%;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.98) 0%,
+    rgba(0, 0, 0, 0.88) 35%,
+    rgba(0, 0, 0, 0.5) 70%,
+    transparent 100%
+  );
+  pointer-events: none;
+  z-index: 5;
 }
 </style>

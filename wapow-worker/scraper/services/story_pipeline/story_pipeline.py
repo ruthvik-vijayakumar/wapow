@@ -53,11 +53,12 @@ CRITICAL INSTRUCTIONS FOR TEXT QUALITY:
 3. Avoid dry, blocky, or academic language. Write in a punchy, active, and interesting style.
 4. "short_summary" must be a highly concise, punchy slide caption. Keep it strictly MAXIMUM 100 characters (1-2 lines) for use when an image is shown.
 5. "long_summary" must be a descriptive, engaging narrative paragraph (strictly between 200 and 320 characters, 2-3 sentences max) for text-only layouts.
+6. FOCUS ONLY ON THE CORE STORY ARC: Do not try to summarize or cover every detail, background fact, or secondary angle of the article. Focus strictly on the primary hook/event, key conflict or human interest, and the final resolution. Ignore trivia or statistics that clutter the narrative.
 
 IMAGE SELECTION:
 You are provided with a list of images available in this article along with their captions.
 For each segment, select the most relevant image URL from the list that fits the semantic context of that slide's beat. If no image fits, set "suggested_image_url" to null.
-Each image URL should be used at most once across the story.
+Each image URL from the list of AVAILABLE IMAGES must be suggested AT MOST ONCE across all segments. Do not repeat the same image URL.
 
 Output a JSON object with:
 1. "segments": A list of exactly {n_slides} objects. Each segment object MUST contain:
