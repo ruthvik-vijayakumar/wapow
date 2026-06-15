@@ -47,6 +47,10 @@ def _transform_content_item(item: dict) -> dict:
         or basic_promo.get("url")
         or item.get("imageUrl")
     )
+    # Extract focal point data for the promo/hero image
+    image_focal_point = None
+    if isinstance(basic_promo, dict):
+        image_focal_point = basic_promo.get("focal_point")
     taxonomy = item.get("taxonomy") or {}
     primary = taxonomy.get("primary_section") or {}
     category = (
@@ -56,18 +60,20 @@ def _transform_content_item(item: dict) -> dict:
         or ((item.get("additional_properties") or {}).get("series_meta") or {}).get("name")
     )
     _id = item.get("_id")
-    return {
+    result = {
         "id": str(_id) if isinstance(_id, ObjectId) else _id,
         "title": headlines.get("basic") or item.get("title") or "Untitled",
         "description": desc_text,
         "author": author,
         "imageUrl": image_url,
+        "imageFocalPoint": image_focal_point,
         "publishDate": item.get("publish_date") or item.get("created_date"),
         "category": category,
         "url": item.get("canonical_url") or item.get("website_url"),
         "isActive": item.get("isActive"),
         **_serialize_doc(item),
     }
+    return result
 
 
 def _transform_video_item(item: dict) -> dict:

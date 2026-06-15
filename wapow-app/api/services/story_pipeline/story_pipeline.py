@@ -161,29 +161,34 @@ ARTICLE_BODY:
                     "long_summary": long_summary,
                     "video_url": matched_video["url"],
                     "embed_code": matched_video["embed_code"],
-                    "image_url": None
+                    "image_url": None,
+                    "focal_point": None,
                 })
                 continue
 
-            # 2. Fallback to scanning for adjacent image
-            matched_image = tree.get_adjacent_image(match_block_idx, max_distance=4)
-            if matched_image and matched_image not in used_images:
+            # 2. Fallback to scanning for adjacent image (with focal point)
+            matched_image_data = tree.get_adjacent_image_with_focal(match_block_idx, max_distance=4)
+            matched_image = None
+            focal_point = None
+            if matched_image_data and matched_image_data["url"] not in used_images:
+                matched_image = matched_image_data["url"]
+                focal_point = matched_image_data.get("focal_point")
                 used_images.add(matched_image)
-            else:
-                matched_image = None
                 
             aligned_segments.append({
                 "short_summary": short_summary,
                 "long_summary": long_summary,
                 "video_url": None,
                 "embed_code": None,
-                "image_url": matched_image
+                "image_url": matched_image,
+                "focal_point": focal_point,
             })
 
         # Fallback 1: If no media was matched at all, try to assign the promo_image to the first slide
         has_any_media = bool(used_images) or bool(used_videos)
         if not has_any_media and tree.promo_image:
             aligned_segments[0]["image_url"] = tree.promo_image
+            aligned_segments[0]["focal_point"] = tree.promo_image_focal_point
             used_images.add(tree.promo_image)
 
         # Fallback 2: Assign remaining unused videos to segments without media
@@ -199,14 +204,15 @@ ARTICLE_BODY:
                         break
 
         # Fallback 3: Assign remaining unused images to segments without media
-        all_doc_images = tree.get_images()
-        for img in all_doc_images:
-            if img not in used_images:
+        all_image_blocks = [b for b in tree.blocks if b.type == "image" and b.url]
+        for block in all_image_blocks:
+            if block.url not in used_images:
                 # Find the first segment without media and assign it
                 for seg in aligned_segments:
                     if not seg["video_url"] and not seg["image_url"]:
-                        seg["image_url"] = img
-                        used_images.add(img)
+                        seg["image_url"] = block.url
+                        seg["focal_point"] = block.focal_point
+                        used_images.add(block.url)
                         break
 
         return aligned_segments
@@ -221,6 +227,7 @@ ARTICLE_BODY:
             img_url = seg.get("image_url")
             vid_url = seg.get("video_url")
             embed_code = seg.get("embed_code")
+            focal_point = seg.get("focal_point")
             
             # Select appropriate content based on layout constraints (with video vs with image vs text-only)
             if vid_url:
@@ -237,9 +244,12 @@ ARTICLE_BODY:
                 # Enforce safety limits
                 if len(text_content) > 120:
                     text_content = text_content[:117] + "..."
+                image_item: Dict[str, Any] = {"type": "image", "content_url": img_url}
+                if focal_point:
+                    image_item["focal_point"] = focal_point
                 page_content = [
                     {"type": "text", "content": text_content},
-                    {"type": "image", "content_url": img_url}
+                    image_item,
                 ]
             else:
                 text_content = seg.get("long_summary") or ""

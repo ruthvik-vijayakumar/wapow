@@ -25,6 +25,7 @@ from scraper.scrapers.web_scraper import WebScraper
 from scraper.scrapers.playwright_scraper import PlaywrightScraper
 from scraper.processors.normalizer import ContentNormalizer
 from scraper.processors.deduplicator import deduplicator
+from scraper.processors.focal_point import enrich_document_with_focal_points
 from scraper.utils.metrics import ScraperRunTracker, update_source_status
 
 logger = logging.getLogger(__name__)
@@ -102,6 +103,12 @@ async def _save_items(items: list[tuple[str, dict[str, Any]]]) -> list[tuple[str
     convert_ids = []
     for collection_name, doc in items:
         try:
+            # Enrich images with focal point data before saving
+            try:
+                doc = await enrich_document_with_focal_points(doc)
+            except Exception as fp_err:
+                logger.warning(f"Focal point enrichment failed (non-fatal): {fp_err}")
+
             coll = get_collection(collection_name)
             result = coll.insert_one(doc)
             if result.inserted_id:

@@ -93,8 +93,21 @@
             </p>
           </div>
 
-          <div class="image-section">
-            <img :src="currentPage.thumbnail" :alt="currentPage.title" class="story-image" />
+          <div class="image-section" :class="{ 'image-section--contain': useContainDisplay }">
+            <!-- Blurred background fill for contain mode -->
+            <img
+              v-if="useContainDisplay"
+              :src="currentPage.thumbnail"
+              :alt="''"
+              class="story-image-blur-bg"
+              aria-hidden="true"
+            />
+            <img
+              :src="currentPage.thumbnail"
+              :alt="currentPage.title"
+              class="story-image"
+              :style="{ objectFit: imageDisplayStyle.objectFit, objectPosition: imageDisplayStyle.objectPosition }"
+            />
           </div>
         </div>
       </template>
@@ -102,8 +115,20 @@
       <!-- Layout: Image on top, Text on bottom (standard) -->
       <template v-else-if="currentPage.layout === 'image-top'">
         <div class="text-top-container">
-          <div class="image-section">
-            <img :src="currentPage.thumbnail" :alt="currentPage.title" class="story-image" />
+          <div class="image-section" :class="{ 'image-section--contain': useContainDisplay }">
+            <img
+              v-if="useContainDisplay"
+              :src="currentPage.thumbnail"
+              :alt="''"
+              class="story-image-blur-bg"
+              aria-hidden="true"
+            />
+            <img
+              :src="currentPage.thumbnail"
+              :alt="currentPage.title"
+              class="story-image"
+              :style="{ objectFit: imageDisplayStyle.objectFit, objectPosition: imageDisplayStyle.objectPosition }"
+            />
           </div>
           <div class="text-section">
             <p class="story-description">
@@ -180,8 +205,20 @@
 
       <!-- Layout: Standard (original) -->
       <template v-else>
-        <div class="content-image">
-          <img :src="currentPage.thumbnail" :alt="currentPage.title" class="story-image" />
+        <div class="content-image" :class="{ 'content-image--contain': useContainDisplay }">
+          <img
+            v-if="useContainDisplay"
+            :src="currentPage.thumbnail"
+            :alt="''"
+            class="story-image-blur-bg"
+            aria-hidden="true"
+          />
+          <img
+            :src="currentPage.thumbnail"
+            :alt="currentPage.title"
+            class="story-image"
+            :style="{ objectFit: imageDisplayStyle.objectFit, objectPosition: imageDisplayStyle.objectPosition }"
+          />
         </div>
 
         <div class="content-text">
@@ -201,7 +238,10 @@
     </div>
 
     <!-- Gradient Overlay for Bottom Controls & Text readability -->
-    <div class="bottom-gradient-overlay"></div>
+    <div
+      class="bottom-gradient-overlay"
+      :class="{ 'tall': currentPageIndex === 0, 'short': currentPageIndex > 0 }"
+    ></div>
 
     <!-- Bottom Controls -->
     <BottomControls
@@ -348,6 +388,7 @@ const pages = computed(() => {
       title: props.content.title,
       description: props.content.description,
       thumbnail: props.content.thumbnail,
+      focalPoint: props.content.originalArticle?.promo_items?.basic?.focal_point || props.content.originalArticle?.imageFocalPoint || null,
       author: author,
       createdAt: createdAt,
       layout: 'standard' // Image on top, text on bottom`
@@ -373,6 +414,7 @@ const pages = computed(() => {
         title: textItem.content,
         description: textItem.content,
         thumbnail: imageItem?.content_url,
+        focalPoint: imageItem?.focal_point || null,
         author: author,
         createdAt: createdAt,
         layout: !imageItem?.content_url ? 'text-only' : (index % 2 === 0 ? 'text-top' : 'image-top')
@@ -428,6 +470,34 @@ watch(currentPageIndex, (newIdx) => {
 const currentPage = computed(() => {
   const page = pages.value[currentPageIndex.value]
   return page
+})
+
+/**
+ * Compute the image display style based on focal point data.
+ * - If focal point exists with display_mode "contain": show full image letterboxed with blur fill
+ * - If focal point exists with display_mode "focal_crop": use object-position to pan to subject
+ * - Otherwise: default center crop (object-fit: cover, centered)
+ */
+const imageDisplayStyle = computed(() => {
+  const fp = currentPage.value?.focalPoint
+  if (!fp) {
+    return { objectFit: 'cover', objectPosition: 'center center' }
+  }
+  
+  if (fp.display_mode === 'contain') {
+    // Extreme aspect ratio — frontend will show letterboxed with blur background
+    return { objectFit: 'contain', objectPosition: 'center center', displayMode: 'contain' }
+  }
+  
+  // Focal crop: pan object-position to the subject
+  const x = Math.round((fp.focal_x ?? 0.5) * 100)
+  const y = Math.round((fp.focal_y ?? 0.5) * 100)
+  return { objectFit: 'cover', objectPosition: `${x}% ${y}%`, displayMode: 'focal_crop' }
+})
+
+/** Whether the current page image should use the "contain" display with blurred background */
+const useContainDisplay = computed(() => {
+  return imageDisplayStyle.value.displayMode === 'contain'
 })
 
 const takeawaysItems = computed(() => {
@@ -1220,6 +1290,12 @@ onUnmounted(() => {
   bottom: 0;
   left: 0;
   right: 0;
+  pointer-events: none;
+  z-index: 5;
+  transition: height 0.3s ease;
+}
+
+.bottom-gradient-overlay.tall {
   height: 40%;
   background: linear-gradient(
     to top,
@@ -1228,7 +1304,15 @@ onUnmounted(() => {
     rgba(0, 0, 0, 0.5) 70%,
     transparent 100%
   );
-  pointer-events: none;
-  z-index: 5;
+}
+
+.bottom-gradient-overlay.short {
+  height: 120px;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.95) 0%,
+    rgba(0, 0, 0, 0.6) 50%,
+    transparent 100%
+  );
 }
 </style>
