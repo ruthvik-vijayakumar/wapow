@@ -9,8 +9,8 @@ from typing import Any
 
 from bson import ObjectId
 
-from api.config import ARTICLES_COLLECTION
-from api.db import get_db
+from scraper.config import ARTICLES_COLLECTION
+from scraper.db import get_db
 
 from .analyzer import analyze_article
 from .generator import build_pages

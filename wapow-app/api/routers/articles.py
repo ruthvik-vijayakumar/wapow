@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from api.db import get_db
 from api.config import ALL_COLLECTIONS, ARTICLE_CATEGORIES, ARTICLES_COLLECTION
 from api.services.content import _transform_content_item, _transform_video_item, _transform_podcast_item
-from api.services.conversion_jobs import create_job, run_conversion_jobs
+from api.services.conversion_jobs import create_job
 from api.services.story_pipeline.service import (
     convert_article_to_story,
     find_article_doc,
@@ -90,7 +90,7 @@ async def list_articles(
 
 
 @router.post("/batch-convert-to-story")
-async def batch_convert_to_story(body: BatchConvertToStoryBody, background_tasks: BackgroundTasks):
+async def batch_convert_to_story(body: BatchConvertToStoryBody):
     """Queue story conversion jobs (async). Max 50 IDs. Returns 202 with job_ids."""
     if len(body.ids) > 50:
         raise HTTPException(
@@ -101,9 +101,8 @@ async def batch_convert_to_story(body: BatchConvertToStoryBody, background_tasks
         raise HTTPException(status_code=400, detail="ids must not be empty")
     job_ids: list[str] = []
     for aid in body.ids:
-        job = create_job(str(aid))
+        job = create_job(str(aid), force=body.force)
         job_ids.append(job["job_id"])
-    background_tasks.add_task(run_conversion_jobs, job_ids, body.force)
     return JSONResponse(
         status_code=202,
         content={"success": True, "job_ids": job_ids},
@@ -136,6 +135,14 @@ async def articles_by_ids(body: ArticlesByIdsBody):
     # Keep raw string IDs for fallback searches (e.g. content_id on videos)
     string_ids = [str(i) for i in limited_ids]
 
+    # Fetch matching story slides in a single batch query to avoid N+1 query overhead
+    slides_cursor = db["story_slides"].find({"article_id": {"$in": id_list}})
+    slides_map = {}
+    for s in slides_cursor:
+        art_id = s.get("article_id")
+        if art_id:
+            slides_map[str(art_id)] = s
+
     for coll_name in ALL_COLLECTIONS:
         if coll_name in ARTICLE_CATEGORIES:
             coll = db[ARTICLES_COLLECTION]
@@ -149,6 +156,18 @@ async def articles_by_ids(body: ArticlesByIdsBody):
             ]}
         cursor = coll.find(query)
         items = list(cursor)
+        
+        # Merge slides from batch map
+        for doc in items:
+            str_id = str(doc["_id"])
+            if str_id in slides_map:
+                slides = slides_map[str_id]
+                doc["ai_summary"] = {
+                    "pages": slides.get("pages"),
+                    "generation_timestamp": slides.get("generation_timestamp"),
+                    "llm_model_used": slides.get("llm_model_used"),
+                }
+
         transformed = [_transform_item(doc, coll_name) for doc in items]
         # Tag with collection name (videos vs video, etc.)
         key = "videos" if coll_name == "videos" else "podcasts" if coll_name == "podcasts" else coll_name

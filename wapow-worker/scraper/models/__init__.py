@@ -6,10 +6,12 @@ from scraper.models.source import (
     WebSource,
     SourceConfig,
 )
+from scraper.models.raw_article import RawArticle
 
 __all__ = [
     "SourceType",
     "RSSSource",
     "WebSource",
     "SourceConfig",
+    "RawArticle",
 ]

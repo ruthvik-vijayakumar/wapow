@@ -33,9 +33,8 @@ async def lifespan(app: FastAPI):
     from api.services.conversion_jobs import ensure_conversion_jobs_indexes
 
     ensure_conversion_jobs_indexes()
+    
     yield
-    # Shutdown: close MongoDB client if needed
-    # (PyMongo client is global; optional: close here)
 
 
 app = FastAPI(

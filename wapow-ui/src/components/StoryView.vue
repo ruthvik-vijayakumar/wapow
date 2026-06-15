@@ -122,6 +122,30 @@
         </div>
       </template>
 
+      <!-- Layout: Video -->
+      <template v-else-if="currentPage.layout === 'video'">
+        <div class="video-slide-container">
+          <!-- If iframe embed code exists, render raw HTML -->
+          <div v-if="currentPage.embedCode" v-html="currentPage.embedCode" class="video-embed-wrapper"></div>
+          <!-- Else if raw video url exists, render HTML5 video tag -->
+          <video
+            v-else-if="currentPage.videoUrl"
+            :src="currentPage.videoUrl"
+            autoplay
+            loop
+            muted
+            playsinline
+            class="story-video"
+          ></video>
+          <!-- Transparent overlay to allow tapping/clicking for navigation -->
+          <div class="video-click-overlay"></div>
+          <!-- Slide caption text overlaid on top -->
+          <div class="video-text-overlay">
+            <p class="story-description">{{ currentPage.description }}</p>
+          </div>
+        </div>
+      </template>
+
       <!-- Layout: Standard (original) -->
       <template v-else>
         <div class="content-image">
@@ -152,7 +176,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import type { StoryContent } from '@/stores/content'
 import BottomControls from './BottomControls.vue'
@@ -232,7 +256,7 @@ const showReactions = ref(false)
 const selectedReaction = ref('')
 const likeHoldTimer = ref<number | null>(null)
 const reactionHoldTimer = ref<number | null>(null)
-const autoAdvanceTimer = ref<NodeJS.Timeout | null>(null)
+const autoAdvanceTimer = ref<any>(null)
 const isVisible = ref(false)
 
 // Create story pages from the content data
@@ -270,7 +294,20 @@ const pages = computed(() => {
     ...pages_data.filter((page: any) => page.page_type === 'content').map((page: any, index: number) => {
       const textItem = page.content?.find((item: any) => item?.type === 'text')
       const imageItem = page.content?.find((item: any) => item?.type === 'image')
+      const videoItem = page.content?.find((item: any) => item?.type === 'video')
       if (!textItem) return null
+      
+      if (videoItem) {
+        return {
+          title: textItem.content,
+          description: textItem.content,
+          videoUrl: videoItem.content_url,
+          embedCode: videoItem.embed_code,
+          author: author,
+          createdAt: createdAt,
+          layout: 'video'
+        }
+      }
       return {
         title: textItem.content,
         description: textItem.content,
@@ -336,7 +373,7 @@ const takeawaysItems = computed(() => {
   const desc = currentPage.value?.description || ''
   return desc
     .split('\n')
-    .map(line => line.replace(/^[•\-\*\s]+/, '').trim())
+    .map((line: string) => line.replace(/^[•\-\*\s]+/, '').trim())
     .filter(Boolean)
 })
 
@@ -479,9 +516,111 @@ const setupIntersectionObserver = () => {
   observer.observe(storyContainer)
 }
 
+// Dynamically adjust font sizes to prevent text overlapping or hiding behind bottom controls
+const adjustFontSize = async () => {
+  await nextTick()
+  const container = storyContainerRef.value
+  if (!container) return
+
+  const bottomControlsEl = container.querySelector('.podcast-bottom')
+  const bottomControlsRect = bottomControlsEl?.getBoundingClientRect()
+  const maxAllowedBottom = bottomControlsRect ? bottomControlsRect.top - 12 : container.getBoundingClientRect().bottom - 80
+
+  // Find the text elements that we want to scale
+  const textElements: HTMLElement[] = Array.from(
+    container.querySelectorAll(
+      '.story-content .story-description, .story-content .takeaway-text, .story-content .story-title, .story-content .takeaway-bullet'
+    )
+  )
+
+  if (textElements.length === 0) return
+
+  // Reset inline styles first to calculate based on stylesheet values
+  textElements.forEach(el => {
+    el.style.fontSize = ''
+    el.style.lineHeight = ''
+  })
+
+  // Find the target element to measure (the bottom-most element)
+  const getMeasureElement = () => {
+    const takeawaysList = container.querySelector('.takeaways-list')
+    if (takeawaysList) {
+      const takeawayItems = takeawaysList.querySelectorAll('.takeaway-item')
+      if (takeawayItems.length > 0) {
+        return takeawayItems[takeawayItems.length - 1]
+      }
+    }
+
+    const storyDesc = container.querySelector('.story-content .story-description')
+    if (storyDesc) return storyDesc
+
+    return null
+  }
+
+  const measureEl = getMeasureElement() as HTMLElement
+  if (!measureEl) return
+
+  // Check if takeaways list is present to adjust target bottom threshold
+  const isTakeaways = !!container.querySelector('.takeaways-list')
+  const targetThreshold = isTakeaways ? maxAllowedBottom - 70 : maxAllowedBottom
+
+  // Store original computed sizes in pixels
+  const originalStyles = textElements.map(el => {
+    const computedStyle = window.getComputedStyle(el)
+    return {
+      fontSize: parseFloat(computedStyle.fontSize),
+      lineHeight: parseFloat(computedStyle.lineHeight)
+    }
+  })
+
+  let scale = 1.0
+  const minScale = 0.6
+  const step = 0.05
+  let iterations = 0
+  const maxIterations = 15
+
+  while (iterations < maxIterations) {
+    const rect = measureEl.getBoundingClientRect()
+    if (rect.bottom <= targetThreshold) {
+      break
+    }
+
+    scale -= step
+    if (scale < minScale) {
+      scale = minScale
+      textElements.forEach((el, index) => {
+        el.style.fontSize = `${originalStyles[index].fontSize * scale}px`
+        if (!isNaN(originalStyles[index].lineHeight)) {
+          el.style.lineHeight = `${originalStyles[index].lineHeight * scale}px`
+        } else {
+          el.style.lineHeight = '1.3'
+        }
+      })
+      break
+    }
+
+    textElements.forEach((el, index) => {
+      el.style.fontSize = `${originalStyles[index].fontSize * scale}px`
+      if (!isNaN(originalStyles[index].lineHeight)) {
+        el.style.lineHeight = `${originalStyles[index].lineHeight * scale}px`
+      } else {
+        el.style.lineHeight = '1.3'
+      }
+    })
+
+    iterations++
+  }
+}
+
+// Watch current page to recalculate font sizing when the slide changes
+watch(currentPage, () => {
+  adjustFontSize()
+})
+
 // Set --vh CSS variable for mobile viewport handling (Android address bar fix)
 const setVh = () => {
   document.documentElement.style.setProperty('--vh', `${window.innerHeight}px`)
+  adjustFontSize()
 }
 
 onMounted(() => {
@@ -697,6 +836,43 @@ onUnmounted(() => {
 .text-section-bottom .story-description {
   @apply text-base leading-relaxed;
   @apply text-gray-200;
+}
+
+/* Video layout styles */
+.video-slide-container {
+  @apply relative w-full h-full bg-black overflow-hidden flex items-center justify-center;
+}
+
+.video-embed-wrapper {
+  @apply absolute inset-0 w-full h-full flex items-center justify-center;
+}
+
+.video-embed-wrapper :deep(iframe),
+.video-embed-wrapper :deep(video) {
+  @apply absolute inset-0 w-full h-full border-0 object-cover;
+}
+
+.story-video {
+  @apply absolute inset-0 w-full h-full object-cover block;
+}
+
+.video-click-overlay {
+  @apply absolute inset-0 z-[5];
+}
+
+.video-text-overlay {
+  @apply absolute bottom-0 left-0 right-0 z-10;
+  @apply px-6 pt-20;
+  @apply text-white;
+  /* Extra bottom padding to clear the BottomControls bar */
+  padding-bottom: 5rem;
+  padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(
+    to top,
+    rgb(0 0 0 / 0.92) 0%,
+    rgb(0 0 0 / 0.55) 38%,
+    transparent 100%
+  );
 }
 
 /* Takeaways layout styles */

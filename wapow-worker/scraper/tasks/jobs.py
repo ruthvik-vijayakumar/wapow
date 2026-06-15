@@ -1,21 +1,25 @@
 """Scraping job definitions with observability and metrics tracking."""
 
 import asyncio
+from datetime import datetime
 import logging
 import time
 from pathlib import Path
 from typing import Any
 
 import aiohttp
+from pymongo import UpdateOne
 import yaml
 
 from scraper.config import ARTICLES_COLLECTION, settings
 from scraper.db import get_collection
-from scraper.models.source import (
+from scraper.models import (
     SourceConfig,
     RSSSource,
     WebSource,
+    RawArticle,
 )
+from scraper.scrapers.base import ScrapedItem
 from scraper.scrapers.rss_scraper import RSSScraper
 from scraper.scrapers.web_scraper import WebScraper
 from scraper.scrapers.playwright_scraper import PlaywrightScraper
@@ -51,28 +55,6 @@ def load_sources() -> SourceConfig:
         return SourceConfig()
 
 
-async def _trigger_story_convert(article_id: str) -> None:
-    """POST to wapow-app to persist StoryView-compatible ai_summary on new articles."""
-    base = settings.wapow_api_base_url.strip().rstrip("/")
-    if not base:
-        return
-    url = f"{base}/api/articles/{article_id}/convert-to-story"
-    timeout = aiohttp.ClientTimeout(total=120)
-    try:
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.post(url, params={"force": "false"}) as resp:
-                if resp.status not in (200, 404):
-                    body = await resp.text()
-                    logger.warning(
-                        "Story convert HTTP %s for %s: %s",
-                        resp.status,
-                        article_id,
-                        body[:300],
-                    )
-    except Exception as e:  # noqa: BLE001
-        logger.warning("Story convert request failed for %s: %s", article_id, e)
-
-
 async def _save_items(items: list[tuple[str, dict[str, Any]]]) -> list[tuple[str, str]]:
     """
     Save normalized items to MongoDB.
@@ -84,27 +66,91 @@ async def _save_items(items: list[tuple[str, dict[str, Any]]]) -> list[tuple[str
         List of (inserted_id, title) tuples of saved items
     """
     saved = []
+    convert_ids = []
     for collection_name, doc in items:
         try:
             coll = get_collection(collection_name)
             result = coll.insert_one(doc)
             if result.inserted_id:
+                inserted_id_str = str(result.inserted_id)
                 title = doc.get("headlines", {}).get("basic") or doc.get("title") or "Untitled"
-                saved.append((str(result.inserted_id), title))
+                saved.append((inserted_id_str, title))
                 # Update deduplication cache
                 url = doc.get("canonical_url", "")
                 if url:
                     deduplicator.mark_as_inserted(url, collection_name)
-                if (
-                    collection_name == ARTICLES_COLLECTION
-                    and settings.story_convert_on_ingest
-                    and settings.wapow_api_base_url.strip()
-                ):
-                    asyncio.create_task(_trigger_story_convert(str(result.inserted_id)))
+                
+                # Collect IDs for batch conversion
+                if collection_name == ARTICLES_COLLECTION:
+                    convert_ids.append(inserted_id_str)
         except Exception as e:
             logger.error(f"Error saving to {collection_name}: {e}")
 
+    # Trigger batch conversion directly via DB queue if enabled and we have valid articles
+    if convert_ids and settings.story_convert_on_ingest:
+        from scraper.services.conversion_jobs import create_job
+        for aid in convert_ids:
+            try:
+                create_job(str(aid), force=False)
+                logger.info(f"Queued background conversion job for article: {aid}")
+            except Exception as e:
+                logger.error(f"Error queuing background conversion job for article {aid}: {e}")
+
     return saved
+
+
+def sanitize_for_bson(val: Any) -> Any:
+    """Recursively convert non-BSON-serializable types (like time.struct_time) to serializable types."""
+    import time
+    if isinstance(val, dict):
+        return {k: sanitize_for_bson(v) for k, v in val.items()}
+    elif isinstance(val, time.struct_time):
+        try:
+            return datetime(*val[:6])
+        except ValueError:
+            return None
+    elif isinstance(val, list):
+        return [sanitize_for_bson(x) for x in val]
+    elif isinstance(val, tuple):
+        return [sanitize_for_bson(x) for x in val]
+    return val
+
+
+async def _save_raw_articles(items: list[ScrapedItem]) -> None:
+    """Save raw scraped items to MongoDB raw_articles collection before normalization."""
+    if not items:
+        return
+
+    coll = get_collection("raw_articles")
+    now = datetime.utcnow()
+    operations = []
+
+    for item in items:
+        sanitized_raw = sanitize_for_bson(item.raw_data or {})
+        raw_article = RawArticle(
+            source_name=item.source_name,
+            source_type=item.source_type,
+            url=item.url,
+            title=item.title,
+            description=item.description or "",
+            author=item.author or "",
+            image_url=item.image_url or "",
+            publish_date=item.publish_date,
+            category=item.category,
+            content_type=item.content_type,
+            duration=item.duration,
+            raw_data=sanitized_raw,
+            scraped_at=now
+        )
+        doc = raw_article.dict()
+        operations.append(UpdateOne({"url": doc["url"]}, {"$set": doc}, upsert=True))
+
+    if operations:
+        try:
+            coll.bulk_write(operations)
+            logger.info(f"Saved {len(items)} raw articles to MongoDB raw_articles collection")
+        except Exception as e:
+            logger.error(f"Error bulk saving raw articles to MongoDB: {e}")
 
 
 async def run_rss_scrape() -> dict[str, Any]:
@@ -134,6 +180,9 @@ async def run_rss_scrape() -> dict[str, Any]:
                 items = await scraper.scrape()
                 src_items_scraped = len(items)
                 total_scraped += src_items_scraped
+
+                # Save raw articles before normalization
+                await _save_raw_articles(items)
 
                 # Normalize items
                 normalized = [(normalizer.normalize(item)) for item in items]
@@ -217,6 +266,9 @@ async def run_web_scrape() -> dict[str, Any]:
                 items = await scraper.scrape()
                 src_items_scraped = len(items)
                 total_scraped += src_items_scraped
+
+                # Save raw articles before normalization
+                await _save_raw_articles(items)
 
                 # Normalize items
                 normalized = [(normalizer.normalize(item)) for item in items]

@@ -67,15 +67,25 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler."""
     logger.info("Starting WAPOW Scraper service")
     start_scheduler()
+    
+    from scraper.services.conversion_jobs import (
+        ensure_conversion_jobs_indexes,
+        start_conversion_worker,
+        stop_conversion_worker,
+    )
+    ensure_conversion_jobs_indexes()
+    asyncio.create_task(start_conversion_worker())
+    
     yield
     logger.info("Shutting down WAPOW Scraper service")
     shutdown_scheduler()
+    await stop_conversion_worker()
     close_client()
 
 
 app = FastAPI(
-    title="WAPOW Scraper",
-    description="Content scraping and aggregation service for WAPOW",
+    title="WAPOW Worker",
+    description="Content scraping, aggregation, and AI processing service for WAPOW",
     version="0.1.0",
     lifespan=lifespan,
 )
@@ -95,7 +105,7 @@ async def health_check() -> dict[str, str]:
     """Health check endpoint."""
     return {
         "status": "healthy",
-        "service": "wapow-scraper",
+        "service": "wapow-worker",
         "scheduler": "running" if scheduler.running else "stopped",
     }
 

@@ -92,9 +92,9 @@ services:
       clickhouse:
         condition: service_healthy
 
-  scraper:
-    build: ./wapow-scraper
-    container_name: wapow-scraper
+  worker:
+    build: ./wapow-worker
+    container_name: wapow-worker
     ports:
       - "3003:3003"
     environment:
@@ -102,6 +102,9 @@ services:
       - YOUTUBE_API_KEY=${YOUTUBE_API_KEY:-}
       - SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID:-}
       - SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-}
     depends_on:
       mongo:
         condition: service_healthy

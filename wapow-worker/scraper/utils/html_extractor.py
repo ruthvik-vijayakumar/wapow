@@ -499,7 +499,8 @@ def extract_body_elements(soup: BeautifulSoup, url: str) -> tuple[list[dict[str,
 async def extract_article_content(url: str) -> dict[str, Any]:
     """
     Fetch the article page, extract its full body content, media elements, and metadata.
-    Attempts to use readability-lxml first, falling back to a custom scoring parser if it fails.
+    Attempts to use readability-lxml first, falling back to a custom scoring parser if it fails
+    or if required fields are missing.
 
     Args:
         url: Web URL of the article
@@ -512,13 +513,11 @@ async def extract_article_content(url: str) -> dict[str, Any]:
         return {}
 
     try:
-        soup = BeautifulSoup(html, "lxml")
-        metadata = extract_metadata(soup, url)
-        
         content_elements = []
         body_text = ""
         readability_success = False
         
+        # 1. Try readability-lxml first to extract body content
         try:
             from readability import Document
             doc = Document(html)
@@ -530,13 +529,27 @@ async def extract_article_content(url: str) -> dict[str, Any]:
                     content_elements = elements
                     body_text = text
                     readability_success = True
-                    logger.info(f"Successfully extracted article using Readability-lxml: {url}")
+                    logger.info(f"Successfully extracted article content using Readability-lxml: {url}")
         except Exception as read_err:
-            logger.warning(f"Readability parsing error, falling back to custom block parser: {read_err}")
-            
-        if not readability_success:
-            logger.info(f"Using fallback custom block parser for: {url}")
-            content_elements, body_text = extract_body_elements(soup, url)
+            logger.warning(f"Readability parsing error: {read_err}")
+
+        # 2. Parse metadata from the full HTML using BeautifulSoup
+        soup = BeautifulSoup(html, "lxml")
+        metadata = extract_metadata(soup, url)
+        
+        # We determine if we have "all fields filled" by checking:
+        # - readability succeeded
+        # - body_text is present and meets our minimum length
+        # - metadata has a headline/title
+        has_required_fields = readability_success and bool(body_text.strip()) and bool(metadata.get("headline"))
+        
+        if not has_required_fields:
+            logger.info(f"Not all required fields filled or readability failed. Using fallback custom block parser for: {url}")
+            fallback_elements, fallback_text = extract_body_elements(soup, url)
+            # Use custom block parser output if it has more content
+            if len(fallback_text.strip()) > len(body_text.strip()):
+                content_elements = fallback_elements
+                body_text = fallback_text
 
         # Fallback for promo_image to first body image if missing
         if not metadata.get("promo_image") or metadata.get("promo_image") == "":
@@ -546,13 +559,13 @@ async def extract_article_content(url: str) -> dict[str, Any]:
                     break
 
         return {
-            "title": metadata["headline"],
-            "description": metadata["sub_title"],
-            "author": metadata["author"],
-            "author_link": metadata["author_link"],
-            "publisher": metadata["publisher"],
-            "publish_date": metadata["publish_date"],
-            "image_url": metadata["promo_image"],
+            "title": metadata.get("headline") or (doc.title() if 'doc' in locals() else "") or "Untitled",
+            "description": metadata.get("sub_title") or "",
+            "author": metadata.get("author") or "",
+            "author_link": metadata.get("author_link") or "",
+            "publisher": metadata.get("publisher") or "",
+            "publish_date": metadata.get("publish_date"),
+            "image_url": metadata.get("promo_image") or "",
             "content_elements": content_elements,
             "body_text": body_text,
         }

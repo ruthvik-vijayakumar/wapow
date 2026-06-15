@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WAPOW! Scraper Ops</title>
+    <title>WAPOW! Worker Ops</title>
     <!-- Tailwind CSS v4 Browser Build -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -43,7 +43,7 @@
             <div class="flex items-center gap-2 text-sm">
                 <span class="text-[#a1a1a1]">ruthvik-vijayakumar</span>
                 <span class="text-[#333333]">/</span>
-                <span class="font-medium text-white">wapow-scraper</span>
+                <span class="font-medium text-white">wapow-worker</span>
                 <span class="ml-2 bg-[#1f1f1f] text-xs font-mono text-[#a1a1a1] px-2 py-0.5 rounded border border-[#333333]">production</span>
             </div>
         </div>
@@ -100,7 +100,7 @@
             <div class="bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg p-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div class="space-y-1">
                     <h2 class="text-base font-bold text-white">Manual Deployment & Crawl Control</h2>
-                    <p class="text-xs text-[#a1a1a1]">Instantly trigger and sync the WAPOW scraper crawler instances for any enabled sources</p>
+                    <p class="text-xs text-[#a1a1a1]">Instantly trigger and sync the WAPOW worker crawler instances for any enabled sources</p>
                 </div>
                 <div class="flex flex-wrap gap-3">
                     <button onclick="triggerJob('rss_feeds')" class="btn-action bg-white text-black hover:bg-[#e0e0e0] font-medium text-xs py-2 px-4 rounded transition duration-200 cursor-pointer disabled:bg-neutral-800 disabled:text-neutral-500">
@@ -121,8 +121,8 @@
             <!-- Job Executions Log -->
             <div class="bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg overflow-hidden">
                 <div class="p-6 border-b border-[#1f1f1f]">
-                    <h2 class="text-base font-bold text-white">Scraper Execution Runs</h2>
-                    <p class="text-xs text-[#666666] mt-0.5">Historical logs and runtime traces for scraper triggers</p>
+                    <h2 class="text-base font-bold text-white">Worker Execution Runs</h2>
+                    <p class="text-xs text-[#666666] mt-0.5">Historical logs and runtime traces for worker triggers</p>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-sm text-[#e5e5e5]">
@@ -196,10 +196,10 @@
                 <div class="flex items-center justify-between border-b border-[#1f1f1f] pb-4 mb-4">
                     <div>
                         <h2 class="text-base font-bold text-white flex items-center gap-2">
-                            Scraper Live Output Stream
+                            Worker Live Output Stream
                             <span id="log-conn-status" class="text-xs bg-[#1f1f1f] text-[#a1a1a1] border border-[#333333] px-2 py-0.5 rounded font-normal">Connecting...</span>
                         </h2>
-                        <p class="text-xs text-[#666666] mt-0.5">Live standard logging trace events streamed straight from the scraper container</p>
+                        <p class="text-xs text-[#666666] mt-0.5">Live standard logging trace events streamed straight from the worker container</p>
                     </div>
                     <div>
                         <button onclick="clearConsole()" class="text-xs bg-transparent text-white border border-[#333333] hover:bg-neutral-900 px-3 py-1.5 rounded transition cursor-pointer">

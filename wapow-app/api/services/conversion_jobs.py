@@ -15,17 +15,20 @@ def ensure_conversion_jobs_indexes() -> None:
     coll = get_db()[JOBS_COLLECTION]
     coll.create_index("job_id", unique=True)
     coll.create_index("created_at")
+    coll.create_index([("status", 1), ("created_at", 1)])
 
 
-def create_job(article_id: str) -> dict[str, Any]:
+def create_job(article_id: str, force: bool = False) -> dict[str, Any]:
     job_id = str(uuid4())
     now = datetime.now(timezone.utc)
     doc = {
         "job_id": job_id,
         "article_id": article_id,
         "status": "pending",
+        "force": force,
         "error": None,
         "ai_summary": None,
+        "lease_expires_at": None,
         "created_at": now,
         "updated_at": now,
     }
@@ -42,6 +45,7 @@ def update_job(
 ) -> None:
     patch: dict[str, Any] = {
         "status": status,
+        "lease_expires_at": None,
         "updated_at": datetime.now(timezone.utc),
     }
     if error is not None:
@@ -61,23 +65,10 @@ def serialize_job(doc: dict) -> dict:
     out = dict(doc)
     if "_id" in out:
         out["_id"] = str(out["_id"])
-    for k in ("created_at", "updated_at"):
+    for k in ("created_at", "updated_at", "lease_expires_at"):
         if k in out and hasattr(out[k], "isoformat"):
             out[k] = out[k].isoformat()
     return out
 
 
-def run_conversion_jobs(job_ids: list[str], force: bool) -> None:
-    """Background worker: process pending conversion jobs."""
-    from api.services.story_pipeline.service import convert_article_to_story
 
-    for jid in job_ids:
-        job = get_job(jid)
-        if not job:
-            continue
-        update_job(jid, "processing")
-        try:
-            result = convert_article_to_story(str(job["article_id"]), force=force)
-            update_job(jid, "completed", ai_summary=result.get("ai_summary"))
-        except Exception as e:  # noqa: BLE001
-            update_job(jid, "failed", error=str(e))

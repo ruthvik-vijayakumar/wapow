@@ -72,17 +72,19 @@ services:
     depends_on:
       - clickhouse
 
-  scraper:
-    image: ${REGISTRY_PREFIX}/wapow-scraper:latest
-    container_name: wapow-scraper
+  worker:
+    image: ${REGISTRY_PREFIX}/wapow-worker:latest
+    container_name: wapow-worker
     ports:
       - "127.0.0.1:3003:3003"
     environment:
       - MONGODB_URI=${MONGODB_URI:-mongodb://mongo:27017/wapow-data}
-      - WAPOW_API_BASE_URL=${WAPOW_API_BASE_URL:-http://app:3001}
       - YOUTUBE_API_KEY=${YOUTUBE_API_KEY:-}
       - SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID:-}
       - SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-}
     depends_on:
       - mongo
     restart: unless-stopped
