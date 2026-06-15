@@ -77,6 +77,25 @@ async def list_articles(
     items = list(cursor)
     total = coll.count_documents(query)
 
+    # Fetch matching story slides in a single batch query to avoid N+1 query overhead
+    item_ids = [item["_id"] for item in items]
+    slides_cursor = db["story_slides"].find({"article_id": {"$in": item_ids}})
+    slides_map = {}
+    for s in slides_cursor:
+        art_id = s.get("article_id")
+        if art_id:
+            slides_map[str(art_id)] = s
+
+    for item in items:
+        str_id = str(item["_id"])
+        if str_id in slides_map:
+            slides = slides_map[str_id]
+            item["ai_summary"] = {
+                "pages": slides.get("pages"),
+                "generation_timestamp": slides.get("generation_timestamp"),
+                "llm_model_used": slides.get("llm_model_used"),
+            }
+
     data = [_transform_content_item(item) for item in items]
 
     return {
