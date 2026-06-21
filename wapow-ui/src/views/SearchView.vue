@@ -5,25 +5,42 @@
       <div class="header-content">
         <button class="back-btn" @click="goBack" aria-label="Go back">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M15 19l-7-7 7-7"
+            />
           </svg>
         </button>
         <div class="search-input-wrapper">
           <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
           </svg>
           <input
             ref="searchInput"
             v-model="query"
             type="text"
             class="search-input"
-            :placeholder="activeTab === 'results' ? 'Search articles, videos, podcasts…' : 'Ask AI anything…'"
+            :placeholder="
+              activeTab === 'results' ? 'Search articles, videos, podcasts…' : 'Ask AI anything…'
+            "
             @input="handleInput"
             @keydown.enter="executeSearch"
           />
           <button v-if="query" class="clear-button" @click="clearSearch">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
@@ -51,33 +68,46 @@
     <!-- Tab 1: Search Results -->
     <div v-if="activeTab === 'results'" class="results-tab-content">
       <!-- AI Overview Section -->
-      <div v-if="hasSearched && !isLoading && (isOverviewLoading || overviewText || overviewError)" class="ai-overview-card">
+      <div
+        v-if="hasSearched && !isLoading && (isOverviewLoading || overviewText || overviewError)"
+        class="ai-overview-card"
+      >
         <div class="ai-overview-header">
           <div class="ai-icon-wrapper">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+              />
             </svg>
           </div>
           <span class="ai-overview-title">AI Overview</span>
         </div>
-        
+
         <div v-if="isOverviewLoading" class="ai-overview-shimmer">
           <div class="ai-loading-text">AI is generating summary...</div>
           <div class="ai-shimmer-line skeleton-pulse" style="width: 100%"></div>
-          <div class="ai-shimmer-line skeleton-pulse" style="width: 90%; margin-top: 0.25rem;"></div>
-          <div class="ai-shimmer-line skeleton-pulse" style="width: 75%; margin-top: 0.25rem;"></div>
+          <div class="ai-shimmer-line skeleton-pulse" style="width: 90%; margin-top: 0.25rem"></div>
+          <div class="ai-shimmer-line skeleton-pulse" style="width: 75%; margin-top: 0.25rem"></div>
         </div>
-        
+
         <div v-else-if="overviewError" class="state-text">
           Failed to generate AI Overview. Please try again.
         </div>
-        
+
         <div v-else-if="overviewText" class="ai-overview-content-wrapper">
           <div class="ai-overview-content" v-html="formatMarkdown(overviewText)"></div>
           <div class="ai-overview-actions">
             <button class="ai-chat-btn" @click="startFollowUpChat">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                />
               </svg>
               Chat with AI
             </button>
@@ -90,9 +120,15 @@
         <div v-for="n in 8" :key="n" class="result-item skeleton-item">
           <div class="result-thumbnail skeleton-pulse"></div>
           <div class="result-content">
-            <div class="skeleton-line skeleton-pulse" style="width: 85%; height: 0.875rem;"></div>
-            <div class="skeleton-line skeleton-pulse" style="width: 60%; height: 0.75rem; margin-top: 0.5rem;"></div>
-            <div class="skeleton-line skeleton-pulse" style="width: 35%; height: 0.625rem; margin-top: 0.375rem;"></div>
+            <div class="skeleton-line skeleton-pulse" style="width: 85%; height: 0.875rem"></div>
+            <div
+              class="skeleton-line skeleton-pulse"
+              style="width: 60%; height: 0.75rem; margin-top: 0.5rem"
+            ></div>
+            <div
+              class="skeleton-line skeleton-pulse"
+              style="width: 35%; height: 0.625rem; margin-top: 0.375rem"
+            ></div>
           </div>
         </div>
       </div>
@@ -100,7 +136,12 @@
       <!-- Empty query prompt -->
       <div v-else-if="!hasSearched" class="state-container">
         <svg class="state-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+          />
         </svg>
         <p class="state-title">Find what matters</p>
         <p class="state-subtitle">Search across all articles, videos, and podcasts</p>
@@ -109,7 +150,12 @@
       <!-- No results -->
       <div v-else-if="results.length === 0" class="state-container">
         <svg class="state-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
         </svg>
         <p class="state-title">No results found</p>
         <p class="state-subtitle">Try different keywords or check your spelling</p>
@@ -147,19 +193,21 @@
         <!-- Welcome State -->
         <div v-if="chatMessages.length === 0" class="chat-welcome-state">
           <svg class="chat-welcome-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+            />
           </svg>
           <h3 class="chat-welcome-title">Ask TunedIn AI</h3>
-          <p class="chat-welcome-subtitle">Ask questions about news, topics, or ask for a summary of search results.</p>
+          <p class="chat-welcome-subtitle">
+            Ask questions about news, topics, or ask for a summary of search results.
+          </p>
         </div>
 
         <!-- Messages -->
-        <div
-          v-for="msg in chatMessages"
-          :key="msg.id"
-          class="chat-message-item"
-          :class="msg.type"
-        >
+        <div v-for="msg in chatMessages" :key="msg.id" class="chat-message-item" :class="msg.type">
           <div class="message-bubble" v-html="formatMarkdown(msg.text)"></div>
           <div class="message-time-stamp">{{ msg.time }}</div>
         </div>
@@ -193,7 +241,12 @@
           @click="() => sendChatMessage()"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+            />
           </svg>
         </button>
       </div>
@@ -265,12 +318,12 @@ watch(
       query.value = String(newQuery.q)
       executeSearch()
     }
-  }
+  },
 )
 
 function handleInput() {
   if (debounceTimer) clearTimeout(debounceTimer)
-  
+
   // Only auto-search results tab
   if (activeTab.value === 'chat') return
 
@@ -309,21 +362,27 @@ async function executeSearch() {
     if (articlesRes.ok) {
       const json = await articlesRes.json()
       const items = json.data ?? []
-      items.forEach((item: any) => { item._type = 'Article' })
+      items.forEach((item: any) => {
+        item._type = 'Article'
+      })
       combined.push(...items)
     }
 
     if (videosRes.ok) {
       const json = await videosRes.json()
       const items = json.data ?? []
-      items.forEach((item: any) => { item._type = 'Video' })
+      items.forEach((item: any) => {
+        item._type = 'Video'
+      })
       combined.push(...items)
     }
 
     if (podcastsRes.ok) {
       const json = await podcastsRes.json()
       const items = json.data ?? []
-      items.forEach((item: any) => { item._type = 'Podcast' })
+      items.forEach((item: any) => {
+        item._type = 'Podcast'
+      })
       combined.push(...items)
     }
 
@@ -348,11 +407,14 @@ async function generateAIOverview() {
   overviewText.value = ''
 
   try {
-    const resultsSummary = results.value.slice(0, 5).map((r, idx) => {
-      const title = getTitle(r)
-      const desc = getDescription(r)
-      return `${idx + 1}. [${r._type}] ${title}: ${desc}`
-    }).join('\n')
+    const resultsSummary = results.value
+      .slice(0, 5)
+      .map((r, idx) => {
+        const title = getTitle(r)
+        const desc = getDescription(r)
+        return `${idx + 1}. [${r._type}] ${title}: ${desc}`
+      })
+      .join('\n')
 
     const prompt = `You are TunedIn AI, a helpful news assistant. The user searched for: "${q}".
 Here are the top matching search results from our database:
@@ -369,7 +431,7 @@ Please write a concise, professional AI Overview summarizing the answer to the u
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: { temperature: 0.3, topK: 40, topP: 0.95, maxOutputTokens: 1024 },
         }),
-      }
+      },
     )
 
     if (!response.ok) throw new Error(`HTTP ${response.status}`)
@@ -410,7 +472,7 @@ async function sendChatMessage(customText?: string) {
     id: userMsgId,
     type: 'user',
     text,
-    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
   })
 
   scrollToBottom()
@@ -418,9 +480,9 @@ async function sendChatMessage(customText?: string) {
 
   try {
     // Construct Gemini contents array
-    const contents = chatMessages.value.map(msg => ({
+    const contents = chatMessages.value.map((msg) => ({
       role: msg.type === 'user' ? 'user' : 'model',
-      parts: [{ text: msg.text }]
+      parts: [{ text: msg.text }],
     }))
 
     const response = await fetch(
@@ -432,7 +494,7 @@ async function sendChatMessage(customText?: string) {
           contents,
           generationConfig: { temperature: 0.4, topK: 40, topP: 0.95, maxOutputTokens: 1024 },
         }),
-      }
+      },
     )
 
     if (!response.ok) throw new Error(`HTTP ${response.status}`)
@@ -443,7 +505,7 @@ async function sendChatMessage(customText?: string) {
       id: Date.now() + 1,
       type: 'bot',
       text: replyText,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     })
   } catch (err) {
     console.error('Error in AI Chat:', err)
@@ -451,7 +513,7 @@ async function sendChatMessage(customText?: string) {
       id: Date.now() + 1,
       type: 'bot',
       text: "I'm sorry, I'm having trouble connecting to the AI assistant. Please try again.",
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     })
   } finally {
     isChatLoading.value = false
@@ -467,14 +529,14 @@ function startFollowUpChat() {
       id: Date.now(),
       type: 'user',
       text: query.value.trim(),
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
     {
       id: Date.now() + 1,
       type: 'bot',
       text: overviewText.value,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    }
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    },
   ]
 
   activeTab.value = 'chat'
@@ -506,7 +568,7 @@ function formatMarkdown(text: string): string {
   // Convert bullet lists (lines starting with * or -)
   const lines = html.split('\n')
   let inList = false
-  const formattedLines = lines.map(line => {
+  const formattedLines = lines.map((line) => {
     const trimmed = line.trim()
     if (trimmed.startsWith('* ') || trimmed.startsWith('- ')) {
       const content = trimmed.substring(2)
@@ -577,7 +639,9 @@ function goBack() {
   background-color: var(--bg-primary);
   color: var(--text-primary);
   padding-bottom: 1rem;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
 }
 
 .search-header {
@@ -776,7 +840,8 @@ function goBack() {
   margin-bottom: 0;
 }
 
-.ai-overview-content :deep(ul), .ai-overview-content :deep(ol) {
+.ai-overview-content :deep(ul),
+.ai-overview-content :deep(ol) {
   margin-left: 1.25rem;
   margin-bottom: 0.75rem;
   list-style-type: disc;
@@ -804,7 +869,9 @@ function goBack() {
   color: var(--text-primary);
   border: none;
   cursor: pointer;
-  transition: background 0.2s, transform 0.1s;
+  transition:
+    background 0.2s,
+    transform 0.1s;
 }
 
 .ai-chat-btn:hover {
@@ -886,12 +953,7 @@ function goBack() {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    var(--bg-hover) 50%,
-    transparent 100%
-  );
+  background: linear-gradient(90deg, transparent 0%, var(--bg-hover) 50%, transparent 100%);
   animation: shimmer 1.4s ease-in-out infinite;
 }
 
@@ -901,8 +963,12 @@ function goBack() {
 }
 
 @keyframes shimmer {
-  0%   { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 /* Results */
@@ -1014,8 +1080,14 @@ function goBack() {
 }
 
 @keyframes messageIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .chat-message-item.user {
@@ -1090,8 +1162,13 @@ function goBack() {
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
 }
 
 .chat-welcome-title {
@@ -1152,7 +1229,9 @@ function goBack() {
   color: #ffffff;
   border: none;
   cursor: pointer;
-  transition: opacity 0.2s, transform 0.1s;
+  transition:
+    opacity 0.2s,
+    transform 0.1s;
 }
 
 .chat-send-btn:hover:not(:disabled) {
@@ -1181,16 +1260,31 @@ function goBack() {
   animation: typingBounce 1.4s infinite ease-in-out both;
 }
 
-.typing-dot:nth-child(1) { animation-delay: -0.32s; }
-.typing-dot:nth-child(2) { animation-delay: -0.16s; }
+.typing-dot:nth-child(1) {
+  animation-delay: -0.32s;
+}
+.typing-dot:nth-child(2) {
+  animation-delay: -0.16s;
+}
 
 @keyframes typingBounce {
-  0%, 80%, 100% { transform: scale(0); }
-  40% { transform: scale(1); }
+  0%,
+  80%,
+  100% {
+    transform: scale(0);
+  }
+  40% {
+    transform: scale(1);
+  }
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 </style>

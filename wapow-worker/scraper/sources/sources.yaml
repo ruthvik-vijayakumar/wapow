@@ -3,14 +3,6 @@ rss:
   url: https://techcrunch.com/feed/
   category: technology
   enabled: true
-- name: The Verge
-  url: https://www.theverge.com/rss/index.xml
-  category: technology
-  enabled: true
-- name: Wired
-  url: https://www.wired.com/feed/rss
-  category: technology
-  enabled: true
 - name: Engadget
   url: https://www.engadget.com/rss.xml
   category: technology
@@ -103,21 +95,128 @@ rss:
   url: https://www.self.com/feed/rss
   category: wellbeing
   enabled: true
-- name: Test RSS
-  url: https://testrss.com/feed/
-  category: tech
+- name: The Verge
+  url: http://www.theverge.com/rss/full.xml
+  category: technology
   enabled: true
-web:
-- name: The Washington Post
-  url: https://www.washingtonpost.com/
-  category: politics
+- name: Business Insider
+  url: http://feeds2.feedburner.com/businessinsider
+  category: wellbeing
   enabled: true
-  use_playwright: true
-  selectors:
-    articles: article
-    title: a h3
-    description: p
-    image: img
-    link: a
-    author: .author
-    date: time
+- name: 'Politico '
+  url: http://feeds.politico.com/politico/rss/politicopicks
+  category: wellbeing
+  enabled: true
+- name: Wired
+  url: http://feeds.wired.com/wired/index
+  category: technology
+  enabled: true
+- name: xkcd
+  url: http://xkcd.com/rss.xml
+  category: wellbeing
+  enabled: true
+- name: Entrepreneur
+  url: http://feeds.feedburner.com/entrepreneur/latest
+  category: wellbeing
+  enabled: true
+- name: Leading Blog
+  url: http://www.leadershipnow.com/leadingblog/atom.xml
+  category: wellbeing
+  enabled: true
+- name: Greg Mankiw's Blog
+  url: http://gregmankiw.blogspot.com/feeds/posts/default
+  category: wellbeing
+  enabled: true
+- name: Management Blog
+  url: http://www.managementblog.org/feed/
+  category: wellbeing
+  enabled: true
+- name: DAILY WRITING TIPS
+  url: http://feeds.feedburner.com/DailyWritingTips
+  category: wellbeing
+  enabled: true
+- name: Ann Handley
+  url: http://feeds.feedburner.com/ANNARCHY
+  category: wellbeing
+  enabled: true
+- name: smitten kitchen
+  url: http://feeds.feedburner.com/smittenkitchen
+  category: wellbeing
+  enabled: true
+- name: The Points Guy Articles
+  url: http://feeds.feedburner.com/thepointsguy
+  category: travel
+  enabled: true
+- name: Stereogum
+  url: http://feeds.feedburner.com/stereogum/cBYa
+  category: wellbeing
+  enabled: true
+- name: Boing Boing
+  url: http://feeds.boingboing.net/boingboing/iBag
+  category: wellbeing
+  enabled: true
+- name: 'New York Times - Modern Love '
+  url: http://topics.nytimes.com/top/features/style/fashionandstyle/columns/modernlove/?rss=1
+  category: wellbeing
+  enabled: true
+- name: Calculated Risk
+  url: http://www.calculatedriskblog.com/feeds/posts/default
+  category: wellbeing
+  enabled: true
+- name: Electrek
+  url: http://electrek.co/feed/
+  category: technology
+  enabled: true
+- name: 'Harvard Business Review '
+  url: http://feeds.harvardbusiness.org/harvardbusiness/
+  category: wellbeing
+  enabled: true
+- name: BloombergNEF
+  url: http://www.bnef.com/bnef/feed/
+  category: technology
+  enabled: true
+- name: Above the Law
+  url: http://www.abovethelaw.com/index.xml
+  category: wellbeing
+  enabled: true
+- name: 4Hoteliers
+  url: http://www.4hoteliers.com/rss/4htopnews.xml
+  category: travel
+  enabled: true
+- name: RCR Wireless News
+  url: http://www.rcrwireless.com/article/feed/
+  category: technology
+  enabled: true
+- name: AgFunderNews
+  url: http://agfundernews.com/feed
+  category: wellbeing
+  enabled: true
+- name: Lowering the Bar
+  url: http://www.loweringthebar.net/atom.xml
+  category: wellbeing
+  enabled: true
+- name: Runway Girl
+  url: http://www.runwaygirlnetwork.com/feed/
+  category: travel
+  enabled: true
+- name: NYT > Top Stories
+  url: http://www.nytimes.com/services/xml/rss/nyt/HomePage.xml
+  category: wellbeing
+  enabled: true
+- name: Skift
+  url: http://skift.com/feed/
+  category: travel
+  enabled: true
+- name: Grist
+  url: http://feeds.grist.org/rss/gristfeed
+  category: wellbeing
+  enabled: true
+- name: Inman
+  url: http://feeds.feedburner.com/inmannews
+  category: wellbeing
+  enabled: true
+- name: 'The Atlantic '
+  url: http://feeds.feedburner.com/TheAtlantic
+  category: wellbeing
+  enabled: true
+web: []

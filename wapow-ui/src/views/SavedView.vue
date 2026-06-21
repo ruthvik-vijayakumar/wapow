@@ -3,7 +3,12 @@
     <header class="saved-header">
       <button class="back-button" @click="handleBack">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M15 19l-7-7 7-7"
+          />
         </svg>
       </button>
       <h1 class="saved-title">Saved Content</h1>
@@ -13,8 +18,11 @@
       <div v-for="n in 6" :key="n" class="saved-item skeleton-item">
         <div class="item-thumbnail skeleton-pulse"></div>
         <div class="item-content">
-          <div class="skeleton-line skeleton-pulse" style="width: 80%; height: 0.8125rem;"></div>
-          <div class="skeleton-line skeleton-pulse" style="width: 45%; height: 0.625rem; margin-top: 0.375rem;"></div>
+          <div class="skeleton-line skeleton-pulse" style="width: 80%; height: 0.8125rem"></div>
+          <div
+            class="skeleton-line skeleton-pulse"
+            style="width: 45%; height: 0.625rem; margin-top: 0.375rem"
+          ></div>
         </div>
         <div class="skeleton-circle skeleton-pulse"></div>
       </div>
@@ -22,22 +30,26 @@
 
     <div v-else-if="items.length === 0" class="empty-state">
       <svg class="empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+        />
       </svg>
       <p class="empty-title">Nothing saved yet</p>
       <p class="empty-subtitle">Save articles, videos, and podcasts to find them here</p>
     </div>
 
     <div v-else class="saved-list">
-      <div
-        v-for="item in items"
-        :key="item.id"
-        class="saved-item"
-        @click="handleItemClick(item)"
-      >
+      <div v-for="item in items" :key="item.id" class="saved-item" @click="handleItemClick(item)">
         <div class="item-thumbnail">
           <img
-            :src="item.imageUrl || item.promo_items?.basic?.url || 'https://via.placeholder.com/120x80?text=No+image'"
+            :src="
+              item.imageUrl ||
+              item.promo_items?.basic?.url ||
+              'https://via.placeholder.com/120x80?text=No+image'
+            "
             :alt="item.title"
             class="thumbnail-img"
           />
@@ -49,19 +61,22 @@
         </div>
         <button
           class="unsave-button"
-          :class="{ 'saving': unsavingId === item.id }"
+          :class="{ saving: unsavingId === item.id }"
           :disabled="unsavingId === item.id"
           @click.stop="handleUnsave(item)"
           aria-label="Remove from saved"
         >
           <svg class="w-5 h-5" fill="currentColor" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+            />
           </svg>
         </button>
       </div>
     </div>
-
-
   </div>
 </template>
 
@@ -123,7 +138,7 @@ const loadSaved = async () => {
         String(item._id ?? ''),
         String(item.contentId ?? item.content_id ?? ''),
       ].filter(Boolean)
-      return candidates.find(c => savedOrder.has(c))
+      return candidates.find((c) => savedOrder.has(c))
     }
 
     for (const item of fetchedItems) {
@@ -149,7 +164,6 @@ const loadSaved = async () => {
 
 const handleBack = () => router.push('/profile')
 
-
 const handleItemClick = (item: any) => {
   const id = item._id ?? item.id
   const category = item.collection ?? 'sports'
@@ -166,7 +180,9 @@ const handleUnsave = async (item: any) => {
   if (!id) return
   unsavingId.value = String(item.id ?? item._id)
   try {
-    const res = await apiFetch(`/api/saved-articles/${encodeURIComponent(id)}`, { method: 'DELETE' })
+    const res = await apiFetch(`/api/saved-articles/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    })
     if (res.ok) {
       items.value = items.value.filter((i) => i !== item)
     }
@@ -184,7 +200,9 @@ onMounted(() => loadSaved())
   background-color: var(--bg-primary);
   color: var(--text-primary);
   padding-bottom: 1.5rem;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
 }
 
 .saved-header {
@@ -252,8 +270,12 @@ onMounted(() => loadSaved())
 }
 
 @keyframes shimmer {
-  0%   { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 .empty-icon {
@@ -360,7 +382,9 @@ onMounted(() => loadSaved())
   border: none;
   border-radius: 0.5rem;
   cursor: pointer;
-  transition: color 0.2s, opacity 0.2s;
+  transition:
+    color 0.2s,
+    opacity 0.2s;
 }
 
 .unsave-button:hover:not(:disabled) {

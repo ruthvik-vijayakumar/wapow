@@ -128,20 +128,20 @@ ARTICLE_BODY:
                 "content": page_content
             })
             
-        # Append overview slide
-        if takeaways:
-            takeaways_text = "\n".join(f"• {t.strip()}" for t in takeaways)
-        else:
-            # Fallback
-            takeaways_text = f"• {analyzed.title}"
-            
-        pages.append({
-            "page_type": "overview",
-            "content": [
-                {"type": "text", "content": takeaways_text}
-            ]
-        })
-        
+        # Overview/takeaways slide only when there are multiple content slides.
+        if len(pages) >= 2:
+            if takeaways:
+                takeaways_text = "\n".join(f"• {t.strip()}" for t in takeaways)
+            else:
+                takeaways_text = f"• {analyzed.title}"
+
+            pages.append({
+                "page_type": "overview",
+                "content": [
+                    {"type": "text", "content": takeaways_text}
+                ]
+            })
+
         return pages
         
     except Exception as e:

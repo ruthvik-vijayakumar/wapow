@@ -4,7 +4,7 @@ import { ref, computed } from 'vue'
 // Washington Post Article Interface based on new JSON structure
 export interface Article {
   _id: string
-  ai_summary: any,
+  ai_summary: any
   additional_properties: any
   canonical_url: string
   canonical_website: string
@@ -268,14 +268,22 @@ export interface StoryContent {
 export type MediaItem = Video | StoryContent
 
 export const useContentStore = defineStore('content', () => {
-
   const videos = ref<Video[]>([])
   const podcastClips = ref<StoryContent[]>([])
   const articles = ref<Article[]>([])
   const isLoading = ref(false)
 
+  // ── Infinite-scroll pagination state (articles) ──
+  const ARTICLES_PAGE_SIZE = 24
+  const articlesCategory = ref<string | null>(null)
+  const articlesPage = ref(1)
+  const articlesTotalPages = ref(1)
+  const articlesLoadingMore = ref(false)
+  const articlesHasMore = ref(false)
+
   const createArticleFromSource = (source: any): Article => {
     return {
+      ...source,
       _id: source._id || '',
       ai_summary: source.ai_summary || {},
       additional_properties: source.additional_properties || {},
@@ -295,8 +303,15 @@ export const useContentStore = defineStore('content', () => {
       display_date: source.display_date || '',
       first_publish_date: source.first_publish_date || '',
       headlines: source.headlines || {
-        apple_news: '', basic: '', meta_title: '', mobile: '',
-        native: '', print: '', tablet: '', url: '', web: '',
+        apple_news: '',
+        basic: '',
+        meta_title: '',
+        mobile: '',
+        native: '',
+        print: '',
+        tablet: '',
+        url: '',
+        web: '',
       },
       label: source.label || {
         basic: { display: false, text: '', url: '' },
@@ -340,7 +355,10 @@ export const useContentStore = defineStore('content', () => {
     }
   }
 
-  const getSectionData = async (category_id: string) => {
+  const getSectionData = async (
+    category_id: string,
+    opts: { page?: number; limit?: number } = {},
+  ) => {
     const baseUrl = import.meta.env.VITE_ARTICLES_API || 'http://localhost:3001'
 
     if (category_id === '/videos' || category_id === '/podcasts') {
@@ -349,33 +367,86 @@ export const useContentStore = defineStore('content', () => {
     }
 
     const category = category_id.replace(/^\//, '')
-    const url = category
-      ? `${baseUrl}/api/articles?category=${encodeURIComponent(category)}`
-      : `${baseUrl}/api/articles`
+    const params = new URLSearchParams()
+    if (category) params.set('category', category)
+    if (opts.page) params.set('page', String(opts.page))
+    if (opts.limit) params.set('limit', String(opts.limit))
+    const qs = params.toString()
+    // Trailing slash matches the route (`@router.get("/")`) and avoids a 307 redirect.
+    const url = `${baseUrl}/api/articles/${qs ? `?${qs}` : ''}`
     const response = await fetch(url, { method: 'GET' })
     return response.json()
   }
 
-  const loadArticles = async (apiCategoryId: string) => {
-    const { data } = await getSectionData(apiCategoryId)
-    articles.value = data
-      .filter((article: any) =>
-        article.canonical_url &&
-        article.promo_items && Object.keys(article.promo_items).length > 0
+  /** Map + filter raw API article docs into typed Article objects. */
+  const _mapArticles = (data: any[]): Article[] =>
+    (data ?? [])
+      .filter(
+        (article: any) =>
+          article.canonical_url &&
+          article.promo_items &&
+          Object.keys(article.promo_items).length > 0,
       )
       .map((article: any) => createArticleFromSource(article))
+
+  /** Load the first page of a category, replacing the current article list. */
+  const loadArticles = async (apiCategoryId: string) => {
+    articlesCategory.value = apiCategoryId
+    articlesPage.value = 1
+    articlesLoadingMore.value = false
+
+    const res = await getSectionData(apiCategoryId, { page: 1, limit: ARTICLES_PAGE_SIZE })
+    articles.value = _mapArticles(res?.data)
+
+    const totalPages = Number(res?.pages) || 1
+    articlesTotalPages.value = totalPages
+    articlesHasMore.value = articlesPage.value < totalPages
+  }
+
+  /** Append the next page of the current category (infinite scroll). */
+  const loadMoreArticles = async () => {
+    if (articlesLoadingMore.value || !articlesHasMore.value || !articlesCategory.value) {
+      return
+    }
+    articlesLoadingMore.value = true
+    try {
+      const nextPage = articlesPage.value + 1
+      const res = await getSectionData(articlesCategory.value, {
+        page: nextPage,
+        limit: ARTICLES_PAGE_SIZE,
+      })
+      const mapped = _mapArticles(res?.data)
+
+      // Append while de-duplicating by _id (guards against overlap/race)
+      const existingIds = new Set(articles.value.map((a) => String(a._id)))
+      const fresh = mapped.filter((a) => !existingIds.has(String(a._id)))
+      articles.value = [...articles.value, ...fresh]
+
+      articlesPage.value = nextPage
+      const totalPages = Number(res?.pages) || articlesTotalPages.value
+      articlesTotalPages.value = totalPages
+      // Detect pagination overlap: server returned docs but every one was a duplicate.
+      // That signals an unstable page window — stop to avoid a runaway load loop.
+      const overlapOnly = mapped.length > 0 && fresh.length === 0
+      articlesHasMore.value = nextPage < totalPages && !overlapOnly
+    } catch (e) {
+      console.error('Error loading more articles:', e)
+    } finally {
+      articlesLoadingMore.value = false
+    }
   }
 
   const getArticlesBySection = (section: string): Article[] => {
-    return articles.value.filter(article =>
-      article.taxonomy?.primary_section?.name === section ||
-      article.taxonomy?.sections?.some((s: any) => s.name === section) ||
-      article.type === section
+    return articles.value.filter(
+      (article) =>
+        article.taxonomy?.primary_section?.name === section ||
+        article.taxonomy?.sections?.some((s: any) => s.name === section) ||
+        article.type === section,
     )
   }
 
   const getArticlesByType = (type: string): Article[] => {
-    return articles.value.filter(article => article.type === type)
+    return articles.value.filter((article) => article.type === type)
   }
 
   const getTrendingArticles = (limit: number = 10): Article[] => {
@@ -393,23 +464,25 @@ export const useContentStore = defineStore('content', () => {
     try {
       const { data } = await getSectionData('/videos')
 
-      return data?.map((video: any) => ({
-        aspect_ratio: video.aspect_ratio,
-        content_id: video.content_id,
-        canonical_url: video.canonical_url,
-        promo_image: { url: video.promo_image?.url || '' },
-        streams: video.streams || [],
-        duration: 0,
-        tracking: {
-          page_name: '',
-          video_category: 'vertical',
-          video_section: '',
-          video_source: 'The Washington Post',
-          page_title: video.canonical_url.split('/').pop()?.replace('.html', '') || 'Video',
-          av_name: '',
-          av_arc_id: '',
-        },
-      })) || []
+      return (
+        data?.map((video: any) => ({
+          aspect_ratio: video.aspect_ratio,
+          content_id: video.content_id,
+          canonical_url: video.canonical_url,
+          promo_image: { url: video.promo_image?.url || '' },
+          streams: video.streams || [],
+          duration: 0,
+          tracking: {
+            page_name: '',
+            video_category: 'vertical',
+            video_section: '',
+            video_source: 'The Washington Post',
+            page_title: video.canonical_url.split('/').pop()?.replace('.html', '') || 'Video',
+            av_name: '',
+            av_arc_id: '',
+          },
+        })) || []
+      )
     } catch (error) {
       console.error('Error loading videos:', error)
       return []
@@ -417,15 +490,29 @@ export const useContentStore = defineStore('content', () => {
   }
 
   const generatePodcastClips = async (): Promise<StoryContent[]> => {
-    const { data } = await getSectionData('/podcasts')
-    return data.map((clip: any) => ({
-      id: clip._id,
-      title: clip.headlines?.basic,
-      description: clip.description?.basic,
-      audioUrl: clip.additional_properties?.audio_article_raw_url || clip.additional_properties?.audio[0].url,
-      thumbnail: clip.promo_items?.basic?.url || clip.additional_properties?.lead_art.url,
-      author: { name: 'The Washington Post', username: '@washingtonpost', avatar: 'https://picsum.photos/50/50?random=wapo' },
-    }))
+    try {
+      const { data } = await getSectionData('/podcasts')
+      return (data ?? []).map((clip: any) => {
+        const ap = clip.additional_properties ?? {}
+        const audioUrl = ap.audio_article_raw_url || ap.audio?.[0]?.url || ''
+        const thumbnail = clip.promo_items?.basic?.url || ap.lead_art?.url || ''
+        return {
+          id: clip._id,
+          title: clip.headlines?.basic,
+          description: clip.description?.basic,
+          audioUrl,
+          thumbnail,
+          author: {
+            name: 'The Washington Post',
+            username: '@washingtonpost',
+            avatar: 'https://picsum.photos/50/50?random=wapo',
+          },
+        }
+      })
+    } catch (error) {
+      console.error('Error loading podcast clips:', error)
+      return []
+    }
   }
 
   const getAllMediaItems = computed((): MediaItem[] => {
@@ -450,6 +537,10 @@ export const useContentStore = defineStore('content', () => {
     podcastClips,
     articles,
     isLoading,
+    // pagination / infinite scroll
+    articlesLoadingMore,
+    articlesHasMore,
+    loadMoreArticles,
     getAllMediaItems,
     getMediaByType,
     loadArticles,

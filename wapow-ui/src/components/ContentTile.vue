@@ -2,7 +2,7 @@
   <div
     class="content-tile group cursor-pointer relative overflow-hidden"
     @click="handleClick"
-    :class="{ 'clicked': isClicked }"
+    :class="{ clicked: isClicked }"
   >
     <!-- Ripple effect -->
     <div
@@ -12,11 +12,14 @@
         left: rippleX + 'px',
         top: rippleY + 'px',
         width: rippleSize + 'px',
-        height: rippleSize + 'px'
+        height: rippleSize + 'px',
       }"
     ></div>
 
-    <div class="relative overflow-hidden rounded-lg" :style="{ aspectRatio: content.subtype === 'audio' ? '1.77' : '0.67' }">
+    <div
+      class="relative overflow-hidden rounded-lg"
+      :style="{ aspectRatio: content.subtype === 'audio' ? '1.77' : '0.67' }"
+    >
       <!-- Thumbnail with lazy loading for performance -->
       <img
         :src="content.promo_items?.basic?.url"
@@ -45,14 +48,13 @@
 
     <!-- Content info -->
     <div class="mt-2 space-y-1 px-2 pb-2">
-
-      <!-- Section/Category -->
-      <div class="flex items-center space-x-1 mb-1">
-        <p class="text-xs tile-text-secondary">{{ getSectionName() }}</p>
+      <!-- Source name -->
+      <div v-if="getPublisher()" class="flex items-center mb-2">
+        <p class="text-xs tile-text-secondary font-medium truncate">{{ getPublisher() }}</p>
       </div>
 
       <!-- Title -->
-      <h3 style="font-size: 1.1rem; line-height: 1.2;" class="text-xl tracking-tight font-bold tile-text-primary font-postoni">
+      <h3 style="line-height: 1.2" class="tracking-tight font-bold tile-text-primary font-postoni">
         {{ content.headlines?.basic || 'Article Title' }}
       </h3>
 
@@ -63,20 +65,35 @@
 
       <!-- Author info -->
       <div v-if="content.subtype !== 'recipe-template'" class="flex items-center space-x-2 pt-2">
-        <span class="text-xs tile-text-primary" style="opacity: 0.85;">by {{ getAuthorName() }}</span>
+        <span class="text-xs tile-text-primary" style="opacity: 0.85"
+          >by {{ getAuthorName() }}</span
+        >
       </div>
 
       <!-- Published date -->
-      <div v-if="content.publish_date && content.subtype !== 'recipe-template'" class="flex items-center space-x-2">
+      <div
+        v-if="content.publish_date && content.subtype !== 'recipe-template'"
+        class="flex items-center space-x-2"
+      >
         <span class="text-xs tile-text-secondary">{{ formatTimeAgo(content.publish_date) }}</span>
       </div>
 
       <!-- Recipe-specific information -->
       <div v-if="content.subtype === 'recipe-template'" class="flex items-center space-x-2 pt-1">
         <!-- Total time -->
-        <div  class="flex items-center space-x-1">
-          <svg class="w-3 h-3 tile-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        <div class="flex items-center space-x-1">
+          <svg
+            class="w-3 h-3 tile-text-secondary"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
           </svg>
           <span class="text-xs tile-text-secondary">{{ getRecipeTotalTime() }}</span>
         </div>
@@ -84,7 +101,9 @@
         <!-- Course -->
         <div class="flex items-center space-x-1">
           <span class="text-xs tile-text-secondary">&bull;</span>
-          <span class="text-xs tile-text-secondary">{{  content.taxonomy.tags[0].description || '' }}</span>
+          <span class="text-xs tile-text-secondary">{{
+            content.taxonomy.tags[0].description || ''
+          }}</span>
         </div>
       </div>
 
@@ -118,7 +137,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  index: 0
+  index: 0,
 })
 
 const emit = defineEmits<{
@@ -171,19 +190,28 @@ const handleClick = (event: MouseEvent) => {
   }, 600)
 }
 
+const getPublisher = (): string => {
+  const c = props.content as any
+  return c.publisher || c._scraper_meta?.publisher || ''
+}
+
 const getSectionName = (): string => {
-  return props.content.taxonomy?.primary_section?.name ||
-         props.content.taxonomy?.sections?.[0]?.name ||
-         props.content.type ||
-         'News'
+  return (
+    props.content.taxonomy?.primary_section?.name ||
+    props.content.taxonomy?.sections?.[0]?.name ||
+    props.content.type ||
+    'News'
+  )
 }
 
 const getAuthorName = (): string => {
   const author = props.content.credits?.by?.[0]
   if (author) {
-    return author.name ||
-           `${author.additional_properties?.original?.firstName || ''} ${author.additional_properties?.original?.lastName || ''}`.trim() ||
-           'Unknown Author'
+    return (
+      author.name ||
+      `${author.additional_properties?.original?.firstName || ''} ${author.additional_properties?.original?.lastName || ''}`.trim() ||
+      'Unknown Author'
+    )
   }
   return 'Unknown Author'
 }
@@ -191,9 +219,11 @@ const getAuthorName = (): string => {
 const getAuthorDesk = (): string => {
   const author = props.content.credits?.by?.[0]
   if (author) {
-    return author.additional_properties?.original?.newsDesk ||
-           author.additional_properties?.original?.subDesk ||
-           ''
+    return (
+      author.additional_properties?.original?.newsDesk ||
+      author.additional_properties?.original?.subDesk ||
+      ''
+    )
   }
   return ''
 }
@@ -229,7 +259,7 @@ const formatDate = (dateString: string): string => {
   } else {
     return date.toLocaleDateString('en-US', {
       month: 'short',
-      day: 'numeric'
+      day: 'numeric',
     })
   }
 }
@@ -267,31 +297,31 @@ const formatTimeAgo = (dateString: string | boolean): string => {
 
 const getCategoryEmoji = (category: string): string => {
   const emojiMap: { [key: string]: string } = {
-    'Technology': '💻',
-    'Climate': '🌍',
-    'Space': '🚀',
-    'Health': '🏥',
-    'Economy': '📈',
-    'Energy': '⚡',
-    'Business': '💼',
-    'Transportation': '🚗',
-    'Security': '🔒',
-    'Food': '🍽️',
-    'Environment': '🌱',
-    'Finance': '💰',
-    'Education': '📚',
-    'Agriculture': '🌾',
-    'Politics': '🏛️',
-    'Sports': '⚽',
-    'Entertainment': '🎭',
-    'Science': '🔬',
-    'Travel': '✈️',
-    'Fashion': '👗',
-    'Music': '🎵',
-    'Movie': '🎬',
-    'Gaming': '🎮',
-    'Weather': '🌤️',
-    'Crime': '🚔'
+    Technology: '💻',
+    Climate: '🌍',
+    Space: '🚀',
+    Health: '🏥',
+    Economy: '📈',
+    Energy: '⚡',
+    Business: '💼',
+    Transportation: '🚗',
+    Security: '🔒',
+    Food: '🍽️',
+    Environment: '🌱',
+    Finance: '💰',
+    Education: '📚',
+    Agriculture: '🌾',
+    Politics: '🏛️',
+    Sports: '⚽',
+    Entertainment: '🎭',
+    Science: '🔬',
+    Travel: '✈️',
+    Fashion: '👗',
+    Music: '🎵',
+    Movie: '🎬',
+    Gaming: '🎮',
+    Weather: '🌤️',
+    Crime: '🚔',
   }
   return emojiMap[category] || '📰'
 }
@@ -324,7 +354,6 @@ const getRecipeTotalTime = (): string => {
 
   return ''
 }
-
 </script>
 
 <style scoped>

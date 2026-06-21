@@ -17,8 +17,8 @@ app.use(router)
 if (isAuth0Configured) {
   app.use(
     createAuth0(auth0Config, {
-      skipRedirectCallback: window.location.pathname === '/auth/callback'
-    })
+      skipRedirectCallback: window.location.pathname === '/auth/callback',
+    }),
   )
 }
 

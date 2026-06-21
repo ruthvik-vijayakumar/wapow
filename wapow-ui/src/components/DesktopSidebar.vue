@@ -24,6 +24,14 @@
           <span class="desktop-sidebar__label">Search</span>
         </button>
 
+        <button class="desktop-sidebar__item" :class="{ active: isTopics }" @click="goTopics" type="button">
+          <span class="desktop-sidebar__icon" aria-hidden="true">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+            </svg>
+          </span>
+          <span class="desktop-sidebar__label">Topics</span>
+        </button>
 
         <button class="desktop-sidebar__item" :class="{ active: isGames }" @click="emit('navigate', 'games')" type="button">
           <span class="desktop-sidebar__icon" aria-hidden="true">
@@ -60,6 +68,7 @@ const route = useRoute()
 
 const isHome = computed(() => route.path === '/' || route.path.split('/').filter(Boolean).length <= 1)
 const isSearch = computed(() => route.path === '/search')
+const isTopics = computed(() => route.path === '/topics')
 const isGames = computed(() => false)
 const isProfile = computed(() => route.path === '/profile')
 
@@ -67,6 +76,7 @@ const goHome = () => {
   router.push('/sports')
 }
 const goSearch = () => router.push('/search')
+const goTopics = () => router.push('/topics')
 const goProfile = () => router.push('/profile')
 </script>
 

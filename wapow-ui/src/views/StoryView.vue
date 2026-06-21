@@ -6,12 +6,24 @@
         <div class="story-skeleton-screen">
           <div class="story-skeleton-image skeleton-pulse-dark"></div>
           <div class="story-skeleton-overlay">
-            <div class="skeleton-line-dark skeleton-pulse-dark" style="width: 70%; height: 1.125rem;"></div>
-            <div class="skeleton-line-dark skeleton-pulse-dark" style="width: 90%; height: 0.875rem; margin-top: 0.75rem;"></div>
-            <div class="skeleton-line-dark skeleton-pulse-dark" style="width: 50%; height: 0.875rem; margin-top: 0.5rem;"></div>
+            <div
+              class="skeleton-line-dark skeleton-pulse-dark"
+              style="width: 70%; height: 1.125rem"
+            ></div>
+            <div
+              class="skeleton-line-dark skeleton-pulse-dark"
+              style="width: 90%; height: 0.875rem; margin-top: 0.75rem"
+            ></div>
+            <div
+              class="skeleton-line-dark skeleton-pulse-dark"
+              style="width: 50%; height: 0.875rem; margin-top: 0.5rem"
+            ></div>
             <div class="story-skeleton-meta">
               <div class="skeleton-avatar skeleton-pulse-dark"></div>
-              <div class="skeleton-line-dark skeleton-pulse-dark" style="width: 7rem; height: 0.75rem;"></div>
+              <div
+                class="skeleton-line-dark skeleton-pulse-dark"
+                style="width: 7rem; height: 0.75rem"
+              ></div>
             </div>
           </div>
         </div>
@@ -19,16 +31,18 @@
     </Transition>
 
     <!-- Actual content renders on top -->
-    <StoryFeed
-      v-if="currentArticle"
-      :initial-article="currentArticle"
-      :articles="mixedCategoryContent"
-      :category="currentCategory"
-      @back="handleBack"
-      @follow="handleFollow"
-    />
-    <div v-else-if="contentNotFound" class="not-found-container">
-      <p style="color: #aaa;">Content not found</p>
+    <ErrorBoundary fallback-message="Failed to load this story. Please go back and try again.">
+      <StoryFeed
+        v-if="currentArticle"
+        :initial-article="currentArticle"
+        :articles="mixedCategoryContent"
+        :category="currentCategory"
+        @back="handleBack"
+        @follow="handleFollow"
+      />
+    </ErrorBoundary>
+    <div v-if="!currentArticle && contentNotFound" class="not-found-container">
+      <p style="color: #aaa">Content not found</p>
     </div>
   </div>
 </template>
@@ -38,6 +52,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useContentStore } from '@/stores/content'
 import StoryFeed from '@/components/StoryFeed.vue'
+import ErrorBoundary from '@/components/ErrorBoundary.vue'
 import type { Article } from '@/stores/content'
 import Game from './wordle/Game.vue'
 
@@ -54,23 +69,25 @@ const savedItem = (window.history.state?.savedItem as Record<string, any>) ?? nu
 
 // Get article ID and category from route params
 const articleId = computed(() => route.params.videoId as string)
-const currentCategory = computed(() => route.params.category as string || 'Technology')
+const currentCategory = computed(() => (route.params.category as string) || 'Technology')
 
 // Determine if the navigated item is a video or podcast (from saved page or store)
 const resolvedVideo = computed(() => {
   const id = articleId.value
   if (savedItem && savedItem.collection === 'videos') return savedItem
-  return contentStore.videos.find(
-    (v: any) => String(v._id) === id || v.content_id === id || String(v.id) === id,
-  ) ?? null
+  return (
+    contentStore.videos.find(
+      (v: any) => String(v._id) === id || v.content_id === id || String(v.id) === id,
+    ) ?? null
+  )
 })
 
 const resolvedPodcast = computed(() => {
   const id = articleId.value
   if (savedItem && savedItem.collection === 'podcasts') return savedItem
-  return contentStore.podcastClips.find(
-    (p: any) => String(p._id) === id || String(p.id) === id,
-  ) ?? null
+  return (
+    contentStore.podcastClips.find((p: any) => String(p._id) === id || String(p.id) === id) ?? null
+  )
 })
 
 // Find the current article from the store (search articles, videos, and podcasts)
@@ -81,7 +98,9 @@ const currentArticle = computed(() => {
     return {
       _id: id,
       type: 'video',
-      headlines: { basic: resolvedVideo.value.tracking?.page_title || resolvedVideo.value.title || 'Video' },
+      headlines: {
+        basic: resolvedVideo.value.tracking?.page_title || resolvedVideo.value.title || 'Video',
+      },
       _videoRef: resolvedVideo.value,
     } as any
   }
@@ -97,7 +116,7 @@ const currentArticle = computed(() => {
 
   if (savedItem && savedItem.headlines?.basic) return savedItem as any
 
-  const article = contentStore.articles.find(a => a._id === id || String(a._id) === id)
+  const article = contentStore.articles.find((a) => a._id === id || String(a._id) === id)
   if (article) return article
 
   // Use article fetched directly by ID from the API
@@ -129,11 +148,14 @@ const onResize = () => {
 // Fetch the specific article by ID from the API (for page refresh scenarios)
 async function fetchArticleById(id: string) {
   try {
-    const response = await fetch(`${import.meta.env.VITE_ARTICLES_API || 'http://localhost:3001'}/api/articles/by-ids`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: [id] })
-    })
+    const response = await fetch(
+      `${import.meta.env.VITE_ARTICLES_API || 'http://localhost:3001'}/api/articles/by-ids`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: [id] }),
+      },
+    )
     const { data } = await response.json()
     if (data && data.length > 0) {
       fetchedArticle.value = data[0]
@@ -154,20 +176,23 @@ onMounted(async () => {
 
   // Always fetch recommendations
   promises.push(
-    fetchRecommendations("user_001", currentCategory.value).then(async (recc) => {
+    fetchRecommendations('user_001', currentCategory.value).then(async (recc) => {
       if (!recc) return
       const cat_ids = (recc.category_recommendations ?? []).map((item: any) => item.article_id)
       const gen_ids = (recc.general_recommendations ?? []).map((item: any) => item.article_id)
       const ids = [...cat_ids, ...gen_ids]
       if (ids.length === 0) return
-      const response = await fetch(`${import.meta.env.VITE_ARTICLES_API || 'http://localhost:3001'}/api/articles/by-ids`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids })
-      })
+      const response = await fetch(
+        `${import.meta.env.VITE_ARTICLES_API || 'http://localhost:3001'}/api/articles/by-ids`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids }),
+        },
+      )
       const { data } = await response.json()
       reccomendations.value = data
-    })
+    }),
   )
 
   // If we need a direct fetch for this article (page was refreshed)
@@ -186,13 +211,19 @@ onMounted(async () => {
       const unwatch = watch(
         () => contentStore.videos.length + contentStore.podcastClips.length,
         (total) => {
-          if (total > 0) { unwatch(); resolve() }
+          if (total > 0) {
+            unwatch()
+            resolve()
+          }
         },
-        { immediate: true }
+        { immediate: true },
       )
       // Timeout so we don't wait forever if store truly has no data
-      setTimeout(() => { unwatch(); resolve() }, 3000)
-    })
+      setTimeout(() => {
+        unwatch()
+        resolve()
+      }, 3000)
+    }),
   )
 
   await Promise.all(promises)
@@ -209,8 +240,8 @@ const fetchRecommendations = async (userId: string, category: string) => {
       },
       body: JSON.stringify({
         user_id: userId,
-        category: category
-      })
+        category: category,
+      }),
     })
 
     if (!response.ok) {
@@ -233,9 +264,11 @@ const mixedCategoryContent = computed(() => {
 
   // Filter articles by category
   const articles = reccomendations.value.filter((article: any) => {
-    const articleCategory = article.taxonomy?.primary_section?.name ||
+    const articleCategory =
+      article.taxonomy?.primary_section?.name ||
       article.taxonomy?.sections?.[0]?.name ||
-      article.type || 'News'
+      article.type ||
+      'News'
     const aCat = articleCategory.toLowerCase()
     const cCat = currentCategory.value.toLowerCase()
     return aCat === cCat || (aCat === 'health' && cCat === 'wellbeing')
@@ -259,7 +292,7 @@ const mixedCategoryContent = computed(() => {
     _id: 'wordle-game',
     type: 'game',
     title: 'Wordle',
-    component: 'Game'
+    component: 'Game',
   }
   mixed.push(gameContent)
   return mixed
@@ -364,12 +397,21 @@ const handleFollow = (authorId: string) => {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.06) 50%, transparent 100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.06) 50%,
+    transparent 100%
+  );
   animation: shimmer 1.4s ease-in-out infinite;
 }
 
 @keyframes shimmer {
-  0%   { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
 }
 </style>

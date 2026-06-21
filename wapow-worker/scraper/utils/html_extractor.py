@@ -42,11 +42,39 @@ async def fetch_html(url: str, timeout_seconds: int = 30) -> Optional[str]:
             except Exception as nav_err:
                 logger.warning(f"Navigation timeout/error on {url}: {nav_err}")
             
-            # Wait brief moment for dynamic contents to render
+            # Wait for video iframes/players to render (JS-heavy sites like ESPN)
+            # Try to detect video players; fall back to a longer fixed wait if none appear
+            video_appeared = False
             try:
-                await page.wait_for_timeout(1000)
+                await page.wait_for_selector(
+                    "iframe[src*='youtube'], iframe[src*='youtu.be'], iframe[src*='vimeo'], "
+                    "iframe[src*='espn'], video, [class*='video-player'], [class*='videoPlayer'], "
+                    "[data-type='video'], [class*='VideoContainer']",
+                    timeout=5000,
+                )
+                video_appeared = True
+                # Give video embeds a moment to finalise their src attributes
+                await page.wait_for_timeout(1500)
             except Exception:
-                pass
+                # No video elements found within timeout — brief standard wait
+                await page.wait_for_timeout(1000)
+
+            if video_appeared:
+                # Scroll through the page to trigger lazy-loaded video iframes
+                try:
+                    await page.evaluate("window.scrollTo(0, document.body.scrollHeight / 2)")
+                    await page.wait_for_timeout(800)
+                    await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+                    await page.wait_for_timeout(800)
+                except Exception:
+                    pass
+            
+            # Dismiss cookie consent popups
+            try:
+                from scraper.utils.cookie_handler import handle_cookie_consent
+                await handle_cookie_consent(page)
+            except Exception as consent_err:
+                logger.warning(f"Error handling cookie consent for {url}: {consent_err}")
             
             html = await page.content()
             await browser.close()
@@ -412,7 +440,12 @@ def extract_elements_from_container(container: BeautifulSoup, url: str) -> tuple
         elif tag_name == "iframe":
             src = el.get("src") or ""
             src = src.strip()
-            if "youtube.com" in src or "youtu.be" in src or "vimeo.com" in src:
+            video_domains = (
+                "youtube.com", "youtu.be", "vimeo.com",
+                "espn.com", "espncdn.com", "twitter.com", "x.com",
+                "dailymotion.com", "rumble.com", "twitch.tv",
+            )
+            if src and any(d in src for d in video_domains):
                 content_elements.append({
                     "type": "video",
                     "url": urljoin(url, src),
@@ -513,14 +546,71 @@ async def extract_article_content(url: str) -> dict[str, Any]:
         return {}
 
     try:
-        content_elements = []
+        # Extract video iframes directly from full soup before readability strips them
+        video_elements_from_soup: list[dict] = []
+        content_elements: list[dict] = []
         body_text = ""
         readability_success = False
+        
+        # Pre-clean the HTML DOM of cookie/consent/CCPA wrappers
+        from scraper.utils.cookie_handler import clean_consent_elements, isolate_target_article
+        soup = BeautifulSoup(html, "lxml")
+        clean_consent_elements(soup)
+
+        # Extract video iframes directly from full soup BEFORE readability strips them
+        _video_domains = (
+            "youtube.com", "youtu.be", "vimeo.com",
+            "espn.com/watch", "espncdn.com", "twitter.com", "x.com",
+            "dailymotion.com", "rumble.com", "twitch.tv",
+        )
+        _seen_video_urls: set[str] = set()
+        for iframe in soup.find_all("iframe"):
+            src = (iframe.get("src") or "").strip()
+            if src and any(d in src for d in _video_domains):
+                resolved = urljoin(url, src)
+                if resolved not in _seen_video_urls:
+                    _seen_video_urls.add(resolved)
+                    video_elements_from_soup.append({
+                        "type": "video",
+                        "url": resolved,
+                        "embed_code": str(iframe),
+                    })
+        for vtag in soup.find_all("video"):
+            src = vtag.get("src") or ""
+            if not src:
+                source_tag = vtag.find("source")
+                if source_tag:
+                    src = source_tag.get("src") or ""
+            src = src.strip()
+            if src and not src.startswith("data:"):
+                resolved = urljoin(url, src)
+                if resolved not in _seen_video_urls:
+                    _seen_video_urls.add(resolved)
+                    video_elements_from_soup.append({
+                        "type": "video",
+                        "url": resolved,
+                        "embed_code": str(vtag),
+                    })
+        if video_elements_from_soup:
+            logger.info(f"Extracted {len(video_elements_from_soup)} video element(s) from full HTML for {url}")
+        
+        # Parse metadata first to get the target page title
+        metadata = extract_metadata(soup, url)
+        page_title = metadata.get("headline")
+        
+        # Isolate target article if multiple article wrappers are present (infinite scroll handling)
+        if page_title:
+            try:
+                isolate_target_article(soup, url, page_title)
+            except Exception as scroll_err:
+                logger.warning(f"Error isolating target article for {url}: {scroll_err}")
+                
+        cleaned_html = str(soup)
         
         # 1. Try readability-lxml first to extract body content
         try:
             from readability import Document
-            doc = Document(html)
+            doc = Document(cleaned_html)
             summary_html = doc.summary()
             if summary_html:
                 summary_soup = BeautifulSoup(summary_html, "lxml")
@@ -534,8 +624,6 @@ async def extract_article_content(url: str) -> dict[str, Any]:
             logger.warning(f"Readability parsing error: {read_err}")
 
         # 2. Parse metadata from the full HTML using BeautifulSoup
-        soup = BeautifulSoup(html, "lxml")
-        metadata = extract_metadata(soup, url)
         
         # We determine if we have "all fields filled" by checking:
         # - readability succeeded
@@ -557,6 +645,14 @@ async def extract_article_content(url: str) -> dict[str, Any]:
                 if elem.get("type") == "image" and elem.get("url"):
                     metadata["promo_image"] = elem["url"]
                     break
+
+        # Merge video elements extracted from full soup (readability strips iframes)
+        # Insert after the first text block so the video appears early in the story
+        if video_elements_from_soup:
+            first_text_idx = next((i for i, e in enumerate(content_elements) if e.get("type") == "text"), -1)
+            insert_at = first_text_idx + 1 if first_text_idx >= 0 else 0
+            for v in reversed(video_elements_from_soup):
+                content_elements.insert(insert_at, v)
 
         return {
             "title": metadata.get("headline") or (doc.title() if 'doc' in locals() else "") or "Untitled",

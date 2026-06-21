@@ -23,6 +23,7 @@ class AnalyzedArticle:
     body_text: str
     word_count: int
     image_urls: list[str] = field(default_factory=list)
+    video_items: list[dict] = field(default_factory=list)  # [{url, embed_code}]
 
 
 def _dedupe_urls(urls: list[str]) -> list[str]:
@@ -38,11 +39,13 @@ def _dedupe_urls(urls: list[str]) -> list[str]:
     return out
 
 
-def _collect_from_content_elements(elements: list) -> tuple[str, list[str]]:
+def _collect_from_content_elements(elements: list) -> tuple[str, list[str], list[dict]]:
     parts: list[str] = []
     images: list[str] = []
+    videos: list[dict] = []
+    seen_video_urls: set[str] = set()
     if not elements:
-        return "", images
+        return "", images, videos
     for el in elements:
         if not isinstance(el, dict):
             continue
@@ -62,7 +65,13 @@ def _collect_from_content_elements(elements: list) -> tuple[str, list[str]]:
                 url = basic.get("url")
             if isinstance(url, str) and url.startswith("http"):
                 images.append(url)
-    return "\n\n".join(p for p in parts if p), images
+        elif typ == "video":
+            url = el.get("url") or el.get("content_url") or ""
+            embed_code = el.get("embed_code") or el.get("content") or ""
+            if url and url not in seen_video_urls:
+                seen_video_urls.add(url)
+                videos.append({"url": url, "embed_code": embed_code})
+    return "\n\n".join(p for p in parts if p), images, videos
 
 
 def is_valid_article_image(url: str) -> bool:
@@ -131,8 +140,9 @@ def analyze_article(doc: dict) -> AnalyzedArticle:
     if isinstance(content_field, str):
         body_from_content = _strip_html(content_field)
         ce_images: list[str] = []
+        ce_videos: list[dict] = []
     else:
-        body_from_content, ce_images = _collect_from_content_elements(
+        body_from_content, ce_images, ce_videos = _collect_from_content_elements(
             content_field if isinstance(content_field, list) else []
         )
 
@@ -160,5 +170,6 @@ def analyze_article(doc: dict) -> AnalyzedArticle:
         body_text=body_from_content,
         word_count=word_count,
         image_urls=images,
+        video_items=ce_videos,
     )
 

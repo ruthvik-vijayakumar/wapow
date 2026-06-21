@@ -18,9 +18,6 @@
   },
   "dependencies": {
     "@auth0/auth0-vue": "^2.5.0",
-    "@supabase/supabase-js": "^2.53.0",
-    "@washingtonpost/wpds-assets": "^2.13.1",
-    "@washingtonpost/wpds-ui-kit": "^2.12.0",
     "@yeger/vue-masonry-wall": "^5.0.21",
     "html2canvas": "^1.4.1",
     "pinia": "^3.0.3",

@@ -4,20 +4,24 @@ from __future__ import annotations
 
 from .analyzer import AnalyzedArticle
 
-# Target 3–4 content slides by default; expand with length; cap total story depth.
-_MIN_CONTENT_SLIDES = 3
-_MAX_CONTENT_SLIDES = 9
+# Target few, substantial content slides. A typical article should become a lead
+# slide (with image) + one consolidated body slide, not a string of thin cards.
+_MIN_CONTENT_SLIDES = 1
+_MAX_CONTENT_SLIDES = 5
 _TITLE_MAX = 100
 _BODY_MAX = 2000
 
 
 def _content_slide_count(word_count: int) -> int:
-    if word_count < 250:
-        return _MIN_CONTENT_SLIDES
-    if word_count < 550:
-        return 4
-    extra = max(0, (word_count - 550) // 220)
-    return min(_MAX_CONTENT_SLIDES, 4 + extra)
+    # ~1 content slide per ~450 words; bias low so short/medium articles stay tight.
+    if word_count < 220:
+        return 1
+    if word_count < 650:
+        return 2
+    if word_count < 1100:
+        return 3
+    extra = max(0, (word_count - 1100) // 500)
+    return min(_MAX_CONTENT_SLIDES, 3 + extra)
 
 
 def _split_into_chunks(text: str, n_chunks: int) -> list[str]:
@@ -61,15 +65,15 @@ def _pick_image(urls: list[str], index: int) -> str:
 
 
 def _make_content_page(body: str, image_url: str) -> dict:
-    snippet = body.strip().replace("\n", " ")
-    title = snippet[:_TITLE_MAX] + ("…" if len(snippet) > _TITLE_MAX else "")
-    if not title:
-        title = "Details"
-    text_body = body[:_BODY_MAX] + ("…" if len(body) > _BODY_MAX else "")
+    # Pass the full text through; the frontend scales it to fit and only
+    # ellipsizes when content exceeds the container height.
+    text_body = (body or "").strip()
+    if not text_body:
+        text_body = "Details"
     return {
         "page_type": "content",
         "content": [
-            {"type": "text", "content": text_body or title},
+            {"type": "text", "content": text_body},
             {"type": "image", "content_url": image_url},
         ],
     }
@@ -82,6 +86,19 @@ def _takeaways_from_chunks(title: str, chunks: list[str]) -> str:
     return "\n".join(lines)
 
 
+def _make_video_page(video: dict, caption: str = "") -> dict:
+    """Build a video slide page."""
+    content = [
+        {"type": "video", "content_url": video["url"], "embed_code": video.get("embed_code") or ""},
+    ]
+    if caption:
+        content.insert(0, {"type": "text", "content": caption})
+    return {
+        "page_type": "content",
+        "content": content,
+    }
+
+
 def build_pages(analyzed: AnalyzedArticle) -> list[dict]:
     """Produce pages array (content + overview) for ai_summary."""
     n = _content_slide_count(analyzed.word_count)
@@ -91,13 +108,23 @@ def build_pages(analyzed: AnalyzedArticle) -> list[dict]:
         img = _pick_image(analyzed.image_urls, i)
         pages.append(_make_content_page(chunk, img))
 
-    takeaways = _takeaways_from_chunks(analyzed.title, chunks)
-    pages.append(
-        {
-            "page_type": "overview",
-            "content": [
-                {"type": "text", "content": takeaways},
-            ],
-        }
-    )
+    # Inject video slides after the first content slide (one per unique video, max 2)
+    if analyzed.video_items:
+        video_slides = []
+        for video in analyzed.video_items[:2]:
+            video_slides.append(_make_video_page(video))
+        # Insert after first content slide (index 1), before remaining content
+        pages = pages[:1] + video_slides + pages[1:]
+
+    # Takeaways slide only when there are multiple content slides to summarize.
+    if len(pages) >= 2:
+        takeaways = _takeaways_from_chunks(analyzed.title, chunks)
+        pages.append(
+            {
+                "page_type": "overview",
+                "content": [
+                    {"type": "text", "content": takeaways},
+                ],
+            }
+        )
     return pages

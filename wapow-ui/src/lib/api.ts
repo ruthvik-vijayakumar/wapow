@@ -6,10 +6,7 @@ import { useAuthStore } from '@/stores/auth'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
-export async function apiFetch(
-  path: string,
-  options: RequestInit = {},
-): Promise<Response> {
+export async function apiFetch(path: string, options: RequestInit = {}): Promise<Response> {
   const authStore = useAuthStore()
 
   let token: string | null = null

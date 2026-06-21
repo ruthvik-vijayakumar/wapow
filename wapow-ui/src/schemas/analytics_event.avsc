@@ -47,10 +47,13 @@
     },
     {
       "name": "properties",
-      "type": ["null", {
-        "type": "map",
-        "values": "string"
-      }],
+      "type": [
+        "null",
+        {
+          "type": "map",
+          "values": "string"
+        }
+      ],
       "default": null,
       "doc": "Arbitrary key-value metadata for the event. Corresponds to Record<string, unknown> in TypeScript."
     },

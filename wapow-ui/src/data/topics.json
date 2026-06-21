@@ -1,0 +1,1498 @@
+{
+  "topics": [
+    {
+      "topicName": "tech",
+      "topFeedInfo": {
+        "id": "feed/http://www.theverge.com/rss/full.xml",
+        "language": "en",
+        "description": "Covering the intersection of technology, science, art, and culture.",
+        "title": "The Verge",
+        "visualUrl": "https://storage.googleapis.com/site-assets/PSNTZO8gXFUe-cpCZyApw0vEKWPT4b14D6teBEocIAE_visual-1833aef9645",
+        "feedId": "feed/http://www.theverge.com/rss/full.xml",
+        "website": "https://www.theverge.com",
+        "topics": [
+          "tech"
+        ],
+        "subscribers": 1334161,
+        "updated": 1781957203501,
+        "velocity": 127.6,
+        "created": 1370158692348,
+        "coverUrl": "https://storage.googleapis.com/site-assets/PSNTZO8gXFUe-cpCZyApw0vEKWPT4b14D6teBEocIAE_cover-1833aef9645",
+        "partial": false,
+        "iconUrl": "https://storage.googleapis.com/site-assets/PSNTZO8gXFUe-cpCZyApw0vEKWPT4b14D6teBEocIAE_icon-1833aef9645",
+        "logo": "http://storage.googleapis.com/test-site-assets/PSNTZO8gXFUe-cpCZyApw0vEKWPT4b14D6teBEocIAE_ologo-14be62cd987"
+      },
+      "updated": 1771383106087,
+      "visual": "https://storage.googleapis.com/discovery-topic-images/tech.png",
+      "topicId": "tech"
+    },
+    {
+      "topicName": "security",
+      "topFeedInfo": {
+        "id": "feed/http://krebsonsecurity.com/feed/",
+        "language": "en",
+        "description": "Independent investigative journalist. Author of 'Spam Nation,' a NYT bestseller. Former Washington Post reporter. Mastodon: https://t.co/fTKNavlMwp",
+        "title": "Krebs on Security",
+        "visualUrl": "https://storage.googleapis.com/test-site-assets/RhPrZIPIQhgdy1v5R5fQNkKTH3rGXcrAYsWFzsIPo4k_ovisual-1740de76def",
+        "feedId": "feed/http://krebsonsecurity.com/feed/",
+        "website": "https://krebsonsecurity.com",
+        "topics": [
+          "security",
+          "tech"
+        ],
+        "subscribers": 199018,
+        "updated": 1781804366491,
+        "velocity": 1.6,
+        "created": 1370158719592,
+        "coverUrl": "https://storage.googleapis.com/test-site-assets/RhPrZIPIQhgdy1v5R5fQNkKTH3rGXcrAYsWFzsIPo4k_ocover-1740de74469",
+        "partial": false,
+        "iconUrl": "https://storage.googleapis.com/test-site-assets/RhPrZIPIQhgdy1v5R5fQNkKTH3rGXcrAYsWFzsIPo4k_oicon-1740de76def",
+        "logo": "https://storage.googleapis.com/test-site-assets/RhPrZIPIQhgdy1v5R5fQNkKTH3rGXcrAYsWFzsIPo4k_ologo-1740de77e9d"
+      },
+      "updated": 1771383106938,
+      "visual": "https://storage.googleapis.com/discovery-topic-images/security.png",
+      "topicId": "security"
+    },
+    {
+      "topicName": "marketing",
+      "topFeedInfo": {
+        "id": "feed/http://blog.hubspot.com/CMS/UI/Modules/BizBlogger/rss.aspx?tabid=6307&moduleid=8441&maxcount=25",
+        "language": "en",
+        "description": "HubSpot\u2019s Marketing Blog \u2013 attracting over 4.5 million monthly readers \u2013 covers everything you need to know to master inbound marketing.",
+        "title": "Hubspot",
+        "visualUrl": "https://storage.googleapis.com/site-assets/CwoC9CSonZo79NskfZWMOxgAe4oOB9lj5VpBfBWT1qc_svisual-1866d385032",
+        "feedId": "feed/http://blog.hubspot.com/CMS/UI/Modules/BizBlogger/rss.aspx?tabid=6307&moduleid=8441&maxcount=25",
+        "website": "https://blog.hubspot.com/marketing",
+        "topics": [
+          "marketing",
+          "seo",
+          "business",
+          "social-media",
+          "digital-marketing"
+        ],
+        "subscribers": 341875,
+        "updated": 1781781173521,
+        "velocity": 4.1,
+        "created": 1370158709439,
+        "partial": false,
+        "iconUrl": "https://storage.googleapis.com/site-assets/CwoC9CSonZo79NskfZWMOxgAe4oOB9lj5VpBfBWT1qc_sicon-1866d385032"
+      },
+      "updated": 1771383106433,
+      "visual": "https://storage.googleapis.com/discovery-topic-images/marketing.png",
+      "topicId": "marketing"
+    },
+    {
+      "topicName": "business",
+      "topFeedInfo": {
+        "id": "feed/http://feeds2.feedburner.com/businessinsider",
+        "language": "en",
+        "description": "What you need to know.",
+        "title": "Business Insider",
+        "visualUrl": "https://storage.googleapis.com/site-assets/UGoT913Pj2iVsp570XrRhskqe5_o7yyV3N_NTloByRs_visual-1852ff8b63c",
+        "feedId": "feed/http://feeds2.feedburner.com/businessinsider",
+        "website": "https://www.businessinsider.com",
+        "topics": [
+          "business",
+          "tech",
+          "finance",
+          "news"
+        ],
+        "subscribers": 634584,
+        "updated": 1781962710339,
+        "velocity": 378.2,
+        "created": 1370158708845,
+        "coverUrl": "https://storage.googleapis.com/site-assets/UGoT913Pj2iVsp570XrRhskqe5_o7yyV3N_NTloByRs_cover-171c8b0a2af",
+        "partial": false,
+        "iconUrl": "https://storage.googleapis.com/site-assets/UGoT913Pj2iVsp570XrRhskqe5_o7yyV3N_NTloByRs_icon-1852ff8b63c",
+        "logo": "http://storage.googleapis.com/test-site-assets/UGoT913Pj2iVsp570XrRhskqe5_o7yyV3N_NTloByRs_ologo-150792834ed"
+      },
+      "updated": 1771383106145,
+      "visual": "https://storage.googleapis.com/discovery-topic-images/business.png",
+      "topicId": "business"
+    },
+    {
+      "topicName": "design",
+      "topFeedInfo": {
+        "id": "feed/http://feeds.feedburner.com/design-milk",
+        "language": "en",
+        "description": "Dedicated to modern design.",
+        "title": "Design Milk",
+        "visualUrl": "https://storage.googleapis.com/test-site-assets/k3wM4lkt2uyzklIaZG_piLCFwWpRsuSz4luWQLHP0YY_ovisual-165640a4b7d",
+        "feedId": "feed/http://feeds.feedburner.com/design-milk",
+        "website": "https://design-milk.com/",
+        "topics": [
+          "design"
+        ],
+        "subscribers": 310362,
+        "updated": 1781895323764,
+        "velocity": 13.1,
+        "created": 1370158690711,
+        "coverUrl": "https://storage.googleapis.com/site-assets/k3wM4lkt2uyzklIaZG_piLCFwWpRsuSz4luWQLHP0YY_cover-186576d2ca1",
+        "partial": false,
+        "iconUrl": "https://storage.googleapis.com/test-site-assets/k3wM4lkt2uyzklIaZG_piLCFwWpRsuSz4luWQLHP0YY_oicon-165640a4b7d",
+        "logo": "http://storage.googleapis.com/test-site-assets/k3wM4lkt2uyzklIaZG_piLCFwWpRsuSz4luWQLHP0YY_ologo-14e8de81396"
+      },
+      "updated": 1771383106175,
+      "visual": "https://storage.googleapis.com/discovery-topic-images/design.png",
+      "topicId": "design"
+    },
+    {
+      "topicName": "politics",
+      "topFeedInfo": {
+        "id": "feed/http://feeds.politico.com/politico/rss/politicopicks",
+        "language": "en",
+        "description": "Politics, Policy, Political News Top Stories.",
+        "title": "Politico ",
+        "visualUrl": "https://storage.googleapis.com/site-assets/Phq6GMdD1uNEUQUw4vzpU7SrRv_2aniNTMc744uLeUs_visual-15f5ca91336",
+        "feedId": "feed/http://feeds.politico.com/politico/rss/politicopicks",
+        "website": "https://www.politico.com/",
+        "topics": [
+          "politics",
+          "news"
+        ],
+        "subscribers": 140593,
+        "updated": 1781954359348,
+        "velocity": 120.6,
+        "created": 1370158881723,
+        "coverUrl": "https://storage.googleapis.com/site-assets/Phq6GMdD1uNEUQUw4vzpU7SrRv_2aniNTMc744uLeUs_cover-15f5ca91336",
+        "partial": false,
+        "iconUrl": "https://storage.googleapis.com/site-assets/Phq6GMdD1uNEUQUw4vzpU7SrRv_2aniNTMc744uLeUs_icon-15f5ca91336"
+      },
+      "updated": 1771383106509,
+      "visual": "https://storage.googleapis.com/discovery-topic-images/politics.png",
+      "topicId": "politics"
+    },
+    {
+      "topicName": "science",
+      "topFeedInfo": {
+        "id": "feed/http://feeds.wired.com/wired/index",
+        "language": "en",
+        "description": "Where tomorrow is realized || Sign up for our newsletters: https://t.co/xljcWJtmjK",
+        "title": "Wired",
+        "visualUrl": "https://storage.googleapis.com/site-assets/tLs-1vBwN-VbKdXz72E49J0xQKpgQOM84Ue-E_GZh84_visual-1704034bda4",
+        "feedId": "feed/http://feeds.wired.com/wired/index",
+        "website": "https://www.wired.com",
+        "topics": [
+          "tech",
+          "science"
+        ],
+        "subscribers": 1176082,
+        "updated": 1781953548384,
+        "velocity": 85.8,
+        "created": 1370158691036,
+        "coverUrl": "https://storage.googleapis.com/site-assets/tLs-1vBwN-VbKdXz72E49J0xQKpgQOM84Ue-E_GZh84_cover-18611e23135",
+        "partial": true,
+        "iconUrl": "https://storage.googleapis.com/site-assets/tLs-1vBwN-VbKdXz72E49J0xQKpgQOM84Ue-E_GZh84_icon-1704034bda4"
+      },
+      "updated": 1771383106188,
+      "visual": "https://storage.googleapis.com/discovery-topic-images/science.png",
+      "topicId": "science"
+    },
+    {
+      "topicName": "comics",
+      "topFeedInfo": {
+        "id": "feed/http://xkcd.com/rss.xml",
+        "language": "en",
+        "description": "xkcd.com: A webcomic of romance and math humor.",
+        "title": "xkcd",
+        "visualUrl": "https://storage.googleapis.com/site-assets/sMUXIpID9k92UIeu9b0I5U2FIL-JCTkqsn7g9xaa2Os_visual-17eb83bfc74",
+        "feedId": "feed/http://xkcd.com/rss.xml",
+        "website": "https://xkcd.com/",
+        "topics": [
+          "comics",
+          "tech"
+        ],
+        "subscribers": 459218,
+        "updated": 1781921177256,
+        "velocity": 3.2,
+        "created": 1370158690680,
+        "coverUrl": "https://storage.googleapis.com/site-assets/sMUXIpID9k92UIeu9b0I5U2FIL-JCTkqsn7g9xaa2Os_cover-1833ae70c2f",
+        "partial": false,
+        "iconUrl": "https://storage.googleapis.com/site-assets/sMUXIpID9k92UIeu9b0I5U2FIL-JCTkqsn7g9xaa2Os_icon-17eb83bfc74"
+      },
+      "updated": 1771383106133,
+      "visual": "https://storage.googleapis.com/discovery-topic-images/comics.png",
+      "topicId": "comics"
+    },
+    {
+      "topicName": "entrepreneurship",
+      "topFeedInfo": {
+        "id": "feed/http://feeds.feedburner.com/entrepreneur/latest",
+        "language": "en",
+        "description": "The latest small business tips and advice from Entrepreneur.com.",
+        "title": "Entrepreneur",
+        "visualUrl": "https://storage.googleapis.com/site-assets/1HZfKoG1UApttahPZZAxyTqJl8RHEtQ-g782Rc2CsMQ_visual-17f5da4a53b",
+        "feedId": "feed/http://feeds.feedburner.com/entrepreneur/latest",
+        "website": "https://www.entrepreneur.comrss-feed/latest/",
+        "topics": [
+          "business",
+          "entrepreneurship",
+          "tech"
+        ],
+        "subscribers": 445604,
+        "updated": 1781946555583,
+        "velocity": 85.8,
+        "created": 1370158695304,
+        "coverUrl": "https://storage.googleapis.com/site-assets/1HZfKoG1UApttahPZZAxyTqJl8RHEtQ-g782Rc2CsMQ_cover-185c0c5f20f",
+        "partial": true,
+        "iconUrl": "https://storage.googleapis.com/site-assets/1HZfKoG1UApttahPZZAxyTqJl8RHEtQ-g782Rc2CsMQ_icon-17f5da4a53b",
+        "logo": "http://storage.googleapis.com/test-site-assets/9kvTSXJ_FoV0tKjA81ehh0HicK5d-u3ZYbKAl6iUAKY_ologo-14be6233854"
+      },
+      "updated": 1771383107359,
+      "visual": "https://storage.googleapis.com/discovery-topic-images/entrepreneurship.png",
+      "topicId": "entrepreneurship"
+    },
+    {
+      "topicName": "leadership",
+      "topFeedInfo": {
+        "id": "feed/http://www.leadershipnow.com/leadingblog/atom.xml",
+        "language": "en",
+        "description": "Leading Blog encourages people to lead from where they are. We highlight issues of interest to leaders and have links to sources of information in the web.",
+        "title": "Leading Blog",
+        "visualUrl": "https://storage.googleapis.com/site-assets/tdgrmIVD8z5XyjC9n_xayT4eGKU4iWJQAFHbGpWC7Tc_visual-15ebb7e5862",
+        "feedId": "feed/http://www.leadershipnow.com/leadingblog/atom.xml",
+        "website": "https://www.leadershipnow.com/leadingblog/",
+        "topics": [
+          "leadership",
+          "business",
+          "management"
+        ],
+        "subscribers": 21695,
+        "updated": 1781912123254,
+        "velocity": 2.7,
+        "created": 1370158732150,
+        "coverUrl": "https://storage.googleapis.com/site-assets/tdgrmIVD8z5XyjC9n_xayT4eGKU4iWJQAFHbGpWC7Tc_cover-1807804fd3e",
+        "partial": false,
+        "iconUrl": "https://storage.googleapis.com/site-assets/tdgrmIVD8z5XyjC9n_xayT4eGKU4iWJQAFHbGpWC7Tc_icon-15ebb7e5862"
+      },
+      "updated": 1771383108615,
+      "visual": "https://storage.googleapis.com/discovery-topic-images/leadership.png",
+      "topicId": "leadership"
+    },
+    {
+      "topicName": "economics",
+      "topFeedInfo": {
+        "id": "feed/http://gregmankiw.blogspot.com/feeds/posts/default",
+        "language": "en",
+        "description": "Random Observations for Students of Economics.",
+        "title": "Greg Mankiw's Blog",
+        "visualUrl": "https://storage.googleapis.com/site-assets/m6yyfZYRtR6Np4zEZaV3zqnsozHwz1mDpyu1KCQvIG8_svisual-1838768c9cb",
+        "feedId": "feed/http://gregmankiw.blogspot.com/feeds/posts/default",
+        "website": "http://gregmankiw.blogspot.com/",
+        "topics": [
+          "economics",
+          "finance",
+          "business"
+        ],
+        "subscribers": 34921,
+        "updated": 1780215817011,
+        "velocity": 0.5,
+        "created": 1370158716415,
+        "partial": false,
+        "iconUrl": "https://storage.googleapis.com/site-assets/m6yyfZYRtR6Np4zEZaV3zqnsozHwz1mDpyu1KCQvIG8_sicon-1838768c9cb"
+      },
+      "updated": 1771383107689,
+      "visual": "https://storage.googleapis.com/discovery-topic-images/economics.png",
+      "topicId": "economics"
+    },
+    {
+      "topicName": "programming",
+      "topFeedInfo": {
+        "id": "feed/http://martinfowler.com/bliki/bliki.atom",
+        "language": "en",
+        "description": "Master feed of news and updates from martinfowler.com.",
+        "title": "Martin Fowler",
+        "visualUrl": "https://storage.googleapis.com/test-site-assets/6apOfTjgEN50qjTH0UVkoVR0PCu7ypqc904LGqg-mqo_ovisual-1658bb901c9",
+        "feedId": "feed/http://martinfowler.com/bliki/bliki.atom",
+        "website": "https://martinfowler.com",
+        "topics": [
+          "programming",
+          "tech"
+        ],
+        "subscribers": 90886,
+        "updated": 1781612962326,
+        "velocity": 1.6,
+        "created": 1370158696815,
+        "coverUrl": "https://storage.googleapis.com/site-assets/HBP0CkLRneOWi2HSHxAzokHP-n-fBeZ4jjxnO4OoNCo_cover-16c5098d2d5",
+        "partial": true,
+        "iconUrl": "https://storage.googleapis.com/test-site-assets/6apOfTjgEN50qjTH0UVkoVR0PCu7ypqc904LGqg-mqo_oicon-1658bb901c9"
+      },
+      "updated": 1771383106600,
+      "visual": "https://storage.googleapis.com/discovery-topic-images/programming.png",
+      "topicId": "programming"
+    },
+    {
+      "topicName": "seo",
+      "topFeedInfo": {
+        "id": "feed/http://feeds.feedburner.com/seomoz",
+        "language": "en",
+        "description": "Hub for search marketers worldwide, providing education, tools, resources and paid services. ",
+        "title": "Moz",
+        "visualUrl": "https://storage.googleapis.com/site-assets/NEc9v89rz94jLypVrnaKN0ULqzvnfPvD6UcnIYad-ZI_visual-1779b1a14d5",
+        "feedId": "feed/http://feeds.feedburner.com/seomoz",
+        "website": "https://moz.com/blog",
+        "topics": [
+          "seo",
+          "marketing",
+          "digital-marketing"
+        ],
+        "subscribers": 205566,
+        "updated": 1781795287206,
+        "velocity": 2.0,
+        "created": 1370158692069,
+        "coverUrl": "https://storage.googleapis.com/site-assets/NEc9v89rz94jLypVrnaKN0ULqzvnfPvD6UcnIYad-ZI_cover-186150b79cf",
+        "partial": false,
+        "iconUrl": "https://storage.googleapis.com/site-assets/NEc9v89rz94jLypVrnaKN0ULqzvnfPvD6UcnIYad-ZI_icon-1779b1a14d5",
+        "logo": "http://storage.googleapis.com/test-site-assets/NEc9v89rz94jLypVrnaKN0ULqzvnfPvD6UcnIYad-ZI_ologo-14e64d8c636"
+      },
+      "updated": 1771383107484,
+      "visual": "https://storage.googleapis.com/discovery-topic-images/seo.png",
+      "topicId": "seo"
+    },
+    {
+      "topicName": "management",
+      "topFeedInfo": {
+        "id": "feed/http://www.managementblog.org/feed/",
+        "language": "en",
+        "description": "Management Practices based on the Time Span research of Elliott Jaques.",
+        "title": "Management Blog",
+        "visualUrl": "https://storage.googleapis.com/site-assets/JbV37Yd-02uh7N6GGzck1Dv9eOcrHvMy6j68mpaaq1E_visual-16720ea5f78",
+        "feedId": "feed/http://www.managementblog.org/feed/",
+        "website": "https://managementblog.org",
+        "topics": [
+          "management",
+          "leadership",
+          "business"
+        ],
+        "subscribers": 13831,
+        "updated": 1781856418983,
+        "velocity": 2.3,
+        "created": 1370158802911,
+        "partial": false,
+        "iconUrl": "https://storage.googleapis.com/site-assets/JbV37Yd-02uh7N6GGzck1Dv9eOcrHvMy6j68mpaaq1E_icon-16720ea5f78"
+      },
+      "updated": 1771383110109,
+      "visual": "https://storage.googleapis.com/discovery-topic-images/management.png",
+      "topicId": "management"
+    },
+    {
+      "topicName": "photography",
+      "topFeedInfo": {
+        "id": "feed/http://feeds.feedburner.com/DigitalPhotographySchool",
+        "language": "en",
+        "description": "Digital Photography Tips and Tutorials.",
+        "title": "Digital Photography School",
+        "visualUrl": "https://storage.googleapis.com/site-assets/6-w3okM2bg2iIGqPqNQzK3KxkMXB6nK8fxipCYLJxFo_visual-15b926eabcd",
+        "feedId": "feed/http://feeds.feedburner.com/DigitalPhotographySchool",
+        "website": "https://digital-photography-school.com/",
+        "topics": [
+          "photography"
+        ],
+        "subscribers": 152853,
+        "updated": 1781507731618,
+        "velocity": 0.7,
+        "created": 1370158696351,
+        "coverUrl": "https://storage.googleapis.com/site-assets/6-w3okM2bg2iIGqPqNQzK3KxkMXB6nK8fxipCYLJxFo_cover-15b926eabcd",
+        "partial": false,
+        "iconUrl": "https://storage.googleapis.com/site-assets/6-w3okM2bg2iIGqPqNQzK3KxkMXB6nK8fxipCYLJxFo_icon-15b926eabcd"
+      },
+      "updated": 1771383106216,
+      "visual": "https://storage.googleapis.com/discovery-topic-images/photography.png",
+      "topicId": "photography"
+    },
+    {
+      "topicName": "data science",
+      "topFeedInfo": {
+        "id": "feed/http://feeds.feedburner.com/kdnuggets-data-mining-analytics",
+        "language": "en",
+        "description": "Machine Learning, Data Science, Big Data, Analytics, AI.",
+        "title": "KDnuggets",
+        "visualUrl": "https://storage.googleapis.com/site-assets/oTrBGDRUbWQ5Ct_9MNFXGRyrWMMBZMTNkDErsjOe3MI_visual-17e6e2fd99e",
+        "feedId": "feed/http://feeds.feedburner.com/kdnuggets-data-mining-analytics",
+        "website": "https://www.kdnuggets.com",
+        "topics": [
+          "data-science",
+          "tech",
+          "machine-learning",
+          "data",
+          "ai"
+        ],
+        "subscribers": 30967,
+        "updated": 1781880649587,
+        "velocity": 10.6,
+        "created": 1370158739586,
+        "coverUrl": "https://storage.googleapis.com/site-assets/oTrBGDRUbWQ5Ct_9MNFXGRyrWMMBZMTNkDErsjOe3MI_cover-17e570f2b43",
+        "partial": true,
+        "iconUrl": "https://storage.googleapis.com/site-assets/oTrBGDRUbWQ5Ct_9MNFXGRyrWMMBZMTNkDErsjOe3MI_icon-17e6e2fd99e"
+      },
+      "updated": 1771383109436,
+      "visual": "https://storage.googleapis.com/discovery-topic-images/data-science.png",
+      "topicId": "data-science"
+    },
+    {
+      "topicName": "writing",
+      "topFeedInfo": {
+        "id": "feed/http://feeds.feedburner.com/DailyWritingTips",
+        "language": "en",
+        "description": "Daily articles on grammar, spelling, misused words, punctuation, fiction writing, freelance writing and more!",
+        "title": "DAILY WRITING TIPS",
+        "visualUrl": "https://storage.googleapis.com/site-assets/F6ysm3zkgrbjebccPl-GDby9qLhQcDaqgcwLK-0hLl8_svisual-15c39473a18",
+        "feedId": "feed/http://feeds.feedburner.com/DailyWritingTips",
+        "website": "https://www.dailywritingtips.com",
+        "topics": [
+          "writing"
+        ],
+        "subscribers": 31823,
+        "updated": 1778761269093,
+        "velocity": 0.2,
+        "created": 1370158712065,
+        "partial": false,
+        "iconUrl": "https://storage.googleapis.com/site-assets/F6ysm3zkgrbjebccPl-GDby9qLhQcDaqgcwLK-0hLl8_sicon-15c39473a18"
+      },
+      "updated": 1771383108103,
+      "visual": "https://storage.googleapis.com/discovery-topic-images/writing.png",
+      "topicId": "writing"
+    },
+    {
+      "topicName": "creativity",
+      "topFeedInfo": {
+        "id": "feed/http://feeds.feedburner.com/awwwards-sites-of-the-day",
+        "language": "en",
+        "description": "Website Awards that recognize and promote the talent and effort of the best developers, designers and web agencies in the world. ",
+        "title": "Awwwards",
+        "visualUrl": "https://storage.googleapis.com/site-assets/yT84ZME707Lmyou19RM3YF7zofL86-4GIQpTMNzaT4Y_visual-18606faaf0f",
+        "feedId": "feed/http://feeds.feedburner.com/awwwards-sites-of-the-day",
+        "website": "https://www.awwwards.com",
+        "topics": [
+          "design",
+          "web-design",
+          "creativity"
+        ],
+        "subscribers": 45429,
+        "updated": 1781940219612,
+        "velocity": 7.0,
+        "created": 1370158744041,
+        "coverUrl": "https://storage.googleapis.com/site-assets/yT84ZME707Lmyou19RM3YF7zofL86-4GIQpTMNzaT4Y_cover-18606faaf0f",
+        "partial": false,
+        "iconUrl": "https://storage.googleapis.com/site-assets/yT84ZME707Lmyou19RM3YF7zofL86-4GIQpTMNzaT4Y_icon-18606faaf0f"
+      },
+      "updated": 1771383111697,
+      "visual": "https://storage.googleapis.com/discovery-topic-images/creativity.png",
+      "topicId": "creativity"
+    },
+    {
+      "topicName": "content marketing",
+      "topFeedInfo": {
+        "id": "feed/http://feeds.feedburner.com/ANNARCHY",
+        "language": "en",
+        "description": "Author of the WSJ bestseller : \"Everybody Writes\". I'm waging a war on mediocrity in content.",
+        "title": "Ann Handley",
+        "visualUrl": "https://storage.googleapis.com/site-assets/4kLhbrnpbkTF890Sy2ISetW6m8mCDEY3JHSDb8tIvXc_visual-162dcbdc90e",
+        "feedId": "feed/http://feeds.feedburner.com/ANNARCHY",
+        "website": "https://annhandley.com/",
+        "topics": [
+          "content-marketing",
+          "marketing"
+        ],
+        "subscribers": 12804,
+        "updated": 1781535867714,
+        "velocity": 0.5,
+        "created": 1370159538870,
+        "coverUrl": "https://storage.googleapis.com/site-assets/4kLhbrnpbkTF890Sy2ISetW6m8mCDEY3JHSDb8tIvXc_cover-183724fd119",
+        "partial": false,
+        "iconUrl": "https://storage.googleapis.com/site-assets/4kLhbrnpbkTF890Sy2ISetW6m8mCDEY3JHSDb8tIvXc_icon-162dcbdc90e"
+      },
+      "updated": 1771383109305,
+      "visual": "https://storage.googleapis.com/discovery-topic-images/content-marketing.png",
+      "topicId": "content-marketing"
+    },
+    {
+      "topicName": "gaming",
+      "topFeedInfo": {
+        "id": "feed/http://kotaku.com/index.xml",
+        "language": "en",
+        "description": "Gaming Reviews, News, Tips and More.",
+        "title": "Kotaku",
+        "visualUrl": "https://storage.googleapis.com/site-assets/1iFkmAfSI_02w17CiU4A7y9Dt9scZdZNh32xpy9B54s_visual-16bb0ed7698",
+        "feedId": "feed/http://kotaku.com/index.xml",
+        "website": "https://kotaku.com/",
+        "topics": [
+          "gaming",
+          "tech"
+        ],
+        "subscribers": 38239,
+        "updated": 1781960754622,
+        "velocity": 109.7,
+        "created": 1370158692441,
+        "coverUrl": "https://storage.googleapis.com/site-assets/1iFkmAfSI_02w17CiU4A7y9Dt9scZdZNh32xpy9B54s_cover-16b0ec81a98",
+        "partial": true,
+        "iconUrl": "https://storage.googleapis.com/site-assets/1iFkmAfSI_02w17CiU4A7y9Dt9scZdZNh32xpy9B54s_icon-16bb0ed7698"
+      },
+      "updated": 1771383106201,
+      "visual": "https://storage.googleapis.com/discovery-topic-images/gaming.png",
+      "topicId": "gaming"
+    },
+    {
+      "topicName": "food",
+      "topFeedInfo": {
+        "id": "feed/http://feeds.feedburner.com/smittenkitchen",
+        "language": "en",
+        "description": "Fearless cooking from a tiny NYC kitchen.",
+        "title": "smitten kitchen",
+        "visualUrl": "https://storage.googleapis.com/site-assets/8J-9RTmMxnvi1x5GGlOoRiRfmspOCJeSmCGmvwuClmA_visual-15b926e1306",
+        "feedId": "feed/http://feeds.feedburner.com/smittenkitchen",
+        "website": "https://smittenkitchen.com",
+        "topics": [
+          "food"
+        ],
+        "subscribers": 285013,
+        "updated": 1781717990288,
+        "velocity": 0.7,
+        "created": 1370158695579,
+        "coverUrl": "https://storage.googleapis.com/site-assets/8J-9RTmMxnvi1x5GGlOoRiRfmspOCJeSmCGmvwuClmA_cover-184c4876e4e",
+        "partial": false,
+        "iconUrl": "https://storage.googleapis.com/site-assets/8J-9RTmMxnvi1x5GGlOoRiRfmspOCJeSmCGmvwuClmA_icon-15b926e1306"
+      },
+      "updated": 1771383106160,
+      "visual": "https://storage.googleapis.com/discovery-topic-images/food.png",
+      "topicId": "food"
+    },
+    {
+      "topicName": "travel",
+      "topFeedInfo": {
+        "id": "feed/http://feeds.feedburner.com/thepointsguy",
+        "language": "en",
+        "description": "Maximize your travel with hands-on travel advice, guides, reviews, deal alerts, and more from The Points Guy. Check out our recommendations so you can travel more often and more comfortably.",
+        "title": "The Points Guy Articles",
+        "visualUrl": "https://storage.googleapis.com/site-assets/6TtXlkor7t57v67QBpIXsTqiWAv1qvolJOoLdRoOx3s_svisual-183d2d09d3f",
+        "feedId": "feed/http://feeds.feedburner.com/thepointsguy",
+        "website": "https://thepointsguy.com/feeds/the-points-guy",
+        "topics": [
+          "travel"
+        ],
+        "subscribers": 74407,
+        "updated": 1781961955577,
+        "velocity": 39.7,
+        "created": 1370158706279,
+        "partial": false,
+        "iconUrl": "https://storage.googleapis.com/site-assets/6TtXlkor7t57v67QBpIXsTqiWAv1qvolJOoLdRoOx3s_sicon-183d2d09d3f"
+      },
+      "updated": 1771383106559,
+      "visual": "https://storage.googleapis.com/discovery-topic-images/travel.png",
+      "topicId": "travel"
+    },
+    {
+      "topicName": "music",
+      "topFeedInfo": {
+        "id": "feed/http://feeds.feedburner.com/stereogum/cBYa",
+        "language": "en",
+        "description": "The original new music blog.",
+        "title": "Stereogum",
+        "visualUrl": "https://storage.googleapis.com/site-assets/SDTAZhjMxzmttTVLJ0kGKYgyxTCKGf0ugpL9h6gJiQ0_visual-17789c277dc",
+        "feedId": "feed/http://feeds.feedburner.com/stereogum/cBYa",
+        "website": "https://stereogum.com/",
+        "topics": [
+          "music"
+        ],
+        "subscribers": 54279,
+        "updated": 1781900275951,
+        "velocity": 105.9,
+        "created": 1370158692133,
+        "coverUrl": "https://storage.googleapis.com/site-assets/SDTAZhjMxzmttTVLJ0kGKYgyxTCKGf0ugpL9h6gJiQ0_cover-17789c277dc",
+        "partial": false,
+        "iconUrl": "https://storage.googleapis.com/site-assets/SDTAZhjMxzmttTVLJ0kGKYgyxTCKGf0ugpL9h6gJiQ0_icon-17789c277dc"
+      },
+      "updated": 1771383106526,
+      "visual": "https://storage.googleapis.com/discovery-topic-images/music.png",
+      "topicId": "music"
+    },
+    {
+      "topicName": "culture",
+      "topFeedInfo": {
+        "id": "feed/http://feeds.boingboing.net/boingboing/iBag",
+        "language": "en",
+        "description": "Brain candy for Happy Mutants.",
+        "title": "Boing Boing",
+        "visualUrl": "https://storage.googleapis.com/site-assets/dU5peSp0V6f8LsDMUzzgZGqiuFWv2htICdJf6zfcBfc_visual-174b9e4a936",
+        "feedId": "feed/http://feeds.boingboing.net/boingboing/iBag",
+        "website": "https://boingboing.net/",
+        "topics": [
+          "tech",
+          "culture",
+          "marketing",
+          "news"
+        ],
+        "subscribers": 190257,
+        "updated": 1781923570971,
+        "velocity": 116.1,
+        "created": 1370158691554,
+        "coverUrl": "https://storage.googleapis.com/site-assets/dU5peSp0V6f8LsDMUzzgZGqiuFWv2htICdJf6zfcBfc_cover-174b9e4a936",
+        "partial": true,
+        "iconUrl": "https://storage.googleapis.com/site-assets/dU5peSp0V6f8LsDMUzzgZGqiuFWv2htICdJf6zfcBfc_icon-174b9e4a936",
+        "logo": "http://storage.googleapis.com/test-site-assets/JbUUmyM9YFYPR8dGzgMM-JhkUnRrsgfeJD5BrLs6POs_ologo-14f0422ee57"
+      },
+      "updated": 1771383107002,
+      "visual": "https://storage.googleapis.com/discovery-topic-images/culture.png",
+      "topicId": "culture"
+    },
+    {
+      "topicName": "crafts",
+      "topFeedInfo": {
+        "id": "feed/http://blog.makezine.com/index.xml",
+        "language": "en",
+        "description": "Make: is the voice of the Maker Movement, empowering, inspiring and connecting makers worldwide.",
+        "title": "Make: DIY Projects and Ideas for Makers",
+        "visualUrl": "https://storage.googleapis.com/site-assets/bYRNl5g8FhitCOyrhKur7MQorxukFJJEqViMIPV2OAk_visual-15e62c244f0",
+        "feedId": "feed/http://blog.makezine.com/index.xml",
+        "website": "https://makezine.com/",
+        "topics": [
+          "diy",
+          "tech"
+        ],
+        "subscribers": 227645,
+        "updated": 1781939160875,
+        "velocity": 4.1,
+        "created": 1370158692294,
+        "coverUrl": "https://storage.googleapis.com/site-assets/bYRNl5g8FhitCOyrhKur7MQorxukFJJEqViMIPV2OAk_cover-15e62c244f0",
+        "partial": true,
+        "iconUrl": "https://storage.googleapis.com/site-assets/bYRNl5g8FhitCOyrhKur7MQorxukFJJEqViMIPV2OAk_icon-15e62c244f0"
+      },
+      "updated": 1771383108150,
+      "visual": "https://storage.googleapis.com/discovery-topic-images/crafts.png",
+      "topicId": "crafts"
+    },
+    {
+      "topicName": "relationships",
+      "topFeedInfo": {
+        "id": "feed/http://topics.nytimes.com/top/features/style/fashionandstyle/columns/modernlove/?rss=1",
+        "language": "en",
+        "description": "The online home of \u201cModern Love,\u201d featuring a complete archive of columns (since Oct. 2004), animated videos (since Aug. 2013), and information about essay contests and submissions.",
+        "title": "New York Times - Modern Love ",
+        "visualUrl": "https://storage.googleapis.com/site-assets/R6ajgwEpoxyaFXZMlJCHUm5uq6GOqVKn9wjO7g-ofZw_visual-1690c02c69c",
+        "feedId": "feed/http://topics.nytimes.com/top/features/style/fashionandstyle/columns/modernlove/?rss=1",
+        "website": "https://www.nytimes.com/column/modern-love",
+        "topics": [
+          "relationships",
+          "lifestyle",
+          "news",
+          "tech",
+          "culture"
+        ],
+        "subscribers": 9757,
+        "updated": 1781870852175,
+        "velocity": 2.9,
+        "created": 1370158827547,
+        "coverUrl": "https://storage.googleapis.com/site-assets/R6ajgwEpoxyaFXZMlJCHUm5uq6GOqVKn9wjO7g-ofZw_cover-170f8180f35",
+        "partial": true,
+        "iconUrl": "https://storage.googleapis.com/site-assets/R6ajgwEpoxyaFXZMlJCHUm5uq6GOqVKn9wjO7g-ofZw_icon-1690c02c69c"
+      },
+      "updated": 1771383112661,
+      "visual": "https://storage.googleapis.com/discovery-topic-images/relationships.png",
+      "topicId": "relationships"
+    }
+  ],
+  "cover": {
+    "alias": "leoIndustries",
+    "fullName": "Leo Industries"
+  },
+  "collections": [
+    {
+      "label": "Favicons",
+      "id": "alias/leoIndustries/category/81f9a44e-38ec-47a4-93cd-3e44c0f959e5",
+      "feeds": [
+        {
+          "id": "feed/http://www.anothermag.com/feed",
+          "language": "en",
+          "title": "AnOther",
+          "description": "A thought-provoking blend of high fashion, art and culture brought to you by the creators of AnOther Magazine",
+          "iconUrl": "https://storage.googleapis.com/site-assets/7i_7udjhmgAX449Psz381xSCrMZJt1eBsB6EwQCMIKw_icon-1835bd5eb63",
+          "feedId": "feed/http://www.anothermag.com/feed",
+          "website": "https://www.anothermag.com/feed",
+          "topics": [
+            "fashion",
+            "culture",
+            "design",
+            "art"
+          ],
+          "subscribers": 12226,
+          "updated": 1781877792443,
+          "velocity": 16.5,
+          "created": 1370159065187,
+          "visualUrl": "https://storage.googleapis.com/site-assets/7i_7udjhmgAX449Psz381xSCrMZJt1eBsB6EwQCMIKw_visual-1835bd5eb63",
+          "coverUrl": "https://storage.googleapis.com/site-assets/7i_7udjhmgAX449Psz381xSCrMZJt1eBsB6EwQCMIKw_cover-183674d454f",
+          "partial": false
+        },
+        {
+          "id": "feed/http://www.calculatedriskblog.com/feeds/posts/default",
+          "language": "en",
+          "title": "Calculated Risk",
+          "description": "Finance and Economics.",
+          "iconUrl": "https://storage.googleapis.com/site-assets/bQV7MgaeyZnrZ19m7Pax9HFqwEsJ8Me7pOLUgbe0uqA_icon-181d4e7cb1d",
+          "feedId": "feed/http://www.calculatedriskblog.com/feeds/posts/default",
+          "website": "http://www.calculatedriskblog.com/",
+          "topics": [
+            "business",
+            "finance",
+            "economics"
+          ],
+          "subscribers": 154002,
+          "updated": 1768236383671,
+          "velocity": 0.0,
+          "created": 1370158706467,
+          "visualUrl": "https://storage.googleapis.com/site-assets/bQV7MgaeyZnrZ19m7Pax9HFqwEsJ8Me7pOLUgbe0uqA_visual-181d4e7cb1d",
+          "coverUrl": "http://storage.googleapis.com/site-assets/bQV7MgaeyZnrZ19m7Pax9HFqwEsJ8Me7pOLUgbe0uqA_cover-154124ed8a2",
+          "partial": false
+        },
+        {
+          "id": "feed/http://www.theverge.com/rss/full.xml",
+          "language": "en",
+          "title": "The Verge",
+          "description": "Covering the intersection of technology, science, art, and culture.",
+          "iconUrl": "https://storage.googleapis.com/site-assets/PSNTZO8gXFUe-cpCZyApw0vEKWPT4b14D6teBEocIAE_icon-1833aef9645",
+          "feedId": "feed/http://www.theverge.com/rss/full.xml",
+          "website": "https://www.theverge.com",
+          "topics": [
+            "tech"
+          ],
+          "subscribers": 1334158,
+          "updated": 1781957203501,
+          "velocity": 127.6,
+          "created": 1370158692348,
+          "visualUrl": "https://storage.googleapis.com/site-assets/PSNTZO8gXFUe-cpCZyApw0vEKWPT4b14D6teBEocIAE_visual-1833aef9645",
+          "coverUrl": "https://storage.googleapis.com/site-assets/PSNTZO8gXFUe-cpCZyApw0vEKWPT4b14D6teBEocIAE_cover-1833aef9645",
+          "partial": false,
+          "logo": "http://storage.googleapis.com/test-site-assets/PSNTZO8gXFUe-cpCZyApw0vEKWPT4b14D6teBEocIAE_ologo-14be62cd987"
+        },
+        {
+          "id": "feed/http://electrek.co/feed/",
+          "language": "en",
+          "title": "Electrek",
+          "description": "EV and Tesla News, Green Energy, Ebikes, and more",
+          "iconUrl": "https://storage.googleapis.com/site-assets/u5bgmv-YhToNTyk7diLr9FxVp68HGzQJvsg-Y7GFW0Q_icon-1661c74d476",
+          "feedId": "feed/http://electrek.co/feed/",
+          "website": "https://electrek.co/",
+          "topics": [
+            "tech",
+            "cars",
+            "ev",
+            "tesla"
+          ],
+          "subscribers": 19371,
+          "updated": 1781903625199,
+          "velocity": 70.9,
+          "created": 1379609696000,
+          "visualUrl": "https://storage.googleapis.com/site-assets/u5bgmv-YhToNTyk7diLr9FxVp68HGzQJvsg-Y7GFW0Q_visual-1661c74d476",
+          "coverUrl": "https://storage.googleapis.com/site-assets/u5bgmv-YhToNTyk7diLr9FxVp68HGzQJvsg-Y7GFW0Q_cover-180e06dd9a6",
+          "partial": true
+        },
+        {
+          "id": "feed/http://www.autoblog.com/rss.xml",
+          "language": "en",
+          "title": "Autoblog News",
+          "description": "Autoblog brings you car news; expert reviews of cars, trucks, crossovers and SUVs; and pictures and video. Research and compare vehicles, find local dealers, calculate loan payments, find your car's book value and get a service estimate at Autoblog.com.",
+          "iconUrl": "https://storage.googleapis.com/site-assets/TSxGHgRh4oAiHxRU9TgPrpYvYVBPjipkmUVSHGYCTY0_icon-167d510bd79",
+          "feedId": "feed/http://www.autoblog.com/rss.xml",
+          "website": "https://www.autoblog.com",
+          "topics": [
+            "cars",
+            "tech"
+          ],
+          "subscribers": 132427,
+          "updated": 1781961541205,
+          "velocity": 145.6,
+          "created": 1370158697020,
+          "visualUrl": "https://storage.googleapis.com/site-assets/TSxGHgRh4oAiHxRU9TgPrpYvYVBPjipkmUVSHGYCTY0_visual-167d510bd79",
+          "coverUrl": "https://storage.googleapis.com/site-assets/TSxGHgRh4oAiHxRU9TgPrpYvYVBPjipkmUVSHGYCTY0_cover-167d510bd79",
+          "partial": true
+        },
+        {
+          "id": "feed/http://feeds.harvardbusiness.org/harvardbusiness/",
+          "language": "en",
+          "title": "Harvard Business Review ",
+          "description": "Practical insights, tools and resources from leading business thought leaders.",
+          "iconUrl": "https://storage.googleapis.com/site-assets/RUSFMaap2epUB1Hxr7coT6Cd7n5A3BtYAIay0ExHdcs_icon-1717643e740",
+          "feedId": "feed/http://feeds.harvardbusiness.org/harvardbusiness/",
+          "website": "http://hbr.org",
+          "topics": [
+            "business"
+          ],
+          "subscribers": 459356,
+          "updated": 1781875981151,
+          "velocity": 15.4,
+          "created": 1370158693568,
+          "visualUrl": "https://storage.googleapis.com/site-assets/RUSFMaap2epUB1Hxr7coT6Cd7n5A3BtYAIay0ExHdcs_visual-1717643e740",
+          "coverUrl": "https://storage.googleapis.com/site-assets/RUSFMaap2epUB1Hxr7coT6Cd7n5A3BtYAIay0ExHdcs_cover-1717643e740",
+          "partial": true,
+          "logo": "http://storage.googleapis.com/test-site-assets/RUSFMaap2epUB1Hxr7coT6Cd7n5A3BtYAIay0ExHdcs_ologo-14d31722c5c"
+        },
+        {
+          "id": "feed/http://www.bnef.com/bnef/feed/",
+          "language": "en",
+          "title": "BloombergNEF",
+          "description": "BloombergNEF is a research organization that helps energy professionals generate opportunities.",
+          "iconUrl": "https://storage.googleapis.com/site-assets/6eYsD4GbxoSbQCm7cjhjo4X6rdHm51Tt5t9BpvLxkBQ_icon-15b9295b60a",
+          "feedId": "feed/http://www.bnef.com/bnef/feed/",
+          "website": "https://about.bnef.com/",
+          "topics": [
+            "energy"
+          ],
+          "subscribers": 13691,
+          "updated": 1781872727129,
+          "velocity": 1.6,
+          "created": 1370160028559,
+          "visualUrl": "https://storage.googleapis.com/site-assets/6eYsD4GbxoSbQCm7cjhjo4X6rdHm51Tt5t9BpvLxkBQ_visual-15b9295b60a",
+          "coverUrl": "https://storage.googleapis.com/site-assets/6eYsD4GbxoSbQCm7cjhjo4X6rdHm51Tt5t9BpvLxkBQ_cover-16cbcacc30b",
+          "partial": true
+        },
+        {
+          "id": "feed/http://www.abovethelaw.com/index.xml",
+          "language": "en",
+          "title": "Above the Law",
+          "description": "A Legal Web Site \u2013 News, Insights, and Opinions on Law Firms, Lawyers, Law School, Law Suits, Judges and Courts",
+          "iconUrl": "https://storage.googleapis.com/site-assets/inR9iEzG6EiaCWbafKVoklYZpTjbNVZWQGLWAjV-Q8E_icon-16c26ed6434",
+          "feedId": "feed/http://www.abovethelaw.com/index.xml",
+          "website": "https://abovethelaw.com/",
+          "topics": [
+            "law"
+          ],
+          "subscribers": 22046,
+          "updated": 1781828963083,
+          "velocity": 72.3,
+          "created": 1370158807592,
+          "visualUrl": "https://storage.googleapis.com/site-assets/inR9iEzG6EiaCWbafKVoklYZpTjbNVZWQGLWAjV-Q8E_visual-16c26ed6434",
+          "coverUrl": "https://storage.googleapis.com/site-assets/inR9iEzG6EiaCWbafKVoklYZpTjbNVZWQGLWAjV-Q8E_cover-16c26ed6434",
+          "partial": true
+        },
+        {
+          "id": "feed/http://www.4hoteliers.com/rss/4htopnews.xml",
+          "language": "en",
+          "title": "4Hoteliers",
+          "description": "Hotel, Hospitality, Travel & Tourism news and articles, updated daily with Global coverage.",
+          "iconUrl": "https://storage.googleapis.com/site-assets/TeNcCJvlIORGyhXGXSBkHBzKk3FkDbMY1Vg_jWLOS8I_icon-15f058e482a",
+          "feedId": "feed/http://www.4hoteliers.com/rss/4htopnews.xml",
+          "website": "https://www.4hoteliers.com",
+          "topics": [
+            "travel",
+            "hospitality"
+          ],
+          "subscribers": 9375,
+          "updated": 1775102975291,
+          "velocity": 0.1,
+          "created": 1370159816529,
+          "visualUrl": "https://storage.googleapis.com/site-assets/TeNcCJvlIORGyhXGXSBkHBzKk3FkDbMY1Vg_jWLOS8I_visual-15f058e482a",
+          "coverUrl": "https://storage.googleapis.com/site-assets/TeNcCJvlIORGyhXGXSBkHBzKk3FkDbMY1Vg_jWLOS8I_cover-15f058e482a",
+          "partial": true
+        },
+        {
+          "id": "feed/http://www.rcrwireless.com/article/feed/",
+          "state": "dead",
+          "language": "en",
+          "title": "RCR Wireless News",
+          "description": "Intelligence on all things wireless.",
+          "iconUrl": "https://storage.googleapis.com/site-assets/NI8xBowIqyuu2KbFKkdZtdpP4B65KNlSWmFnCT-3lfI_icon-162a046042c",
+          "feedId": "feed/http://www.rcrwireless.com/article/feed/",
+          "website": "https://www.rcrwireless.com",
+          "topics": [
+            "telecom",
+            "tech",
+            "iot",
+            "wireless"
+          ],
+          "subscribers": 5882,
+          "updated": 1730222480427,
+          "velocity": 0.0,
+          "created": 1370160622495,
+          "visualUrl": "https://storage.googleapis.com/site-assets/NI8xBowIqyuu2KbFKkdZtdpP4B65KNlSWmFnCT-3lfI_visual-162a046042c",
+          "coverUrl": "https://storage.googleapis.com/site-assets/NI8xBowIqyuu2KbFKkdZtdpP4B65KNlSWmFnCT-3lfI_cover-162a046042c",
+          "partial": false
+        },
+        {
+          "id": "feed/https://www.offshore-technology.com/feed/",
+          "language": "en",
+          "title": "Offshore Technology",
+          "description": "Offshore Technology Focus is the essential reading material for decision-makers in the offshore oil & gas industry, bringing you the latest news and analysis in an exciting, interactive format",
+          "iconUrl": "https://storage.googleapis.com/site-assets/x8tEf6IloERXTvzmamo2p5_h8ZfJzrxSH_M2hMhhJRY_sicon-180cda2ebf4",
+          "feedId": "feed/https://www.offshore-technology.com/feed/",
+          "website": "https://www.offshore-technology.com/",
+          "topics": [
+            "energy",
+            "oil",
+            "tech"
+          ],
+          "subscribers": 1294,
+          "updated": 1781902495984,
+          "velocity": 23.0,
+          "created": 1519034090288,
+          "visualUrl": "https://storage.googleapis.com/site-assets/x8tEf6IloERXTvzmamo2p5_h8ZfJzrxSH_M2hMhhJRY_svisual-180cda2ebf4",
+          "partial": false
+        },
+        {
+          "id": "feed/http://techcrunch.com/advertising-tech/feed/",
+          "state": "dormant",
+          "language": "en",
+          "title": "Advertising Tech | TechCrunch",
+          "description": "TechCrunch \u2022 Reporting on the business of technology, startups, venture capital funding, and Silicon Valley",
+          "iconUrl": "https://storage.googleapis.com/site-assets/Y7Ls7qOZ9q9WEWyTyG3Iu58X-Crxq6hThmF0N6FnSk0_icon-1831444398e",
+          "feedId": "feed/http://techcrunch.com/advertising-tech/feed/",
+          "website": "https://techcrunch.com/tag/advertising-tech/",
+          "topics": [
+            "advertising",
+            "marketing",
+            "adtech",
+            "tech"
+          ],
+          "subscribers": 10992,
+          "updated": 1747261593759,
+          "velocity": 0.0,
+          "created": 1385039344711,
+          "visualUrl": "https://storage.googleapis.com/site-assets/Y7Ls7qOZ9q9WEWyTyG3Iu58X-Crxq6hThmF0N6FnSk0_visual-1831444398e",
+          "coverUrl": "https://storage.googleapis.com/site-assets/Y7Ls7qOZ9q9WEWyTyG3Iu58X-Crxq6hThmF0N6FnSk0_cover-184fa795319",
+          "partial": false
+        },
+        {
+          "id": "feed/http://www.retailcustomerexperience.com/RSS/rss.php",
+          "language": "en",
+          "title": "Retail Customer Experience",
+          "description": "A news and information site dedicated to helping retailers differentiate on #cx, rather than on price.",
+          "iconUrl": "https://storage.googleapis.com/site-assets/wKB0pXU83xtde6ebWoVy-7s9uSE9G3cQavq4-NLIXtM_icon-165bd3fe278",
+          "feedId": "feed/http://www.retailcustomerexperience.com/RSS/rss.php",
+          "website": "https://www.retailcustomerexperience.com/",
+          "topics": [
+            "retail",
+            "ecommerce",
+            "business",
+            "customer-experience"
+          ],
+          "subscribers": 9657,
+          "updated": 1781881127678,
+          "velocity": 11.3,
+          "created": 1370158831944,
+          "visualUrl": "https://storage.googleapis.com/site-assets/wKB0pXU83xtde6ebWoVy-7s9uSE9G3cQavq4-NLIXtM_visual-165bd3fe278",
+          "coverUrl": "https://storage.googleapis.com/site-assets/wKB0pXU83xtde6ebWoVy-7s9uSE9G3cQavq4-NLIXtM_cover-165bd3fe278",
+          "partial": true
+        },
+        {
+          "id": "feed/http://www.sciencedaily.com/rss/earth_climate/renewable_energy.xml",
+          "language": "en",
+          "title": "Renewable Energy News -- ScienceDaily",
+          "description": "Renewable Energy Sources. Read the latest research on renewable sources of energy such as solar energy, wind power, nuclear energy, hydrogen fuel, ethanol, methane and other alternative energy sources.",
+          "iconUrl": "https://storage.googleapis.com/test-site-assets/I5A3IUuH1siZtX9fcX8bF81yB3D_BAoI0c-WFbuyhMc_oicon-165a6576ec2",
+          "feedId": "feed/http://www.sciencedaily.com/rss/earth_climate/renewable_energy.xml",
+          "website": "https://www.sciencedaily.com/news/earth_climate/renewable_energy/",
+          "topics": [
+            "energy",
+            "cleantech",
+            "tech",
+            "science"
+          ],
+          "subscribers": 7671,
+          "updated": 1780400742212,
+          "velocity": 0.5,
+          "created": 1370159379274,
+          "visualUrl": "https://storage.googleapis.com/test-site-assets/I5A3IUuH1siZtX9fcX8bF81yB3D_BAoI0c-WFbuyhMc_ovisual-165a6576ec2",
+          "partial": false
+        },
+        {
+          "id": "feed/http://agfundernews.com/feed",
+          "language": "en",
+          "title": "AgFunderNews",
+          "description": "Food, Agriculture, Technology and Investment.",
+          "iconUrl": "https://storage.googleapis.com/site-assets/qF4YZQetRQBB3wl8O5Cb1ITH2cKtEB4L6IVlrO41Iss_sicon-1851d3072c5",
+          "feedId": "feed/http://agfundernews.com/feed",
+          "website": "https://agfundernews.com/",
+          "topics": [
+            "agriculture",
+            "food",
+            "foodtech",
+            "tech"
+          ],
+          "subscribers": 4560,
+          "updated": 1781886904838,
+          "velocity": 10.8,
+          "created": 1389744609825,
+          "visualUrl": "https://storage.googleapis.com/site-assets/qF4YZQetRQBB3wl8O5Cb1ITH2cKtEB4L6IVlrO41Iss_svisual-1851d3072c5",
+          "partial": false
+        },
+        {
+          "id": "feed/http://feeds.feedburner.com/DigitalTvNews",
+          "state": "dormant",
+          "language": "en",
+          "title": "Digital TV News",
+          "description": "The latest Digital TV Business, Technology and Market Research news",
+          "iconUrl": "https://storage.googleapis.com/site-assets/6QQk4al3OeiYztUEt7xXLWHxswlOb2lVvdLOiHHdmWo_icon-168be0e36f6",
+          "feedId": "feed/http://feeds.feedburner.com/DigitalTvNews",
+          "website": "https://www.digitaltvnews.net",
+          "topics": [
+            "telecom",
+            "tech",
+            "iot",
+            "iptv"
+          ],
+          "subscribers": 4838,
+          "updated": 1740652257453,
+          "velocity": 0.0,
+          "created": 1370158861013,
+          "visualUrl": "https://storage.googleapis.com/site-assets/6QQk4al3OeiYztUEt7xXLWHxswlOb2lVvdLOiHHdmWo_visual-168be0e36f6",
+          "coverUrl": "http://storage.googleapis.com/site-assets/6QQk4al3OeiYztUEt7xXLWHxswlOb2lVvdLOiHHdmWo_cover-1543d7f245a",
+          "partial": false
+        },
+        {
+          "id": "feed/http://www.loweringthebar.net/atom.xml",
+          "language": "en",
+          "title": "Lowering the Bar",
+          "description": "By Kevin Underhill: lawyer, author of The Emergency Sasquatch Ordinance, and winner of the Underhill Prize for legal-humor blogging.",
+          "iconUrl": "https://storage.googleapis.com/site-assets/olZOzDz2xRVdVo1fS9oqcKc_tl2plS7VOq3pui-JmuM_icon-1716d541f08",
+          "feedId": "feed/http://www.loweringthebar.net/atom.xml",
+          "website": "https://www.loweringthebar.net",
+          "topics": [
+            "law",
+            "comics"
+          ],
+          "subscribers": 8312,
+          "updated": 1781910653279,
+          "velocity": 1.1,
+          "created": 1370158755062,
+          "visualUrl": "https://storage.googleapis.com/site-assets/olZOzDz2xRVdVo1fS9oqcKc_tl2plS7VOq3pui-JmuM_visual-1716d541f08",
+          "coverUrl": "https://storage.googleapis.com/site-assets/olZOzDz2xRVdVo1fS9oqcKc_tl2plS7VOq3pui-JmuM_cover-1716d541f08",
+          "partial": false
+        },
+        {
+          "id": "feed/https://techcrunch.com/tag/oil-and-gas/feed/",
+          "state": "dormant",
+          "language": "en",
+          "title": "TechCrunch \u00bb oil and gas Tag Feed",
+          "description": "TechCrunch \u2022 Reporting on the business of technology, startups, venture capital funding, and Silicon Valley",
+          "iconUrl": "https://storage.googleapis.com/site-assets/YVoYyrF10c3nXRFfUf8imnPCGuUiO_y3HHWFtuMurZE_icon-183182a8d3e",
+          "feedId": "feed/https://techcrunch.com/tag/oil-and-gas/feed/",
+          "website": "https://techcrunch.com/tag/oil-and-gas/",
+          "topics": [
+            "energy",
+            "oil",
+            "tech"
+          ],
+          "subscribers": 7105,
+          "updated": 1765467686973,
+          "velocity": 0.0,
+          "created": 1585842722400,
+          "visualUrl": "https://storage.googleapis.com/site-assets/YVoYyrF10c3nXRFfUf8imnPCGuUiO_y3HHWFtuMurZE_visual-183182a8d3e",
+          "coverUrl": "https://storage.googleapis.com/site-assets/YVoYyrF10c3nXRFfUf8imnPCGuUiO_y3HHWFtuMurZE_cover-18514e7d0c5",
+          "partial": false
+        },
+        {
+          "id": "feed/http://feeds2.feedburner.com/businessinsider",
+          "language": "en",
+          "title": "Business Insider",
+          "description": "What you need to know.",
+          "iconUrl": "https://storage.googleapis.com/site-assets/UGoT913Pj2iVsp570XrRhskqe5_o7yyV3N_NTloByRs_icon-1852ff8b63c",
+          "feedId": "feed/http://feeds2.feedburner.com/businessinsider",
+          "website": "https://www.businessinsider.com",
+          "topics": [
+            "business",
+            "tech",
+            "finance",
+            "news"
+          ],
+          "subscribers": 634583,
+          "updated": 1781961864892,
+          "velocity": 378.2,
+          "created": 1370158708845,
+          "visualUrl": "https://storage.googleapis.com/site-assets/UGoT913Pj2iVsp570XrRhskqe5_o7yyV3N_NTloByRs_visual-1852ff8b63c",
+          "coverUrl": "https://storage.googleapis.com/site-assets/UGoT913Pj2iVsp570XrRhskqe5_o7yyV3N_NTloByRs_cover-171c8b0a2af",
+          "partial": false,
+          "logo": "http://storage.googleapis.com/test-site-assets/UGoT913Pj2iVsp570XrRhskqe5_o7yyV3N_NTloByRs_ologo-150792834ed"
+        },
+        {
+          "id": "feed/http://www.runwaygirlnetwork.com/feed/",
+          "language": "en",
+          "title": "Runway Girl",
+          "description": " Runway Girl Network is daring to do what no other aviation news service has done before. Working with a cadre of incredibly talented aviation journalists from around the world, Runway Girl Network combines deep industry intelligence with first-hand knowledge of the passenger experience to provide unrivaled free news, insight and analysis to both stakeholders and the traveling public. ",
+          "iconUrl": "https://storage.googleapis.com/site-assets/rHgx5ogj5CuAVJPTH5Fh1YyzStE_6ZYPpmv8ATRV8to_icon-15b92df5697",
+          "feedId": "feed/http://www.runwaygirlnetwork.com/feed/",
+          "website": "https://runwaygirlnetwork.com/",
+          "topics": [
+            "travel",
+            "aviation"
+          ],
+          "subscribers": 7057,
+          "updated": 1781961493886,
+          "velocity": 16.9,
+          "created": 1383758309484,
+          "visualUrl": "https://storage.googleapis.com/site-assets/rHgx5ogj5CuAVJPTH5Fh1YyzStE_6ZYPpmv8ATRV8to_visual-15b92df5697",
+          "coverUrl": "https://storage.googleapis.com/site-assets/rHgx5ogj5CuAVJPTH5Fh1YyzStE_6ZYPpmv8ATRV8to_cover-172b8c7af90",
+          "partial": false
+        },
+        {
+          "id": "feed/http://www.ibamag.com/rss/",
+          "language": "en",
+          "title": "Insurance Business",
+          "description": "National insurance news for USA insurance professionals. Read American insurance news, analysis, and interviews with leaders in the US insurance industry.",
+          "iconUrl": "https://storage.googleapis.com/site-assets/adFEolv9192B-P80oQv7qn-C9k_tv_CSzXaZpXZWdX8_sicon-175977077a9",
+          "feedId": "feed/http://www.ibamag.com/rss/",
+          "website": "https://www.insurancebusinessmag.com/us/",
+          "topics": [
+            "insurance",
+            "finance"
+          ],
+          "subscribers": 4523,
+          "updated": 1781894639303,
+          "velocity": 107.9,
+          "created": 1383089707899,
+          "visualUrl": "https://storage.googleapis.com/site-assets/adFEolv9192B-P80oQv7qn-C9k_tv_CSzXaZpXZWdX8_svisual-175977077a9",
+          "partial": false
+        },
+        {
+          "id": "feed/http://www.nytimes.com/services/xml/rss/nyt/HomePage.xml",
+          "language": "en",
+          "title": "NYT > Top Stories",
+          "description": "Find breaking news, multimedia, reviews & opinion on Washington, business, sports, movies & more.",
+          "iconUrl": "https://storage.googleapis.com/site-assets/2IAKmisI-skG5eJD6FDanzV4JS35tHTM1ILbuVimBro_icon-16a2a518642",
+          "feedId": "feed/http://www.nytimes.com/services/xml/rss/nyt/HomePage.xml",
+          "website": "https://nytimes.com",
+          "topics": [
+            "news"
+          ],
+          "subscribers": 845380,
+          "updated": 1781956781636,
+          "velocity": 441.0,
+          "created": 1370158690953,
+          "visualUrl": "https://storage.googleapis.com/site-assets/2IAKmisI-skG5eJD6FDanzV4JS35tHTM1ILbuVimBro_visual-16a2a518642",
+          "coverUrl": "https://storage.googleapis.com/site-assets/2IAKmisI-skG5eJD6FDanzV4JS35tHTM1ILbuVimBro_cover-170f4ed8fad",
+          "partial": true,
+          "logo": "http://storage.googleapis.com/test-site-assets/2IAKmisI-skG5eJD6FDanzV4JS35tHTM1ILbuVimBro_ologo-14f043d04fc"
+        },
+        {
+          "id": "feed/http://feeds.feedburner.com/ElectricCarsReport",
+          "language": "en",
+          "title": "Electric Cars Report",
+          "description": "Electric Car News and Reviews",
+          "iconUrl": "https://storage.googleapis.com/site-assets/ZWWGrj4B-J2CTDLsMkareNVNo-M99NornS9o54eLO90_icon-16b59719241",
+          "feedId": "feed/http://feeds.feedburner.com/ElectricCarsReport",
+          "website": "https://electriccarsreport.com/",
+          "topics": [
+            "ev",
+            "cars",
+            "tech"
+          ],
+          "subscribers": 8336,
+          "updated": 1781953263787,
+          "velocity": 30.9,
+          "created": 1370166764700,
+          "visualUrl": "https://storage.googleapis.com/site-assets/ZWWGrj4B-J2CTDLsMkareNVNo-M99NornS9o54eLO90_visual-16b59719241",
+          "coverUrl": "https://storage.googleapis.com/site-assets/ZWWGrj4B-J2CTDLsMkareNVNo-M99NornS9o54eLO90_cover-16b59719241",
+          "partial": true
+        },
+        {
+          "id": "feed/http://skift.com/feed/",
+          "language": "en",
+          "title": "Skift",
+          "description": "Travel News, Airline News, Hotel News & Tourism News",
+          "iconUrl": "https://storage.googleapis.com/site-assets/-4JDtAQ7hojfdm-ohGBSrybLA1sSLori3dZL5soxkJY_icon-1791a1b9ffc",
+          "feedId": "feed/http://skift.com/feed/",
+          "website": "https://skift.com/",
+          "topics": [
+            "travel",
+            "hospitality"
+          ],
+          "subscribers": 35673,
+          "updated": 1781861826181,
+          "velocity": 46.1,
+          "created": 1370159121398,
+          "visualUrl": "https://storage.googleapis.com/site-assets/-4JDtAQ7hojfdm-ohGBSrybLA1sSLori3dZL5soxkJY_visual-1791a1b9ffc",
+          "coverUrl": "https://storage.googleapis.com/site-assets/-4JDtAQ7hojfdm-ohGBSrybLA1sSLori3dZL5soxkJY_cover-17c119a1b6d",
+          "partial": false
+        },
+        {
+          "id": "feed/http://www.retailwire.com/public/rss/091.xml",
+          "language": "en",
+          "title": "Point of Sale",
+          "description": "Retail News and Analysis.",
+          "iconUrl": "https://storage.googleapis.com/site-assets/wLVajIq19pIhdLb-VaNwpQI2DHpWd_P6X3D24FkFHoI_icon-16ec5d48510",
+          "feedId": "feed/http://www.retailwire.com/public/rss/091.xml",
+          "website": "https://retailwire.com",
+          "topics": [
+            "retail",
+            "ecommerce",
+            "business"
+          ],
+          "subscribers": 12629,
+          "updated": 1781889379271,
+          "velocity": 5.2,
+          "created": 1370160371955,
+          "visualUrl": "https://storage.googleapis.com/site-assets/wLVajIq19pIhdLb-VaNwpQI2DHpWd_P6X3D24FkFHoI_visual-16ec5d48510",
+          "coverUrl": "https://storage.googleapis.com/site-assets/wLVajIq19pIhdLb-VaNwpQI2DHpWd_P6X3D24FkFHoI_cover-16ec5d48510",
+          "partial": false
+        },
+        {
+          "id": "feed/http://www.lightreading.com/rss_simple.asp",
+          "state": "dead.stale",
+          "language": "en",
+          "title": "Light Reading:",
+          "description": "Light Reading is for communications industry professionals who are developing and commercializing services and networks using technologies, standards and devices such as 4G, smartphones, SDN, network virtualization, 100G optical, IP, Ethernet, Big Data, FTTH, DOCSIS and video platforms.",
+          "iconUrl": "https://storage.googleapis.com/site-assets/3zoT8SeDUfbmlwJD1vuEq3gCKmdQbVqwXjslQjXnAhM_icon-171ce8063c8",
+          "feedId": "feed/http://www.lightreading.com/rss_simple.asp",
+          "website": "https://www.lightreading.com",
+          "topics": [],
+          "subscribers": 12814,
+          "updated": 1695195517233,
+          "velocity": 65.7,
+          "created": 1370158708698,
+          "visualUrl": "https://storage.googleapis.com/site-assets/3zoT8SeDUfbmlwJD1vuEq3gCKmdQbVqwXjslQjXnAhM_visual-171ce8063c8",
+          "coverUrl": "https://storage.googleapis.com/site-assets/3zoT8SeDUfbmlwJD1vuEq3gCKmdQbVqwXjslQjXnAhM_cover-171ce8063c8",
+          "partial": true
+        },
+        {
+          "id": "feed/http://www.scdigest.com/cache/rssfeed.xml",
+          "language": "en",
+          "title": "Supply Chain Digest",
+          "description": "Supply Chain Digest is the leading on-line newsletter and web site for busy supply chain and logistics professionals to get news and insight and to find solutions.",
+          "iconUrl": "https://storage.googleapis.com/site-assets/w62LVuUIZJVUbGqhIijNRxQ2Je4pJY-IPuuFEcIKrnw_sicon-16520119b95",
+          "feedId": "feed/http://www.scdigest.com/cache/rssfeed.xml",
+          "website": "https://www.scdigest.com/rss.php",
+          "topics": [
+            "supply-chain"
+          ],
+          "subscribers": 6887,
+          "updated": 1781901041971,
+          "velocity": 5.2,
+          "created": 1370164338082,
+          "visualUrl": "https://storage.googleapis.com/site-assets/w62LVuUIZJVUbGqhIijNRxQ2Je4pJY-IPuuFEcIKrnw_svisual-16520119b95",
+          "partial": true
+        },
+        {
+          "id": "feed/http://joefavorito.com/feed/",
+          "language": "en",
+          "title": "JoeFavorito.com",
+          "description": "SPORTS PUBLICITY, MARKETING & BRAND BUILDING IN A NEW AGE: WITH JOE FAVORITO",
+          "iconUrl": "https://storage.googleapis.com/site-assets/m_dK5KEbXeU4uaxGhlSzUSeuKzCY_eGZmEKWYzRTm7c_icon-18455a1fef7",
+          "feedId": "feed/http://joefavorito.com/feed/",
+          "website": "https://joefavorito.com",
+          "topics": [
+            "sports",
+            "sports-business"
+          ],
+          "subscribers": 4242,
+          "updated": 178187745476,
+          "velocity": 2.9,
+          "created": 1370161518214,
+          "visualUrl": "https://storage.googleapis.com/site-assets/m_dK5KEbXeU4uaxGhlSzUSeuKzCY_eGZmEKWYzRTm7c_visual-18455a1fef7",
+          "coverUrl": "https://storage.googleapis.com/site-assets/m_dK5KEbXeU4uaxGhlSzUSeuKzCY_eGZmEKWYzRTm7c_cover-183c4941d3c",
+          "partial": false
+        },
+        {
+          "id": "feed/http://insideevs.com/feed/",
+          "language": "en",
+          "title": "InsideEVs - Articles",
+          "description": "Get breaking news, in-depth articles and press releases covering Articles",
+          "iconUrl": "https://storage.googleapis.com/site-assets/YtTMOWFXVjKhzcDBnV3wHxiMYpw46W19hxUooRfpdqw_icon-1798f4241a7",
+          "feedId": "feed/http://insideevs.com/feed/",
+          "website": "https://insideevs.com/",
+          "topics": [
+            "cars",
+            "ev",
+            "tech",
+            "tesla"
+          ],
+          "subscribers": 11234,
+          "updated": 1781958275174,
+          "velocity": 33.6,
+          "created": 1370166764880,
+          "visualUrl": "https://storage.googleapis.com/site-assets/YtTMOWFXVjKhzcDBnV3wHxiMYpw46W19hxUooRfpdqw_visual-1798f4241a7",
+          "coverUrl": "https://storage.googleapis.com/site-assets/YtTMOWFXVjKhzcDBnV3wHxiMYpw46W19hxUooRfpdqw_cover-1798f4241a7",
+          "partial": true
+        },
+        {
+          "id": "feed/http://www.refinery29.com/index.xml",
+          "language": "en",
+          "title": "Refinery29",
+          "description": "Refinery29 is a creative global platform for ALL young people. We tell stories in our own words that enlighten, inspire, and drive change from the ground up. We exist at the intersection of style, fashion, beauty & shopping; work & money; sex, relationships & wellbeing; entertainment and gaming, and identity. As a community-driven brand, our mission is to arm you with what you and your communities need to find joy, meaning, and agency.",
+          "iconUrl": "https://storage.googleapis.com/site-assets/3EFSUgER3DWl3qnmKSM7sf4xY35_UTL_c8M_WtftVK0_icon-1857b36316d",
+          "feedId": "feed/http://www.refinery29.com/index.xml",
+          "website": "https://www.refinery29.com",
+          "topics": [
+            "fashion",
+            "beauty",
+            "lifestyle"
+          ],
+          "subscribers": 63442,
+          "updated": 1781881237568,
+          "velocity": 22.4,
+          "created": 1370158692725,
+          "visualUrl": "https://storage.googleapis.com/site-assets/3EFSUgER3DWl3qnmKSM7sf4xY35_UTL_c8M_WtftVK0_visual-1857b36316d",
+          "coverUrl": "https://storage.googleapis.com/site-assets/3EFSUgER3DWl3qnmKSM7sf4xY35_UTL_c8M_WtftVK0_cover-181d6e18a33",
+          "partial": false
+        },
+        {
+          "id": "feed/https://europeangaming.eu/portal/feed/",
+          "language": "en",
+          "title": "European Gaming Industry News",
+          "description": "Daily News, Press Releases, Compliance Updates, Interviews and Event Reports",
+          "iconUrl": "https://storage.googleapis.com/site-assets/HLAMYCs8kW9OihRdeYaV1CNBnxhQEIEuLzK62fKlpxY_icon-1687a9e3575",
+          "feedId": "feed/https://europeangaming.eu/portal/feed/",
+          "website": "https://europeangaming.eu/portal",
+          "topics": [
+            "esports",
+            "gaming",
+            "media",
+            "tech",
+            "gambling",
+            "sports"
+          ],
+          "subscribers": 1708,
+          "updated": 1781878929295,
+          "velocity": 35.2,
+          "created": 1520257737723,
+          "visualUrl": "https://storage.googleapis.com/site-assets/HLAMYCs8kW9OihRdeYaV1CNBnxhQEIEuLzK62fKlpxY_visual-1687a9e3575",
+          "coverUrl": "https://storage.googleapis.com/site-assets/HLAMYCs8kW9OihRdeYaV1CNBnxhQEIEuLzK62fKlpxY_cover-1687a9e3575",
+          "partial": false
+        },
+        {
+          "id": "feed/http://insurtechnews.com/news/rss/news",
+          "language": "en",
+          "title": "Insurtechnews.com - News",
+          "iconUrl": "https://storage.googleapis.com/site-assets/kNC8s5TFh6Ra2dmyV6KHX6mcmjvI2jV8hR2mS7563lE_sicon-15b645dff41",
+          "feedId": "feed/http://insurtechnews.com/news/rss/news",
+          "website": "https://insurtechnews.com/rss/news",
+          "topics": [
+            "insurance",
+            "insurtech",
+            "finance",
+            "fintech"
+          ],
+          "subscribers": 3430,
+          "updated": 1780594341425,
+          "velocity": 0.7,
+          "created": 1443621242252,
+          "visualUrl": "https://storage.googleapis.com/site-assets/kNC8s5TFh6Ra2dmyV6KHX6mcmjvI2jV8hR2mS7563lE_svisual-15b645dff41",
+          "partial": false
+        },
+        {
+          "id": "feed/http://feeds.grist.org/rss/gristfeed",
+          "language": "en",
+          "title": "Grist",
+          "description": "A nonprofit media organization telling stories of climate solutions and a just future.",
+          "iconUrl": "https://storage.googleapis.com/site-assets/BPlOEodchhoiI2knufAlS0TogYgrBL3TrbhjIkl4n50_icon-178450bb063",
+          "feedId": "feed/http://feeds.grist.org/rss/gristfeed",
+          "website": "https://grist.org/",
+          "topics": [
+            "environment",
+            "green",
+            "news"
+          ],
+          "subscribers": 32288,
+          "updated": 1781960842809,
+          "velocity": 11.7,
+          "created": 1370158781415,
+          "visualUrl": "https://storage.googleapis.com/site-assets/BPlOEodchhoiI2knufAlS0TogYgrBL3TrbhjIkl4n50_visual-178450bb063",
+          "coverUrl": "https://storage.googleapis.com/site-assets/BPlOEodchhoiI2knufAlS0TogYgrBL3TrbhjIkl4n50_cover-178450bb063",
+          "partial": false
+        },
+        {
+          "id": "feed/http://sethgodin.typepad.com/seths_blog/atom.xml",
+          "language": "en",
+          "title": "Seth Godin's Blog ",
+          "description": " Marketing, tribes and respect.",
+          "iconUrl": "https://storage.googleapis.com/site-assets/6GV_GbWOJ6VnCKxInEF8KnvUbqZzRLHHRNcmgK9rnUk_icon-1728efb2746",
+          "feedId": "feed/http://sethgodin.typepad.com/seths_blog/atom.xml",
+          "website": "https://seths.blog",
+          "topics": [
+            "marketing",
+            "business",
+            "tech"
+          ],
+          "subscribers": 419569,
+          "updated": 1781946745120,
+          "velocity": 7.2,
+          "created": 1370158692159,
+          "visualUrl": "https://storage.googleapis.com/site-assets/6GV_GbWOJ6VnCKxInEF8KnvUbqZzRLHHRNcmgK9rnUk_visual-1728efb2746",
+          "coverUrl": "https://storage.googleapis.com/site-assets/6GV_GbWOJ6VnCKxInEF8KnvUbqZzRLHHRNcmgK9rnUk_cover-1728efb2746",
+          "partial": false,
+          "logo": "http://storage.googleapis.com/test-site-assets/6GV_GbWOJ6VnCKxInEF8KnvUbqZzRLHHRNcmgK9rnUk_ologo-14f04429058"
+        },
+        {
+          "id": "feed/http://www.telecomstechnews.com/feed/",
+          "language": "en",
+          "title": "Telecoms Tech News",
+          "description": "M2M, Small Cells, OTT VoiP, Wimax, 5G, LTE, IPTV",
+          "iconUrl": "https://storage.googleapis.com/site-assets/skDvd40wuX4AoMvxyW71kc3lBgphu3emTDJ7PYf4Q7g_icon-171871044e1",
+          "feedId": "feed/http://www.telecomstechnews.com/feed/",
+          "website": "https://www.telecomstechnews.com/",
+          "topics": [
+            "telecom",
+            "tech",
+            "iot"
+          ],
+          "subscribers": 5485,
+          "updated": 1781861514317,
+          "velocity": 4.1,
+          "created": 1370158811408,
+          "visualUrl": "https://storage.googleapis.com/site-assets/skDvd40wuX4AoMvxyW71kc3lBgphu3emTDJ7PYf4Q7g_visual-171871044e1",
+          "coverUrl": "https://storage.googleapis.com/site-assets/skDvd40wuX4AoMvxyW71kc3lBgphu3emTDJ7PYf4Q7g_cover-171871044e1",
+          "partial": true
+        },
+        {
+          "id": "feed/http://www.ttnews.com/rss/ttnewsrss.xml",
+          "language": "en",
+          "title": "Transport Topics",
+          "description": "The News Leader in Trucking and Freight Transportation",
+          "iconUrl": "https://storage.googleapis.com/site-assets/fRficNa4q4warjOB08rvek288xtsCk-5W5hQxAC_hjg_icon-16518621783",
+          "feedId": "feed/http://www.ttnews.com/rss/ttnewsrss.xml",
+          "website": "https://www.ttnews.com/",
+          "topics": [
+            "supply-chain",
+            "trucking",
+            "transportation"
+          ],
+          "subscribers": 4746,
+          "updated": 1781953509949,
+          "velocity": 61.0,
+          "created": 1370164032671,
+          "visualUrl": "https://storage.googleapis.com/site-assets/fRficNa4q4warjOB08rvek288xtsCk-5W5hQxAC_hjg_visual-16518621783",
+          "coverUrl": "https://storage.googleapis.com/site-assets/fRficNa4q4warjOB08rvek288xtsCk-5W5hQxAC_hjg_cover-16518621783",
+          "partial": true
+        },
+        {
+          "id": "feed/http://feeds.feedburner.com/inmannews",
+          "language": "en",
+          "title": "Inman",
+          "description": "Discover the latest realtor and broker news and trends you need to stay ahead. See why thousands of pros count on Inman's real estate news everyday!",
+          "iconUrl": "https://storage.googleapis.com/site-assets/5y2Sp8Ri6Mk4PHs8fZbXu6vUXEDoEgcYlmTUUxI61Wc_icon-15c869ff134",
+          "feedId": "feed/http://feeds.feedburner.com/inmannews",
+          "website": "https://www.inman.com",
+          "topics": [
+            "real-estate"
+          ],
+          "subscribers": 22492,
+          "updated": 1781902162077,
+          "velocity": 48.3,
+          "created": 1370162802057,
+          "visualUrl": "https://storage.googleapis.com/site-assets/5y2Sp8Ri6Mk4PHs8fZbXu6vUXEDoEgcYlmTUUxI61Wc_visual-15c869ff134",
+          "coverUrl": "https://storage.googleapis.com/site-assets/5y2Sp8Ri6Mk4PHs8fZbXu6vUXEDoEgcYlmTUUxI61Wc_cover-18615162471",
+          "partial": true
+        },
+        {
+          "id": "feed/http://feeds.feedburner.com/TheAtlantic",
+          "language": "en",
+          "title": "The Atlantic ",
+          "description": "The Atlantic covers breaking news, analysis, opinion around politics, business, culture, international, science, technology, national and food on the official site of the Atlantic Magazine.",
+          "iconUrl": "https://storage.googleapis.com/site-assets/PiZyxgIkdjlmli7o0PIIinzT0eRAK6XGvK0WaTRcMRg_icon-1852cbe4813",
+          "feedId": "feed/http://feeds.feedburner.com/TheAtlantic",
+          "website": "https://www.theatlantic.com/",
+          "topics": [
+            "news",
+            "tech",
+            "culture",
+            "politics"
+          ],
+          "subscribers": 247713,
+          "updated": 1781958934025,
+          "velocity": 78.4,
+          "created": 1370158710896,
+          "visualUrl": "https://storage.googleapis.com/site-assets/PiZyxgIkdjlmli7o0PIIinzT0eRAK6XGvK0WaTRcMRg_visual-1852cbe4813",
+          "coverUrl": "https://storage.googleapis.com/site-assets/PiZyxgIkdjlmli7o0PIIinzT0eRAK6XGvK0WaTRcMRg_cover-16e68faca61",
+          "partial": false,
+          "logo": "http://storage.googleapis.com/test-site-assets/PiZyxgIkdjlmli7o0PIIinzT0eRAK6XGvK0WaTRcMRg_ologo-14d5491b7e0"
+        }
+      ]
+    }
+  ]
+}

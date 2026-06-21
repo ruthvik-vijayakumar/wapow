@@ -72,8 +72,12 @@ async def list_articles(
     elif sort_by in ("publishDate", "publish_date"):
         sort_field = "publish_date"
 
+    # Stable, deterministic ordering: many docs share the same date, so add _id as a
+    # tiebreaker. Without it, skip/limit pages overlap and return duplicate articles.
+    sort_spec = [(sort_field, sort_dir), ("_id", sort_dir)]
+
     skip = (page - 1) * limit
-    cursor = coll.find(query).sort(sort_field, sort_dir).skip(skip).limit(limit)
+    cursor = coll.find(query).sort(sort_spec).skip(skip).limit(limit)
     items = list(cursor)
     total = coll.count_documents(query)
 

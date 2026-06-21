@@ -101,10 +101,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function signOut() {
     if (_client) {
-      const returnTo =
-        typeof window !== 'undefined'
-          ? `${window.location.origin}/login`
-          : undefined
+      const returnTo = typeof window !== 'undefined' ? `${window.location.origin}/login` : undefined
       await _client.logout({ logoutParams: { returnTo } })
     }
   }

@@ -9,7 +9,7 @@ import DesktopSidebar from '@/components/DesktopSidebar.vue'
 import DesktopTopHeader from '@/components/DesktopTopHeader.vue'
 import VueMasonryWall from '@yeger/vue-masonry-wall'
 import type { Article } from '@/stores/content'
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
 import { useRoute } from 'vue-router'
 
@@ -47,6 +47,48 @@ const categories = [
 
 const isDrawerOpen = ref(false)
 
+// Infinite-scroll via IntersectionObserver sentinels (one per layout).
+const mobileSentinelRef = ref<HTMLElement | null>(null)
+const desktopSentinelRef = ref<HTMLElement | null>(null)
+// Scroll containers passed to the masonry so it preserves scroll position on redraw.
+const mobileScrollRef = ref<HTMLElement | null>(null)
+const desktopScrollRef = ref<HTMLElement | null>(null)
+const sentinelVisible = ref(false)
+let scrollObserver: IntersectionObserver | null = null
+
+const maybeLoadMore = () => {
+  if (!contentReady.value) return
+  if (isLoading.value || contentStore.isLoading) return
+  if (contentStore.articlesLoadingMore || !contentStore.articlesHasMore) return
+  contentStore.loadMoreArticles()
+}
+
+const setupScrollObserver = () => {
+  if (scrollObserver) return
+  scrollObserver = new IntersectionObserver(
+    (entries) => {
+      sentinelVisible.value = entries.some((e) => e.isIntersecting)
+      if (sentinelVisible.value) maybeLoadMore()
+    },
+    // Prefetch the next page a bit before the sentinel is fully in view.
+    { root: null, rootMargin: '0px 0px 600px 0px', threshold: 0 },
+  )
+  if (mobileSentinelRef.value) scrollObserver.observe(mobileSentinelRef.value)
+  if (desktopSentinelRef.value) scrollObserver.observe(desktopSentinelRef.value)
+}
+
+// IntersectionObserver only fires on intersection *changes*. If the sentinel is
+// already in view when content first becomes ready (short content / large screens)
+// or stays in view after a page is appended, re-attempt loading explicitly.
+watch(
+  () => [contentReady.value, contentStore.articlesLoadingMore] as const,
+  ([ready, loading]) => {
+    if (ready && !loading && sentinelVisible.value) {
+      maybeLoadMore()
+    }
+  },
+)
+
 const handleSearch = () => {
   router.push('/search')
 }
@@ -68,8 +110,9 @@ const handleCategoryChange = async (categoryId: string) => {
 // Watch for route changes to sync with CategoryNavigation
 const handleRouteChange = async () => {
   const currentPath = router.currentRoute.value.path
-  const categoryIndex = categories.findIndex(cat => cat === currentPath)
-  if (categoryIndex !== -1 && categoryIndex !== currentCategoryIndex.value) {
+  const categoryIndex = categories.findIndex((cat) => cat === currentPath)
+  if (categoryIndex !== -1) {
+    // Always reload when navigating to a category route (even if same index)
     currentCategoryIndex.value = categoryIndex
     await loadCategoryData(categories[categoryIndex])
   }
@@ -155,8 +198,6 @@ const handleContentClick = (content: Article) => {
   router.push(`/story/${content._id}/${cat}`)
 }
 
-
-
 const handleNavigation = (route: string) => {
   console.log('Navigation:', route)
 
@@ -184,10 +225,12 @@ const handleNavigation = (route: string) => {
 
 const getCategoryFromContent = (content: Article): string => {
   // Use section from taxonomy or fallback to type
-  return content.taxonomy?.primary_section?.name ||
-         content.taxonomy?.sections?.[0]?.name ||
-         content.type ||
-         'News'
+  return (
+    content.taxonomy?.primary_section?.name ||
+    content.taxonomy?.sections?.[0]?.name ||
+    content.type ||
+    'News'
+  )
 }
 
 const masonryConfig = computed(() => {
@@ -195,15 +238,15 @@ const masonryConfig = computed(() => {
     return {
       ssrColumns: 5,
       columnWidth: 240,
-      gap: 18,
-      padding: 12
+      gap: 12,
+      padding: 8,
     }
   }
   return {
     ssrColumns: 2,
     columnWidth: 150,
-    gap: 16,
-    padding: 8
+    gap: 12,
+    padding: 8,
   }
 })
 
@@ -214,6 +257,11 @@ const getWapoData = async () => {
     // Get current route or default to sports
     const currentPath = router.currentRoute.value.path
     const defaultCategory = categories.includes(currentPath) ? currentPath : '/sports'
+    // Sync currentCategoryIndex with the actual route
+    const idx = categories.indexOf(defaultCategory)
+    if (idx !== -1) {
+      currentCategoryIndex.value = idx
+    }
     await contentStore.loadArticles(defaultCategory)
   } catch (error) {
     console.error('Error loading initial data:', error)
@@ -232,6 +280,7 @@ onMounted(() => {
   mq.addEventListener('change', onMqChange)
 
   getWapoData()
+  setupScrollObserver()
   // Watch for route changes
   removeAfterEach = router.afterEach(handleRouteChange)
 })
@@ -239,6 +288,10 @@ onMounted(() => {
 onUnmounted(() => {
   if (mq) mq.removeEventListener('change', onMqChange)
   if (removeAfterEach) removeAfterEach()
+  if (scrollObserver) {
+    scrollObserver.disconnect()
+    scrollObserver = null
+  }
 })
 </script>
 
@@ -254,20 +307,29 @@ onUnmounted(() => {
           <CategoryNavigation />
         </div>
 
-        <div class="desktop-content">
+        <div class="desktop-content" ref="desktopScrollRef">
           <!-- Skeleton loading state -->
-          <div v-show="isLoading || contentStore.isLoading || !contentReady" class="skeleton-grid desktop">
+          <div
+            v-show="isLoading || contentStore.isLoading || !contentReady"
+            class="skeleton-grid desktop"
+          >
             <div v-for="n in 12" :key="n" class="skeleton-tile">
               <div class="skeleton-tile-image skeleton-pulse"></div>
               <div class="skeleton-tile-body">
-                <div class="skeleton-line skeleton-pulse" style="width: 90%; height: 0.75rem;"></div>
-                <div class="skeleton-line skeleton-pulse" style="width: 55%; height: 0.625rem; margin-top: 0.5rem;"></div>
+                <div class="skeleton-line skeleton-pulse" style="width: 90%; height: 0.75rem"></div>
+                <div
+                  class="skeleton-line skeleton-pulse"
+                  style="width: 55%; height: 0.625rem; margin-top: 0.5rem"
+                ></div>
               </div>
             </div>
           </div>
 
           <!-- Content grid -->
-          <div v-if="contentReady && contentStore.articles.length > 0" class="content-wrapper desktop fade-in">
+          <div
+            v-if="contentReady && contentStore.articles.length > 0"
+            class="content-wrapper desktop fade-in"
+          >
             <div class="content-inner">
               <div class="content-grid">
                 <VueMasonryWall
@@ -277,14 +339,21 @@ onUnmounted(() => {
                   :column-width="masonryConfig.columnWidth"
                   :gap="masonryConfig.gap"
                   :padding="masonryConfig.padding"
+                  :scroll-container="desktopScrollRef"
                 >
                   <template #default="{ item, index }">
                     <ContentTile :content="item" :index="index" @click="handleContentClick" />
                   </template>
                 </VueMasonryWall>
               </div>
+              <!-- Infinite scroll loader -->
+              <div v-if="contentStore.articlesLoadingMore" class="load-more-indicator">
+                <div class="load-more-spinner"></div>
+              </div>
             </div>
           </div>
+          <!-- Infinite-scroll sentinel (observed by IntersectionObserver) -->
+          <div ref="desktopSentinelRef" class="scroll-sentinel" aria-hidden="true"></div>
         </div>
       </div>
     </div>
@@ -294,26 +363,32 @@ onUnmounted(() => {
       <TopBar @search="handleSearch" @menu="handleMenu" />
       <CategoryNavigation />
 
-      <div class="content-area">
+      <div class="content-area" ref="mobileScrollRef">
         <!-- Skeleton loading state -->
         <div v-show="isLoading || contentStore.isLoading || !contentReady" class="skeleton-grid">
           <div v-for="n in 8" :key="n" class="skeleton-tile">
             <div class="skeleton-tile-image skeleton-pulse"></div>
             <div class="skeleton-tile-body">
-              <div class="skeleton-line skeleton-pulse" style="width: 90%; height: 0.75rem;"></div>
-              <div class="skeleton-line skeleton-pulse" style="width: 55%; height: 0.625rem; margin-top: 0.5rem;"></div>
+              <div class="skeleton-line skeleton-pulse" style="width: 90%; height: 0.75rem"></div>
+              <div
+                class="skeleton-line skeleton-pulse"
+                style="width: 55%; height: 0.625rem; margin-top: 0.5rem"
+              ></div>
             </div>
           </div>
         </div>
 
         <!-- Content Grid with Animation -->
-        <div v-if="contentReady && contentStore.articles.length > 0" class="content-wrapper fade-in">
+        <div
+          v-if="contentReady && contentStore.articles.length > 0"
+          class="content-wrapper fade-in"
+        >
           <div class="content-inner">
             <div
               class="content-grid"
               :class="{
                 'slide-left': slideDirection === 'left',
-                'slide-right': slideDirection === 'right'
+                'slide-right': slideDirection === 'right',
               }"
             >
               <VueMasonryWall
@@ -323,11 +398,16 @@ onUnmounted(() => {
                 :column-width="masonryConfig.columnWidth"
                 :gap="masonryConfig.gap"
                 :padding="masonryConfig.padding"
+                :scroll-container="mobileScrollRef"
               >
                 <template #default="{ item, index }">
                   <ContentTile :content="item" :index="index" @click="handleContentClick" />
                 </template>
               </VueMasonryWall>
+            </div>
+            <!-- Infinite scroll loader -->
+            <div v-if="contentStore.articlesLoadingMore" class="load-more-indicator">
+              <div class="load-more-spinner"></div>
             </div>
           </div>
 
@@ -336,23 +416,35 @@ onUnmounted(() => {
             <div
               v-if="currentCategoryIndex > 0"
               class="swipe-indicator left"
-              :class="{ 'pulse': slideDirection === 'right' }"
+              :class="{ pulse: slideDirection === 'right' }"
             >
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M15 19l-7-7 7-7"
+                />
               </svg>
             </div>
             <div
               v-if="currentCategoryIndex < categories.length - 1"
               class="swipe-indicator right"
-              :class="{ 'pulse': slideDirection === 'left' }"
+              :class="{ pulse: slideDirection === 'left' }"
             >
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 5l7 7-7 7"
+                />
               </svg>
             </div>
           </div>
         </div>
+        <!-- Infinite-scroll sentinel (observed by IntersectionObserver) -->
+        <div ref="mobileSentinelRef" class="scroll-sentinel" aria-hidden="true"></div>
       </div>
 
       <NavigationDrawer :isOpen="isDrawerOpen" @close="isDrawerOpen = false" />
@@ -466,8 +558,12 @@ onUnmounted(() => {
 }
 
 @keyframes shimmer {
-  0%   { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 .content-area {
@@ -519,6 +615,35 @@ onUnmounted(() => {
   animation: fadeIn 0.2s ease-out;
 }
 
+/* Infinite-scroll sentinel */
+.scroll-sentinel {
+  width: 100%;
+  height: 1px;
+}
+
+/* Infinite-scroll load-more indicator */
+.load-more-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem 0 2rem;
+  width: 100%;
+}
+
+.load-more-spinner {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  border: 3px solid var(--spinner-border, #d1d5db);
+  border-top-color: var(--spinner-accent, #111827);
+  animation: loadMoreSpin 0.7s linear infinite;
+}
+
+@keyframes loadMoreSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 @keyframes fadeIn {
   0% {
     opacity: 0;
@@ -578,7 +703,6 @@ onUnmounted(() => {
   animation: pulse 0.6s ease-in-out;
 }
 
-
 @keyframes slideInLeft {
   0% {
     transform: translate3d(30px, 0, 0);
@@ -602,7 +726,8 @@ onUnmounted(() => {
 }
 
 @keyframes subtleBounce {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateX(0);
   }
   50% {

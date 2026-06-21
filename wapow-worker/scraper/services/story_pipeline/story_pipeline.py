@@ -46,8 +46,15 @@ class StoryPipeline(BasePipeline):
 
         prompt = f"""You are an expert editor creating a mobile visual story (like Instagram/Snapchat Stories) from a news article.
 Your task is to summarize the article into between {min_slides} and {max_slides} sequential narrative segments (beats) that explain the entire story.
-Determine the optimal number of segments (within the range {min_slides} to {max_slides}) based on the actual complexity and length of the article.
-If the article is simple or short, favor a smaller number of segments (even just {min_slides}) so that the story is concise and doesn't drag.
+Determine the optimal number of segments (within the range {min_slides} to {max_slides}) based on the actual substance of the article.
+
+CONTENT DENSITY (most important rule):
+- Each segment MUST be a substantial, self-contained narrative beat — roughly a full short paragraph of information.
+- NEVER produce a segment whose content is just a single thin sentence. A slide that says almost nothing is worse than no slide.
+- It is far better to have FEWER, richer segments than many thin ones. Default to the low end of the range and only add a segment when there is a genuinely distinct new development, fact, or topic shift.
+- If two ideas are closely related, COMBINE them into one segment rather than splitting them across two slides.
+- Prefer {min_slides} segments unless the article clearly contains enough distinct substance to justify more.
+
 For each segment, you must provide both a short and long summary version to accommodate different slide layouts.
 
 IMAGE SELECTION:
@@ -60,8 +67,8 @@ Do not force an image match if it's not a highly relevant fit; in that case, set
 Output a JSON object with:
 1. "segments": A list of the generated segment objects. Each segment object MUST contain:
    - "key_phrases": A list of 2-3 unique key phrases or keyword groups that are highly specific to this part of the article.
-   - "short_summary": A highly concise summary of this segment. Keep it strictly MAXIMUM 120 characters (a single short sentence).
-   - "long_summary": A detailed, descriptive summary of this segment. Keep it strictly between 250 and 450 characters (3-4 sentences) to explain the segment fully.
+   - "short_summary": A concise summary of this segment for image/video layouts. Keep it strictly between 90 and 200 characters (1-2 punchy sentences). It must still convey a complete, meaningful point — not a fragment.
+   - "long_summary": A detailed, descriptive summary of this segment. Keep it strictly between 280 and 480 characters (3-4 sentences) to explain the segment fully.
    - "suggested_image_url": A unique, relevant image URL from the list of AVAILABLE IMAGES, or null.
 2. "takeaways": A list of 3-5 short bullet points summarizing the key takeaways of the whole article.
 
@@ -280,21 +287,17 @@ ARTICLE_BODY:
             embed_code = seg.get("embed_code")
             focal_point = seg.get("focal_point")
             
-            # Select appropriate content based on layout constraints (with video vs with image vs text-only)
+            # Select appropriate content based on layout constraints (with video vs with image vs text-only).
+            # No character-based truncation here — the frontend scales text to fit the slide
+            # and only ellipsizes when content actually exceeds the container height.
             if vid_url:
                 text_content = seg.get("short_summary") or ""
-                # Enforce safety limits
-                if len(text_content) > 120:
-                    text_content = text_content[:117] + "..."
                 page_content = [
                     {"type": "text", "content": text_content},
                     {"type": "video", "content_url": vid_url, "embed_code": embed_code or ""}
                 ]
             elif img_url:
                 text_content = seg.get("short_summary") or ""
-                # Enforce safety limits
-                if len(text_content) > 120:
-                    text_content = text_content[:117] + "..."
                 image_item: Dict[str, Any] = {"type": "image", "content_url": img_url}
                 if focal_point:
                     image_item["focal_point"] = focal_point
@@ -306,9 +309,6 @@ ARTICLE_BODY:
                 text_content = seg.get("long_summary") or ""
                 if not text_content:
                     text_content = seg.get("short_summary") or ""
-                # Enforce bounds
-                if len(text_content) > 500:
-                    text_content = text_content[:497] + "..."
                 page_content = [
                     {"type": "text", "content": text_content}
                 ]
@@ -318,31 +318,108 @@ ARTICLE_BODY:
                 "content": page_content
             })
 
-        # Format takeaways overview slide
-        if takeaways:
-            takeaways_text = "\n".join(f"• {t.strip()}" for t in takeaways)
-        else:
-            takeaways_text = f"• {tree.title}"
+        # Takeaways/overview slide only adds value when there are multiple content
+        # slides to summarize. For a single-slide (short) article, skip it entirely.
+        if len(pages) >= 2:
+            if takeaways:
+                takeaways_text = "\n".join(f"• {t.strip()}" for t in takeaways)
+            else:
+                takeaways_text = f"• {tree.title}"
 
-        pages.append({
-            "page_type": "overview",
-            "content": [
-                {"type": "text", "content": takeaways_text}
-            ]
-        })
+            pages.append({
+                "page_type": "overview",
+                "content": [
+                    {"type": "text", "content": takeaways_text}
+                ]
+            })
 
         return pages
 
+    def stitch_segments(self, aligned_segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Merge consecutive text-only segments if their combined text length is within
+        an adaptive threshold based on the media density of the story.
+        """
+        if not aligned_segments:
+            return []
+
+        # Count slides with media
+        media_count = sum(1 for seg in aligned_segments if seg.get("image_url") or seg.get("video_url"))
+        total_count = len(aligned_segments)
+        media_ratio = media_count / total_count if total_count > 0 else 0
+
+        # Determine adaptive threshold
+        if media_ratio > 0.5:
+            max_chars = 350
+        elif media_ratio > 0.25:
+            max_chars = 420
+        else:
+            max_chars = 500
+
+        logger.info(f"Slide stitching media ratio: {media_ratio:.2f}. Adaptive character limit: {max_chars}")
+
+        stitched = []
+        i = 0
+        while i < len(aligned_segments):
+            curr = aligned_segments[i]
+            
+            # If the current segment has media, we keep it as is
+            if curr.get("image_url") or curr.get("video_url"):
+                stitched.append(curr)
+                i += 1
+                continue
+                
+            # It's a text-only segment. Look ahead to merge consecutive text-only segments
+            merged_seg = {
+                "short_summary": curr.get("short_summary") or "",
+                "long_summary": curr.get("long_summary") or "",
+                "video_url": None,
+                "embed_code": None,
+                "image_url": None,
+                "focal_point": None,
+            }
+            
+            j = i + 1
+            while j < len(aligned_segments):
+                next_seg = aligned_segments[j]
+                
+                # Check if next is also text-only
+                if next_seg.get("image_url") or next_seg.get("video_url"):
+                    break
+                    
+                next_long = next_seg.get("long_summary") or ""
+                # Check if combined length exceeds threshold
+                combined_len = len(merged_seg["long_summary"]) + len(next_long) + 2  # +2 for '\n\n'
+                if combined_len <= max_chars:
+                    merged_seg["long_summary"] = merged_seg["long_summary"] + "\n\n" + next_long
+                    next_short = next_seg.get("short_summary") or ""
+                    if merged_seg["short_summary"] and next_short:
+                        merged_seg["short_summary"] = merged_seg["short_summary"] + "; " + next_short
+                    else:
+                        merged_seg["short_summary"] = merged_seg["short_summary"] or next_short
+                    j += 1
+                else:
+                    break
+                    
+            stitched.append(merged_seg)
+            i = j
+            
+        return stitched
+
     def execute(self, tree: DocumentTree) -> Optional[List[Dict[str, Any]]]:
         """Orchestrate the 3-stage visual slides generation flow."""
-        # Determine number of content slides (beats) adaptively based on word count
+        # Determine number of content slides (beats) adaptively based on word count.
+        # Bias toward FEWER, denser beats — a single substantial slide beats several thin ones.
         word_count = len(tree.get_plaintext().split())
-        if word_count < 150:
+        if word_count < 250:
             min_slides, max_slides = 1, 2
-        elif word_count < 600:
-            min_slides, max_slides = 2, 4
+        elif word_count < 750:
+            # Typical news article: lead+image slide + one consolidated body slide.
+            min_slides, max_slides = 2, 2
+        elif word_count < 1300:
+            min_slides, max_slides = 3, 3
         else:
-            min_slides, max_slides = 3, 5
+            min_slides, max_slides = 3, 4
 
         # Stage 1: Storyboard
         storyboard_data = self.storyboard(tree, min_slides, max_slides)
@@ -355,6 +432,9 @@ ARTICLE_BODY:
         # Stage 2: Media Alignment
         aligned_segments = self.align_media(tree, segments)
 
+        # Stage 2.5: Slide Stitching / Merging
+        stitched_segments = self.stitch_segments(aligned_segments)
+
         # Stage 3: Refine Layout
-        pages = self.refine(aligned_segments, takeaways, tree)
+        pages = self.refine(stitched_segments, takeaways, tree)
         return pages

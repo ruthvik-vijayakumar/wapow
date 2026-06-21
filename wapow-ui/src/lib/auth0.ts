@@ -27,9 +27,13 @@ export const auth0Config = {
 
 // Log redirect_uri in dev to help debug Auth0 callback URL config
 if (import.meta.env.DEV && auth0Config.authorizationParams.redirect_uri) {
-  console.log('[Auth0] Callback URL:', auth0Config.authorizationParams.redirect_uri, '(add this to Auth0 Allowed Callback URLs)')
+  console.log(
+    '[Auth0] Callback URL:',
+    auth0Config.authorizationParams.redirect_uri,
+    '(add this to Auth0 Allowed Callback URLs)',
+  )
 }
 
 export const isAuth0Configured = Boolean(
-  auth0Config.domain && auth0Config.clientId && auth0Config.authorizationParams.audience
+  auth0Config.domain && auth0Config.clientId && auth0Config.authorizationParams.audience,
 )

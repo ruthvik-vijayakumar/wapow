@@ -4,12 +4,16 @@
     <div class="article-header">
       <button @click="handleBack" class="back-button">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M15 19l-7-7 7-7"
+          />
         </svg>
         <span class="back-text">Back to Story</span>
       </button>
     </div>
-
 
     <!-- Iframe container -->
     <div class="iframe-container">
@@ -17,14 +21,35 @@
       <div v-if="isLoading && !hasError" class="article-skeleton">
         <div class="article-skeleton-hero skeleton-pulse"></div>
         <div class="article-skeleton-body">
-          <div class="skeleton-line skeleton-pulse" style="width: 75%; height: 1.25rem;"></div>
-          <div class="skeleton-line skeleton-pulse" style="width: 40%; height: 0.75rem; margin-top: 1rem;"></div>
-          <div class="skeleton-line skeleton-pulse" style="width: 100%; height: 0.625rem; margin-top: 1.5rem;"></div>
-          <div class="skeleton-line skeleton-pulse" style="width: 100%; height: 0.625rem; margin-top: 0.5rem;"></div>
-          <div class="skeleton-line skeleton-pulse" style="width: 85%; height: 0.625rem; margin-top: 0.5rem;"></div>
-          <div class="skeleton-line skeleton-pulse" style="width: 100%; height: 0.625rem; margin-top: 1rem;"></div>
-          <div class="skeleton-line skeleton-pulse" style="width: 95%; height: 0.625rem; margin-top: 0.5rem;"></div>
-          <div class="skeleton-line skeleton-pulse" style="width: 60%; height: 0.625rem; margin-top: 0.5rem;"></div>
+          <div class="skeleton-line skeleton-pulse" style="width: 75%; height: 1.25rem"></div>
+          <div
+            class="skeleton-line skeleton-pulse"
+            style="width: 40%; height: 0.75rem; margin-top: 1rem"
+          ></div>
+          <div
+            class="skeleton-line skeleton-pulse"
+            style="width: 100%; height: 0.625rem; margin-top: 1.5rem"
+          ></div>
+          <div
+            class="skeleton-line skeleton-pulse"
+            style="width: 100%; height: 0.625rem; margin-top: 0.5rem"
+          ></div>
+          <div
+            class="skeleton-line skeleton-pulse"
+            style="width: 85%; height: 0.625rem; margin-top: 0.5rem"
+          ></div>
+          <div
+            class="skeleton-line skeleton-pulse"
+            style="width: 100%; height: 0.625rem; margin-top: 1rem"
+          ></div>
+          <div
+            class="skeleton-line skeleton-pulse"
+            style="width: 95%; height: 0.625rem; margin-top: 0.5rem"
+          ></div>
+          <div
+            class="skeleton-line skeleton-pulse"
+            style="width: 60%; height: 0.625rem; margin-top: 0.5rem"
+          ></div>
         </div>
       </div>
       <iframe
@@ -53,7 +78,7 @@ const iframeLoaded = ref(false)
 
 // Get article URL from route params
 const articleUrl = computed(() => {
-  return route.params.url as string || ''
+  return (route.params.url as string) || ''
 })
 
 // Resolve the iframe source URL: if absolute, use as-is; otherwise prepend the Washington Post domain
@@ -69,7 +94,7 @@ const resolvedUrl = computed(() => {
 
 // Get article title from route params or use default
 const articleTitle = computed(() => {
-  return route.params.title as string || 'Article'
+  return (route.params.title as string) || 'Article'
 })
 
 // Handle back button click
@@ -88,7 +113,8 @@ const handleIframeLoad = () => {
 const handleIframeError = () => {
   isLoading.value = false
   hasError.value = true
-  errorMessage.value = 'Failed to load the article. Please check your internet connection and try again.'
+  errorMessage.value =
+    'Failed to load the article. Please check your internet connection and try again.'
   console.error('Article iframe failed to load')
 }
 
@@ -196,8 +222,12 @@ onMounted(() => {
 }
 
 @keyframes shimmer {
-  0%   { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 .error-container {

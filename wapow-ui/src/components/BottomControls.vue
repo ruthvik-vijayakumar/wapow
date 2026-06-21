@@ -3,29 +3,26 @@
     <div class="flex flex-col gap-y-2 flex-1">
       <div v-if="showCategory" class="category-tag-container">
         <span class="category-tag">{{ category }}</span>
-        <span class="decorative-text">
-          Follow
-        </span>
+        <span class="decorative-text"> Follow </span>
       </div>
 
       <div class="bottom-left">
         <!-- Action Buttons -->
         <div class="podcast-actions">
-          <!-- Simple Like Button -->
-          <button @click="handleLike" class="podcast-action-btn" :class="{ 'active': isLiked, 'active-heart': isLiked }">
-            <svg v-if="!isLiked" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-            </svg>
-            <svg v-else class="w-6 h-6" fill="currentColor" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-            </svg>
-            <span class="action-text">{{ isLiked ? 'Liked' : 'Like' }}</span>
-          </button>
-
           <!-- Listen Button -->
-          <button v-if="showListen" @click="handleListen" class="podcast-action-btn" :class="{ 'active': isListening }">
+          <button
+            v-if="showListen"
+            @click="handleListen"
+            class="podcast-action-btn"
+            :class="{ active: isListening }"
+          >
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"
+              />
             </svg>
             <span class="action-text">{{ isListening ? 'Listening' : 'Listen' }}</span>
           </button>
@@ -33,18 +30,28 @@
           <!-- Share Button -->
           <button @click="handleShare" class="podcast-action-btn">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"
+              />
             </svg>
             <span class="action-text">Share</span>
           </button>
         </div>
         <div class="discuss-button">
           <button @click="handleComments" class="follow-button">
-        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-        </svg>
-        Discuss
-      </button>
+            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"
+              />
+            </svg>
+            Discuss
+          </button>
         </div>
       </div>
     </div>
@@ -53,11 +60,9 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import html2canvas from 'html2canvas'
 import { useAnalytics } from '@/composables/useAnalytics'
 
 interface Props {
-  initialLiked?: boolean
   initialListening?: boolean
   showCategory?: boolean
   showListen?: boolean
@@ -66,23 +71,20 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  initialLiked: false,
   initialListening: false,
   showCategory: false,
   showListen: false,
   category: '',
-  articleContent: null
+  articleContent: null,
 })
 
 const emit = defineEmits<{
-  like: [liked: boolean]
   listen: [listening: boolean]
   comments: [articleContent?: any]
   share: []
 }>()
 
-const { trackLike, trackShare } = useAnalytics()
-const isLiked = ref(props.initialLiked)
+const { trackShare } = useAnalytics()
 const isListening = ref(props.initialListening)
 
 const categoryEmoji = computed(() => {
@@ -110,17 +112,6 @@ const categoryEmoji = computed(() => {
   return '📰'
 })
 
-
-
-const handleLike = () => {
-  isLiked.value = !isLiked.value
-  emit('like', isLiked.value)
-  // Analytics
-  const contentId = String(props.articleContent?._id ?? props.articleContent?.id ?? props.articleContent?.content_id ?? '')
-  const contentType = props.articleContent?.mediaType || props.articleContent?.type || ''
-  trackLike(contentId, isLiked.value, contentType, props.category)
-}
-
 const handleListen = () => {
   isListening.value = !isListening.value
   emit('listen', isListening.value)
@@ -132,13 +123,17 @@ const handleComments = () => {
 
 const handleShare = async () => {
   // Analytics
-  const contentId = String(props.articleContent?._id ?? props.articleContent?.id ?? props.articleContent?.content_id ?? '')
+  const contentId = String(
+    props.articleContent?._id ?? props.articleContent?.id ?? props.articleContent?.content_id ?? '',
+  )
   const contentType = props.articleContent?.mediaType || props.articleContent?.type || ''
   trackShare(contentId, 'screenshot', contentType, props.category)
 
   try {
     // Find the main content container to screenshot
-    const contentElement = document.querySelector('.story-container, .vertical-video-container, .podcast-container')
+    const contentElement = document.querySelector(
+      '.story-container, .vertical-video-container, .podcast-container',
+    )
 
     if (!contentElement) {
       console.error('Content element not found for screenshot')
@@ -147,7 +142,9 @@ const handleShare = async () => {
     }
 
     // Capture screenshot of the content
-    const canvas = await html2canvas(contentElement as HTMLElement, {
+    const canvas = await (
+      await import('html2canvas')
+    ).default(contentElement as HTMLElement, {
       useCORS: true,
       allowTaint: true,
       scale: 2, // Higher quality screenshot
@@ -156,30 +153,34 @@ const handleShare = async () => {
       height: contentElement.clientHeight,
       ignoreElements: (element) => {
         // Ignore certain elements like controls, buttons, etc.
-        return element.classList.contains('podcast-bottom') ||
-               element.classList.contains('video-controls') ||
-               element.classList.contains('story-header') ||
-               element.classList.contains('progress-container') ||
-               element.classList.contains('controls-row') ||
-               element.classList.contains('back-button') ||
-               element.classList.contains('action-button') ||
-               element.classList.contains('header-actions') ||
-               element.tagName === 'BUTTON'
-      }
+        return (
+          element.classList.contains('podcast-bottom') ||
+          element.classList.contains('video-controls') ||
+          element.classList.contains('story-header') ||
+          element.classList.contains('progress-container') ||
+          element.classList.contains('controls-row') ||
+          element.classList.contains('back-button') ||
+          element.classList.contains('action-button') ||
+          element.classList.contains('header-actions') ||
+          element.tagName === 'BUTTON'
+        )
+      },
     })
 
-
     // Convert canvas to blob
-    canvas.toBlob(async (blob) => {
-      if (!blob) {
-        console.error('Failed to create blob from canvas')
-        emit('share')
-        return
-      }
+    canvas.toBlob(
+      async (blob) => {
+        if (!blob) {
+          console.error('Failed to create blob from canvas')
+          emit('share')
+          return
+        }
 
-      await shareImageAsset(blob)
-    }, 'image/png', 0.9)
-
+        await shareImageAsset(blob)
+      },
+      'image/png',
+      0.9,
+    )
   } catch (error) {
     console.error('Error capturing screenshot:', error)
     // Fallback to regular share
@@ -225,8 +226,6 @@ const shareImageAsset = async (blobImageAsset: Blob): Promise<boolean> => {
     return false
   }
 }
-
-
 </script>
 
 <style scoped>
@@ -282,12 +281,6 @@ const shareImageAsset = async (blobImageAsset: Blob): Promise<boolean> => {
   @apply transition-transform duration-200;
 }
 
-/* Red color and scaling for heart icon */
-.podcast-action-btn.active-heart {
-  @apply text-red-500;
-  /* @apply scale-110; */
-}
-
 .action-text {
   @apply font-medium text-sm;
 }
@@ -305,6 +298,4 @@ const shareImageAsset = async (blobImageAsset: Blob): Promise<boolean> => {
   @apply transition-all duration-200;
   @apply hover:bg-opacity-20;
 }
-
-
 </style>

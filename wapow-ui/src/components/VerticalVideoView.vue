@@ -3,27 +3,46 @@
     <div class="video-header">
       <button @click="handleBack" class="back-button">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M15 19l-7-7 7-7"
+          />
         </svg>
       </button>
 
       <div class="header-actions">
         <button
           class="action-button"
-          :class="{ 'saved': isSaved }"
+          :class="{ saved: isSaved }"
           @click.stop="handleSave"
           @touchend.stop.prevent="handleSave"
           aria-label="Save video"
         >
-          <svg class="w-5 h-5" :fill="isSaved ? 'currentColor' : 'none'" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+          <svg
+            class="w-5 h-5"
+            :fill="isSaved ? 'currentColor' : 'none'"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+            />
           </svg>
         </button>
       </div>
     </div>
 
     <div class="video-content">
-      <div class="video-player-container" :class="{ 'horizontal-video': isHorizontalVideo }" @click="togglePlay">
+      <div
+        class="video-player-container"
+        :class="{ 'horizontal-video': isHorizontalVideo }"
+        @click="togglePlay"
+      >
         <video
           ref="videoPlayer"
           class="video-player"
@@ -41,38 +60,71 @@
 
         <div v-if="!isPlaying" class="play-overlay" @click.stop="togglePlay">
           <svg class="w-16 h-16" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M8 5v14l11-7z"/>
+            <path d="M8 5v14l11-7z" />
           </svg>
         </div>
 
         <div class="video-controls" @click.stop>
           <div class="progress-container">
-            <div
-              class="progress-bar-video"
-              @click="handleSeek"
-              ref="progressBar"
-            >
+            <div class="progress-bar-video" @click="handleSeek" ref="progressBar">
               <div class="progress-fill-video" :style="{ width: videoProgress + '%' }"></div>
             </div>
           </div>
 
           <div class="controls-row">
             <button @click.stop="togglePlay" class="control-button">
-              <svg v-if="isPlaying" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+              <svg
+                v-if="isPlaying"
+                class="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"
+                />
               </svg>
               <svg v-else class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5v14l11-7z" />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M8 5v14l11-7z"
+                />
               </svg>
             </button>
             <div class="flex items-center space-x-2">
               <button @click.stop="toggleMute" class="control-button">
-                <svg v-if="!isMuted" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                <svg
+                  v-if="!isMuted"
+                  class="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"
+                  />
                 </svg>
                 <svg v-else class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"
+                  />
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"
+                  />
                 </svg>
               </button>
 
@@ -81,15 +133,9 @@
           </div>
         </div>
       </div>
-
     </div>
 
-    <BottomControls
-      :initial-liked="isLiked"
-      :article-content="props.video"
-      @like="handleLike"
-      @comments="handleComment"
-    />
+    <BottomControls :article-content="props.video" @comments="handleComment" />
   </div>
 </template>
 
@@ -111,7 +157,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   storyIndex: 0,
   totalStories: 1,
-  isSaved: false
+  isSaved: false,
 })
 
 const emit = defineEmits<{
@@ -123,25 +169,28 @@ const emit = defineEmits<{
   save: [content: { id: string; collection?: string; saved: boolean }]
 }>()
 
-const { trackVideoProgress, trackLike } = useAnalytics()
+const { trackVideoProgress } = useAnalytics()
 const isSaved = computed(() => props.isSaved)
 
 const _firedMilestones = new Set<number>()
 let _videoStartTime = 0
 
 const handleSave = async () => {
-  const id = props.video?.id ?? props.video?._id ?? props.video?.contentId ?? props.video?.content_id
+  const id =
+    props.video?.id ?? props.video?._id ?? props.video?.contentId ?? props.video?.content_id
   if (!id) return
   const collection = props.video?.collection ?? props.category ?? 'videos'
   const currentlySaved = props.isSaved
   try {
     if (currentlySaved) {
-      const res = await apiFetch(`/api/saved-articles/${encodeURIComponent(id)}`, { method: 'DELETE' })
+      const res = await apiFetch(`/api/saved-articles/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      })
       if (res.ok) emit('save', { id, collection, saved: false })
     } else {
       const res = await apiFetch('/api/saved-articles', {
         method: 'POST',
-        body: JSON.stringify({ article_id: id, collection })
+        body: JSON.stringify({ article_id: id, collection }),
       })
       if (res.ok) emit('save', { id, collection, saved: true })
     }
@@ -154,10 +203,9 @@ const isPlaying = ref(false)
 const currentTime = ref('0:00')
 const duration = ref('0:00')
 const videoProgress = ref(0)
-const isLiked = ref(false)
 const isVisible = ref(false)
 const isMuted = ref(false)
-const videoAspectRatio = ref(16/9)
+const videoAspectRatio = ref(16 / 9)
 const isHorizontalVideo = computed(() => videoAspectRatio.value > 1)
 
 const videoPlayer = ref<HTMLVideoElement>()
@@ -213,7 +261,9 @@ const handleTimeUpdate = () => {
       if (pct >= milestone && !_firedMilestones.has(milestone)) {
         _firedMilestones.add(milestone)
         const videoId = props.video?.id ?? props.video?._id ?? props.video?.content_id ?? ''
-        const watchMs = _videoStartTime ? Math.round(performance.now() - _videoStartTime) : Math.round(current * 1000)
+        const watchMs = _videoStartTime
+          ? Math.round(performance.now() - _videoStartTime)
+          : Math.round(current * 1000)
         trackVideoProgress(String(videoId), milestone, watchMs, props.category)
       }
     }
@@ -237,10 +287,6 @@ const formatTime = (seconds: number): string => {
   const mins = Math.floor(seconds / 60)
   const secs = Math.floor(seconds % 60)
   return `${mins}:${secs.toString().padStart(2, '0')}`
-}
-
-const handleLike = () => {
-  isLiked.value = !isLiked.value
 }
 
 const handleComment = () => {
@@ -279,7 +325,7 @@ const setupIntersectionObserver = () => {
         }
       })
     },
-    { threshold: 0.5 }
+    { threshold: 0.5 },
   )
 
   intersectionObserver.observe(videoContainer.value)
@@ -287,8 +333,8 @@ const setupIntersectionObserver = () => {
 
 onMounted(() => {
   if (videoPlayer.value) {
-    videoPlayer.value.addEventListener('play', () => isPlaying.value = true)
-    videoPlayer.value.addEventListener('pause', () => isPlaying.value = false)
+    videoPlayer.value.addEventListener('play', () => (isPlaying.value = true))
+    videoPlayer.value.addEventListener('pause', () => (isPlaying.value = false))
   }
 
   setupIntersectionObserver()
@@ -296,8 +342,8 @@ onMounted(() => {
 
 onUnmounted(() => {
   if (videoPlayer.value) {
-    videoPlayer.value.removeEventListener('play', () => isPlaying.value = true)
-    videoPlayer.value.removeEventListener('pause', () => isPlaying.value = false)
+    videoPlayer.value.removeEventListener('play', () => (isPlaying.value = true))
+    videoPlayer.value.removeEventListener('pause', () => (isPlaying.value = false))
   }
 
   if (intersectionObserver) {

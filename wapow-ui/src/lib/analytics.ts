@@ -6,8 +6,7 @@
  * Uses `navigator.sendBeacon` on page hide for reliability.
  */
 
-const COLLECTOR_URL =
-  import.meta.env.VITE_COLLECTOR_URL || 'http://localhost:3002'
+const COLLECTOR_URL = import.meta.env.VITE_COLLECTOR_URL || 'http://localhost:3002'
 
 const FLUSH_INTERVAL_MS = 5_000
 const FLUSH_BUFFER_SIZE = 20

@@ -7,12 +7,22 @@
       <div class="nav-right">
         <button class="grid-button">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
+            />
           </svg>
         </button>
         <button class="options-button">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+            />
           </svg>
         </button>
       </div>
@@ -21,8 +31,19 @@
     <!-- Search Bar -->
     <div class="search-container">
       <div class="search-bar">
-        <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        <svg
+          class="search-icon"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+          />
         </svg>
         <input
           v-model="searchQuery"
@@ -39,7 +60,12 @@
           @click="searchQuery = ''"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            />
           </svg>
         </button>
       </div>
@@ -54,7 +80,12 @@
           <div class="group-name">{{ group.name }}</div>
           <button class="group-options">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+              />
             </svg>
           </button>
         </div>
@@ -73,7 +104,11 @@
           <div v-if="group.articles.length > 4" class="more-indicator">
             +{{ group.articles.length - 4 }}
           </div>
-          <div v-for="i in Math.max(0, 4 - group.articles.length)" :key="`empty-${i}`" class="empty-slot"></div>
+          <div
+            v-for="i in Math.max(0, 4 - group.articles.length)"
+            :key="`empty-${i}`"
+            class="empty-slot"
+          ></div>
         </div>
       </div>
 
@@ -91,7 +126,12 @@
           <div class="article-title">{{ getArticleTitle(article) }}</div>
           <button class="close-button" @click.stop="closeArticle(article)">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
@@ -141,34 +181,44 @@ const groups = ref([
   {
     name: 'Technology',
     color: '#EC4899', // Pink like Wharton PM
-    articles: contentStore.articles.filter(a => a.taxonomy?.primary_section?.name === 'Technology').slice(0, 6)
+    articles: contentStore.articles
+      .filter((a) => a.taxonomy?.primary_section?.name === 'Technology')
+      .slice(0, 6),
   },
   {
     name: 'Health',
     color: '#9CA3AF', // Light gray like UVA PM
-    articles: contentStore.articles.filter(a => a.taxonomy?.primary_section?.name === 'Health').slice(0, 4)
-  }
+    articles: contentStore.articles
+      .filter((a) => a.taxonomy?.primary_section?.name === 'Health')
+      .slice(0, 4),
+  },
 ])
 
 // Computed
 const individualArticles = computed(() => {
-  return contentStore.articles.filter(article =>
-    !groups.value.some(group =>
-      group.articles.some(groupArticle => groupArticle._id === article._id)
+  return contentStore.articles
+    .filter(
+      (article) =>
+        !groups.value.some((group) =>
+          group.articles.some((groupArticle) => groupArticle._id === article._id),
+        ),
     )
-  ).slice(0, 10)
+    .slice(0, 10)
 })
 
 const filteredGroups = computed(() => {
   if (!searchQuery.value) return groups.value
 
-  return groups.value.map(group => ({
-    ...group,
-    articles: group.articles.filter(article =>
-      article.headlines?.basic?.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      article.description?.basic?.toLowerCase().includes(searchQuery.value.toLowerCase())
-    )
-  })).filter(group => group.articles.length > 0)
+  return groups.value
+    .map((group) => ({
+      ...group,
+      articles: group.articles.filter(
+        (article) =>
+          article.headlines?.basic?.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+          article.description?.basic?.toLowerCase().includes(searchQuery.value.toLowerCase()),
+      ),
+    }))
+    .filter((group) => group.articles.length > 0)
 })
 
 // Methods
@@ -183,23 +233,25 @@ const closeArticle = (article: Article) => {
 }
 
 const getCategoryFromArticle = (article: Article): string => {
-  return article.taxonomy?.primary_section?.name ||
-         article.taxonomy?.sections?.[0]?.name ||
-         article.type ||
-         'News'
+  return (
+    article.taxonomy?.primary_section?.name ||
+    article.taxonomy?.sections?.[0]?.name ||
+    article.type ||
+    'News'
+  )
 }
 
 const getArticleIcon = (article: Article): string => {
   const section = article.taxonomy?.primary_section?.name || ''
   const icons: { [key: string]: string } = {
-    'Technology': '💻',
-    'Health': '🏥',
-    'Politics': '🏛️',
-    'Sports': '⚽',
-    'Entertainment': '🎭',
-    'Business': '💼',
-    'Science': '🔬',
-    'Education': '📚'
+    Technology: '💻',
+    Health: '🏥',
+    Politics: '🏛️',
+    Sports: '⚽',
+    Entertainment: '🎭',
+    Business: '💼',
+    Science: '🔬',
+    Education: '📚',
   }
   return icons[section] || '📰'
 }
@@ -232,7 +284,7 @@ const formatDate = (dateString: string): string => {
   } else {
     return date.toLocaleDateString('en-US', {
       month: 'short',
-      day: 'numeric'
+      day: 'numeric',
     })
   }
 }
@@ -245,7 +297,9 @@ const formatDate = (dateString: string): string => {
   background-color: var(--bg-primary);
   color: var(--text-primary);
   @apply flex flex-col;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
 }
 
 .nav-bar {
@@ -257,12 +311,14 @@ const formatDate = (dateString: string): string => {
   @apply flex items-center space-x-2;
 }
 
-.grid-button, .options-button {
+.grid-button,
+.options-button {
   @apply p-2 rounded-lg transition-colors;
   color: var(--text-primary);
 }
 
-.grid-button:hover, .options-button:hover {
+.grid-button:hover,
+.options-button:hover {
   background-color: var(--bg-hover);
 }
 
@@ -279,7 +335,10 @@ const formatDate = (dateString: string): string => {
   border-radius: 0.5rem;
   background-color: var(--bg-input);
   border: 1px solid var(--border-primary);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.3s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background-color 0.3s ease;
 }
 
 .search-bar:focus-within {
@@ -313,7 +372,9 @@ const formatDate = (dateString: string): string => {
   padding: 0.25rem;
   border-radius: 0.25rem;
   color: var(--text-tertiary);
-  transition: color 0.15s ease, background-color 0.15s ease;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease;
 }
 
 .search-clear:hover {

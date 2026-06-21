@@ -77,7 +77,13 @@
   }
 
   body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family:
+      'Inter',
+      -apple-system,
+      BlinkMacSystemFont,
+      'Segoe UI',
+      Roboto,
+      sans-serif;
     background-color: var(--bg-primary);
     color: var(--text-primary);
     overflow-y: auto;
@@ -92,10 +98,12 @@
     padding-bottom: env(safe-area-inset-bottom);
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
-    transition: background-color 0.3s ease, color 0.3s ease;
+    transition:
+      background-color 0.3s ease,
+      color 0.3s ease;
   }
 
-#app {
+  #app {
     min-height: 100vh;
     min-height: 100dvh;
     min-height: -webkit-fill-available;
@@ -108,10 +116,12 @@
     padding-bottom: env(safe-area-inset-bottom);
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
-}
+  }
 
   /* Prevent zoom on input focus */
-  input, textarea, select {
+  input,
+  textarea,
+  select {
     font-size: 16px;
   }
 
@@ -128,7 +138,8 @@
   /* Mac-style slim overlay scrollbar - webkit only (overlay by default) */
   /* Firefox: hide scrollbar to prevent space reservation, webkit handles overlay */
   * {
-    scrollbar-width: none; /* Hide Firefox scrollbar - webkit overlay doesn't take space */
+    scrollbar-width: none;
+    /* Hide Firefox scrollbar - webkit overlay doesn't take space */
     scrollbar-color: transparent transparent;
   }
 
@@ -162,7 +173,7 @@
   .video-tile {
     @apply relative overflow-hidden rounded-lg;
     background-color: var(--bg-secondary);
-}
+  }
 
   .bottom-nav {
     @apply fixed bottom-0 left-0 right-0;

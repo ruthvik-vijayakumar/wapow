@@ -1,8 +1,5 @@
 <template>
-  <div
-    ref="storyContainerRef"
-    class="story-container"
-  >
+  <div ref="storyContainerRef" class="story-container">
     <!-- Debug info (temporary) -->
     <!-- <div class="debug-info">
       <p>Story Index: {{ storyIndex }} / {{ totalStories }}</p>
@@ -17,12 +14,14 @@
           v-for="(page, index) in pages"
           :key="index"
           class="progress-bar"
-          :class="{ 'completed': index < currentPageIndex, 'current': index === currentPageIndex }"
+          :class="{ completed: index < currentPageIndex, current: index === currentPageIndex }"
         >
           <div
             v-if="index === currentPageIndex"
             class="progress-fill"
-            :style="{ width: `${pages.length > 1 ? (currentPageIndex / (pages.length - 1)) * 100 : 100}%` }"
+            :style="{
+              width: `${pages.length > 1 ? (currentPageIndex / (pages.length - 1)) * 100 : 100}%`,
+            }"
           ></div>
         </div>
       </div>
@@ -32,7 +31,12 @@
     <div class="story-header">
       <button @click="handleBack" class="back-button">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M15 19l-7-7 7-7"
+          />
         </svg>
       </button>
 
@@ -43,15 +47,45 @@
           </svg>
         </button> -->
 
+        <a
+          v-if="props.content?.originalArticle?.canonical_url || props.content?.canonical_url"
+          :href="props.content?.originalArticle?.canonical_url || props.content?.canonical_url"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="action-button"
+          aria-label="Open original article"
+          @click.stop
+          @touchend.stop
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+            />
+          </svg>
+        </a>
+
         <button
           class="action-button"
-          :class="{ 'saved': isSaved }"
+          :class="{ saved: isSaved }"
           @click.stop="handleSave"
           @touchend.stop.prevent="handleSave"
           aria-label="Save article"
         >
-          <svg class="w-5 h-5" :fill="isSaved ? 'currentColor' : 'none'" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+          <svg
+            class="w-5 h-5"
+            :fill="isSaved ? 'currentColor' : 'none'"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+            />
           </svg>
         </button>
       </div>
@@ -63,14 +97,27 @@
       <template v-if="currentPage.layout === 'text-only'">
         <div class="text-only-container">
           <div class="text-section-centered">
-            <p class="story-description text-left font-spectral text-xl leading-relaxed text-gray-100 max-w-sm mx-auto">
-              <template v-if="shouldTruncateDescription(currentPage.description) && !isDescriptionExpanded">
+            <p
+              class="story-description text-left font-spectral leading-relaxed text-gray-100 max-w-sm mx-auto"
+            >
+              <template
+                v-if="shouldTruncateDescription(currentPage.description) && !isDescriptionExpanded"
+              >
                 {{ truncateText(currentPage.description, 180) }}
-                <span @click.stop="isDescriptionExpanded = true" class="text-blue-400 font-semibold ml-1 cursor-pointer">more</span>
+                <span
+                  @click.stop="isDescriptionExpanded = true"
+                  class="text-blue-400 font-semibold ml-1 cursor-pointer"
+                  >more</span
+                >
               </template>
               <template v-else>
                 {{ currentPage.description }}
-                <span v-if="shouldTruncateDescription(currentPage.description) && isDescriptionExpanded" @click.stop="isDescriptionExpanded = false" class="text-blue-400 font-semibold ml-1 cursor-pointer">less</span>
+                <span
+                  v-if="shouldTruncateDescription(currentPage.description) && isDescriptionExpanded"
+                  @click.stop="isDescriptionExpanded = false"
+                  class="text-blue-400 font-semibold ml-1 cursor-pointer"
+                  >less</span
+                >
               </template>
             </p>
           </div>
@@ -82,13 +129,24 @@
         <div class="text-top-container">
           <div class="text-section">
             <p class="story-description">
-              <template v-if="shouldTruncateDescription(currentPage.description) && !isDescriptionExpanded">
+              <template
+                v-if="shouldTruncateDescription(currentPage.description) && !isDescriptionExpanded"
+              >
                 {{ truncateText(currentPage.description, 180) }}
-                <span @click.stop="isDescriptionExpanded = true" class="text-blue-400 font-semibold ml-1 cursor-pointer">more</span>
+                <span
+                  @click.stop="isDescriptionExpanded = true"
+                  class="text-blue-400 font-semibold ml-1 cursor-pointer"
+                  >more</span
+                >
               </template>
               <template v-else>
                 {{ currentPage.description }}
-                <span v-if="shouldTruncateDescription(currentPage.description) && isDescriptionExpanded" @click.stop="isDescriptionExpanded = false" class="text-blue-400 font-semibold ml-1 cursor-pointer">less</span>
+                <span
+                  v-if="shouldTruncateDescription(currentPage.description) && isDescriptionExpanded"
+                  @click.stop="isDescriptionExpanded = false"
+                  class="text-blue-400 font-semibold ml-1 cursor-pointer"
+                  >less</span
+                >
               </template>
             </p>
           </div>
@@ -106,7 +164,10 @@
               :src="currentPage.thumbnail"
               :alt="currentPage.title"
               class="story-image"
-              :style="{ objectFit: imageDisplayStyle.objectFit, objectPosition: imageDisplayStyle.objectPosition }"
+              :style="{
+                objectFit: imageDisplayStyle.objectFit,
+                objectPosition: imageDisplayStyle.objectPosition,
+              }"
             />
           </div>
         </div>
@@ -127,18 +188,32 @@
               :src="currentPage.thumbnail"
               :alt="currentPage.title"
               class="story-image"
-              :style="{ objectFit: imageDisplayStyle.objectFit, objectPosition: imageDisplayStyle.objectPosition }"
+              :style="{
+                objectFit: imageDisplayStyle.objectFit,
+                objectPosition: imageDisplayStyle.objectPosition,
+              }"
             />
           </div>
           <div class="text-section">
             <p class="story-description">
-              <template v-if="shouldTruncateDescription(currentPage.description) && !isDescriptionExpanded">
+              <template
+                v-if="shouldTruncateDescription(currentPage.description) && !isDescriptionExpanded"
+              >
                 {{ truncateText(currentPage.description, 180) }}
-                <span @click.stop="isDescriptionExpanded = true" class="text-blue-400 font-semibold ml-1 cursor-pointer">more</span>
+                <span
+                  @click.stop="isDescriptionExpanded = true"
+                  class="text-blue-400 font-semibold ml-1 cursor-pointer"
+                  >more</span
+                >
               </template>
               <template v-else>
                 {{ currentPage.description }}
-                <span v-if="shouldTruncateDescription(currentPage.description) && isDescriptionExpanded" @click.stop="isDescriptionExpanded = false" class="text-blue-400 font-semibold ml-1 cursor-pointer">less</span>
+                <span
+                  v-if="shouldTruncateDescription(currentPage.description) && isDescriptionExpanded"
+                  @click.stop="isDescriptionExpanded = false"
+                  class="text-blue-400 font-semibold ml-1 cursor-pointer"
+                  >less</span
+                >
               </template>
             </p>
           </div>
@@ -152,11 +227,7 @@
             <h1 class="takeaways-title">Key Takeaways</h1>
           </div>
           <div class="takeaways-list">
-            <div
-              v-for="(item, idx) in takeawaysItems"
-              :key="idx"
-              class="takeaway-item"
-            >
+            <div v-for="(item, idx) in takeawaysItems" :key="idx" class="takeaway-item">
               <div class="takeaway-bullet">•</div>
               <div class="takeaway-text">{{ item }}</div>
             </div>
@@ -174,7 +245,11 @@
       <template v-else-if="currentPage.layout === 'video'">
         <div class="video-slide-container">
           <!-- If iframe embed code exists, render raw HTML -->
-          <div v-if="currentPage.embedCode" v-html="currentPage.embedCode" class="video-embed-wrapper"></div>
+          <div
+            v-if="currentPage.embedCode"
+            v-html="currentPage.embedCode"
+            class="video-embed-wrapper"
+          ></div>
           <!-- Else if raw video url exists, render HTML5 video tag -->
           <video
             v-else-if="currentPage.videoUrl"
@@ -190,13 +265,24 @@
           <!-- Slide caption text overlaid on top -->
           <div class="video-text-overlay">
             <p class="story-description">
-              <template v-if="shouldTruncateDescription(currentPage.description) && !isDescriptionExpanded">
+              <template
+                v-if="shouldTruncateDescription(currentPage.description) && !isDescriptionExpanded"
+              >
                 {{ truncateText(currentPage.description, 180) }}
-                <span @click.stop="isDescriptionExpanded = true" class="text-blue-400 font-semibold ml-1 cursor-pointer">more</span>
+                <span
+                  @click.stop="isDescriptionExpanded = true"
+                  class="text-blue-400 font-semibold ml-1 cursor-pointer"
+                  >more</span
+                >
               </template>
               <template v-else>
                 {{ currentPage.description }}
-                <span v-if="shouldTruncateDescription(currentPage.description) && isDescriptionExpanded" @click.stop="isDescriptionExpanded = false" class="text-blue-400 font-semibold ml-1 cursor-pointer">less</span>
+                <span
+                  v-if="shouldTruncateDescription(currentPage.description) && isDescriptionExpanded"
+                  @click.stop="isDescriptionExpanded = false"
+                  class="text-blue-400 font-semibold ml-1 cursor-pointer"
+                  >less</span
+                >
               </template>
             </p>
           </div>
@@ -217,20 +303,34 @@
             :src="currentPage.thumbnail"
             :alt="currentPage.title"
             class="story-image"
-            :style="{ objectFit: imageDisplayStyle.objectFit, objectPosition: imageDisplayStyle.objectPosition }"
+            :style="{
+              objectFit: imageDisplayStyle.objectFit,
+              objectPosition: imageDisplayStyle.objectPosition,
+            }"
           />
         </div>
 
         <div class="content-text">
           <h1 class="story-title">{{ currentPage.title }}</h1>
           <p class="story-description">
-            <template v-if="shouldTruncateDescription(currentPage.description) && !isDescriptionExpanded">
+            <template
+              v-if="shouldTruncateDescription(currentPage.description) && !isDescriptionExpanded"
+            >
               {{ truncateText(currentPage.description, 180) }}
-              <span @click.stop="isDescriptionExpanded = true" class="text-blue-400 font-semibold ml-1 cursor-pointer">more</span>
+              <span
+                @click.stop="isDescriptionExpanded = true"
+                class="text-blue-400 font-semibold ml-1 cursor-pointer"
+                >more</span
+              >
             </template>
             <template v-else>
               {{ currentPage.description }}
-              <span v-if="shouldTruncateDescription(currentPage.description) && isDescriptionExpanded" @click.stop="isDescriptionExpanded = false" class="text-blue-400 font-semibold ml-1 cursor-pointer">less</span>
+              <span
+                v-if="shouldTruncateDescription(currentPage.description) && isDescriptionExpanded"
+                @click.stop="isDescriptionExpanded = false"
+                class="text-blue-400 font-semibold ml-1 cursor-pointer"
+                >less</span
+              >
             </template>
           </p>
         </div>
@@ -240,27 +340,24 @@
     <!-- Gradient Overlay for Bottom Controls & Text readability -->
     <div
       class="bottom-gradient-overlay"
-      :class="{ 'tall': currentPageIndex === 0, 'short': currentPageIndex > 0 }"
+      :class="{ tall: currentPageIndex === 0, short: currentPageIndex > 0 }"
     ></div>
 
     <!-- Bottom Controls -->
     <BottomControls
-      :initial-liked="isLiked"
       :initial-listening="isListening"
       :show-category="true"
       :show-listen="true"
       :category="category"
       :article-content="props.content"
-      @like="handleLike"
       @listen="handleListen"
       @comments="toggleComments"
     />
-
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import type { StoryContent } from '@/stores/content'
 import BottomControls from './BottomControls.vue'
@@ -278,7 +375,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   storyIndex: 0,
   totalStories: 1,
-  isSaved: false
+  isSaved: false,
 })
 
 const router = useRouter()
@@ -295,7 +392,11 @@ const emit = defineEmits<{
 const isSaved = computed(() => props.isSaved)
 
 const handleSave = async () => {
-  const id = props.content?.originalArticle?._id ?? props.content?.originalArticle?.id ?? props.content?._id ?? props.content?.id
+  const id =
+    props.content?.originalArticle?._id ??
+    props.content?.originalArticle?.id ??
+    props.content?._id ??
+    props.content?.id
   console.log('[handleSave] content keys:', props.content ? Object.keys(props.content) : 'null')
   console.log('[handleSave] resolved id:', id, 'isSaved:', props.isSaved)
   if (!id) {
@@ -309,7 +410,9 @@ const handleSave = async () => {
   try {
     if (currentlySaved) {
       console.log('[handleSave] Unsaving article:', articleId)
-      const res = await apiFetch(`/api/saved-articles/${encodeURIComponent(articleId)}`, { method: 'DELETE' })
+      const res = await apiFetch(`/api/saved-articles/${encodeURIComponent(articleId)}`, {
+        method: 'DELETE',
+      })
       console.log('[handleSave] Unsave response:', res.status)
       if (res.ok) {
         emit('save', { id: articleId, collection, saved: false })
@@ -318,7 +421,7 @@ const handleSave = async () => {
       console.log('[handleSave] Saving article:', articleId, 'collection:', collection)
       const res = await apiFetch('/api/saved-articles', {
         method: 'POST',
-        body: JSON.stringify({ article_id: articleId, collection })
+        body: JSON.stringify({ article_id: articleId, collection }),
       })
       console.log('[handleSave] Save response:', res.status)
       if (res.ok) {
@@ -336,12 +439,8 @@ const storyContainerRef = ref<HTMLElement | null>(null)
 const currentPageIndex = ref(0)
 const isDescriptionExpanded = ref(false)
 
-const shouldTruncateDescription = (text: string | null | undefined) => {
-  if (!text) return false
-  if (currentPage.value?.layout === 'text-only') {
-    return false
-  }
-  return text.length > 180
+const shouldTruncateDescription = (_text: string | null | undefined) => {
+  return false
 }
 
 const truncateText = (text: string | null | undefined, limit: number = 180) => {
@@ -354,12 +453,7 @@ watch(currentPageIndex, () => {
   isDescriptionExpanded.value = false
 })
 
-const isLiked = ref(false)
 const isListening = ref(false)
-const showReactions = ref(false)
-const selectedReaction = ref('')
-const likeHoldTimer = ref<number | null>(null)
-const reactionHoldTimer = ref<number | null>(null)
 const autoAdvanceTimer = ref<any>(null)
 const isVisible = ref(false)
 
@@ -367,62 +461,112 @@ const isVisible = ref(false)
 const pages = computed(() => {
   // Ensure we have valid content data
   if (!props.content || !props.content.title) {
-    return [{
-      title: "Story Content",
-      description: "This story contains important information.",
-      thumbnail: "https://picsum.photos/400/600?random=fallback",
-      author: { name: 'Unknown', username: '@unknown', avatar: 'https://picsum.photos/50/50?random=fallback' },
-      createdAt: new Date().toISOString()
-    }]
+    return [
+      {
+        title: 'Story Content',
+        description: 'This story contains important information.',
+        thumbnail: 'https://picsum.photos/400/600?random=fallback',
+        author: {
+          name: 'Unknown',
+          username: '@unknown',
+          avatar: 'https://picsum.photos/50/50?random=fallback',
+        },
+        createdAt: new Date().toISOString(),
+      },
+    ]
   }
 
   // Create author info from content
   const author = {
     name: props.content.author?.name || 'Unknown Author',
     username: props.content.author?.username || '@unknown',
-    avatar: props.content.author?.avatar || 'https://picsum.photos/50/50?random=author'
+    avatar: props.content.author?.avatar || 'https://picsum.photos/50/50?random=author',
   }
 
-  const createdAt = props.content.createdAt || props.content.publish_date || new Date().toISOString()
-  const pages_data = props.content.originalArticle?.ai_summary?.pages?.filter((page: any) => page.page_type !== 'hero') || []
+  const createdAt =
+    props.content.createdAt || props.content.publish_date || new Date().toISOString()
+  const pages_data =
+    props.content.originalArticle?.ai_summary?.pages?.filter(
+      (page: any) => page.page_type !== 'hero',
+    ) || []
+
+  // Single-slide story (short article): render ONE full-bleed hero using the
+  // AI summary's text/image instead of a hero + a redundant split-layout slide.
+  const contentPagesOnly = pages_data.filter((page: any) => page.page_type === 'content')
+  const overviewPagesOnly = pages_data.filter((page: any) => page.page_type === 'overview')
+  if (contentPagesOnly.length === 1 && overviewPagesOnly.length === 0) {
+    const only = contentPagesOnly[0]
+    const textItem = only.content?.find((item: any) => item?.type === 'text')
+    const imageItem = only.content?.find((item: any) => item?.type === 'image')
+    const videoItem = only.content?.find((item: any) => item?.type === 'video')
+    if (!videoItem) {
+      return [
+        {
+          ...props.content,
+          title: props.content.title,
+          description: textItem?.content || props.content.description,
+          thumbnail: imageItem?.content_url || props.content.thumbnail,
+          focalPoint:
+            imageItem?.focal_point ||
+            props.content.originalArticle?.promo_items?.basic?.focal_point ||
+            props.content.originalArticle?.imageFocalPoint ||
+            null,
+          author: author,
+          createdAt: createdAt,
+          layout: 'standard',
+        },
+      ]
+    }
+  }
+
   return [
     {
       ...props.content,
       title: props.content.title,
       description: props.content.description,
       thumbnail: props.content.thumbnail,
-      focalPoint: props.content.originalArticle?.promo_items?.basic?.focal_point || props.content.originalArticle?.imageFocalPoint || null,
+      focalPoint:
+        props.content.originalArticle?.promo_items?.basic?.focal_point ||
+        props.content.originalArticle?.imageFocalPoint ||
+        null,
       author: author,
       createdAt: createdAt,
-      layout: 'standard' // Image on top, text on bottom`
+      layout: 'standard', // Image on top, text on bottom`
     },
-    ...pages_data.filter((page: any) => page.page_type === 'content').map((page: any, index: number) => {
-      const textItem = page.content?.find((item: any) => item?.type === 'text')
-      const imageItem = page.content?.find((item: any) => item?.type === 'image')
-      const videoItem = page.content?.find((item: any) => item?.type === 'video')
-      if (!textItem) return null
-      
-      if (videoItem) {
+    ...pages_data
+      .filter((page: any) => page.page_type === 'content')
+      .map((page: any, index: number) => {
+        const textItem = page.content?.find((item: any) => item?.type === 'text')
+        const imageItem = page.content?.find((item: any) => item?.type === 'image')
+        const videoItem = page.content?.find((item: any) => item?.type === 'video')
+        if (!textItem) return null
+
+        if (videoItem) {
+          return {
+            title: textItem.content,
+            description: textItem.content,
+            videoUrl: videoItem.content_url,
+            embedCode: videoItem.embed_code,
+            author: author,
+            createdAt: createdAt,
+            layout: 'video',
+          }
+        }
         return {
           title: textItem.content,
           description: textItem.content,
-          videoUrl: videoItem.content_url,
-          embedCode: videoItem.embed_code,
+          thumbnail: imageItem?.content_url,
+          focalPoint: imageItem?.focal_point || null,
           author: author,
           createdAt: createdAt,
-          layout: 'video'
+          layout: !imageItem?.content_url
+            ? 'text-only'
+            : index % 2 === 0
+              ? 'text-top'
+              : 'image-top',
         }
-      }
-      return {
-        title: textItem.content,
-        description: textItem.content,
-        thumbnail: imageItem?.content_url,
-        focalPoint: imageItem?.focal_point || null,
-        author: author,
-        createdAt: createdAt,
-        layout: !imageItem?.content_url ? 'text-only' : (index % 2 === 0 ? 'text-top' : 'image-top')
-      }
-    }).filter(Boolean),
+      })
+      .filter(Boolean),
     // {
     //   title: "Breaking News",
     //   description: "This story continues with additional details and insights about the latest developments. The situation has evolved rapidly, with new information coming to light that changes our understanding of the events. Key stakeholders have responded, and the implications are far-reaching.",
@@ -439,17 +583,20 @@ const pages = computed(() => {
     //   createdAt: createdAt,
     //   layout: 'image-top' // Image on top, text on bottom
     // },
-    ...pages_data.filter((page: any) => page.page_type === 'overview').map((page: any) => {
-      const textItem = page.content?.find((item: any) => item?.type === 'text')
-      if (!textItem) return null
-      return {
-        title: "Key Takeaways",
-        description: textItem.content,
-        author: author,
-        createdAt: createdAt,
-        layout: 'takeaways'
-      }
-    }).filter(Boolean),
+    ...pages_data
+      .filter((page: any) => page.page_type === 'overview')
+      .map((page: any) => {
+        const textItem = page.content?.find((item: any) => item?.type === 'text')
+        if (!textItem) return null
+        return {
+          title: 'Key Takeaways',
+          description: textItem.content,
+          author: author,
+          createdAt: createdAt,
+          layout: 'takeaways',
+        }
+      })
+      .filter(Boolean),
     // {
     //   title: "Key Takeaways",
     //   description: "Here are the main points to remember from this story.",
@@ -466,7 +613,9 @@ watch(currentPageIndex, (newIdx) => {
   const total = pages.value.length
   if (total <= 1) return
   const depthPercent = ((newIdx + 1) / total) * 100
-  const contentId = String(props.content?.originalArticle?._id ?? props.content?._id ?? props.content?.id ?? '')
+  const contentId = String(
+    props.content?.originalArticle?._id ?? props.content?._id ?? props.content?.id ?? '',
+  )
   trackScrollDepth(contentId, depthPercent, 'article', props.category)
 })
 
@@ -486,12 +635,12 @@ const imageDisplayStyle = computed(() => {
   if (!fp) {
     return { objectFit: 'cover', objectPosition: 'center center' }
   }
-  
+
   if (fp.display_mode === 'contain') {
     // Extreme aspect ratio — frontend will show letterboxed with blur background
     return { objectFit: 'contain', objectPosition: 'center center', displayMode: 'contain' }
   }
-  
+
   // Focal crop: pan object-position to the subject
   const x = Math.round((fp.focal_x ?? 0.5) * 100)
   const y = Math.round((fp.focal_y ?? 0.5) * 100)
@@ -548,34 +697,8 @@ const prevPage = () => {
   }
 }
 
-// Touch handling for reactions
-const startLikeHold = () => {
-  likeHoldTimer.value = window.setTimeout(() => {
-    showReactions.value = true
-  }, 500)
-}
-
-const endLikeHold = () => {
-  if (likeHoldTimer.value) {
-    clearTimeout(likeHoldTimer.value)
-    likeHoldTimer.value = null
-  }
-}
-
-const selectReaction = (reaction: string) => {
-  selectedReaction.value = reaction
-  showReactions.value = false
-  // You can emit the reaction to parent component if needed
-  console.log('Selected reaction:', reaction)
-}
-
 const handleBack = () => {
   emit('back')
-}
-
-const handleLike = () => {
-  isLiked.value = !isLiked.value
-  console.log('Story liked:', isLiked.value)
 }
 
 const handleListen = () => {
@@ -643,118 +766,16 @@ const setupIntersectionObserver = () => {
     },
     {
       threshold: 0.5,
-      rootMargin: '0px'
-    }
+      rootMargin: '0px',
+    },
   )
 
   observer.observe(storyContainer)
 }
 
-// Dynamically adjust font sizes to prevent text overlapping or hiding behind bottom controls
-const adjustFontSize = async () => {
-  await nextTick()
-  const container = storyContainerRef.value
-  if (!container) return
-
-  const bottomControlsEl = container.querySelector('.podcast-bottom')
-  const bottomControlsRect = bottomControlsEl?.getBoundingClientRect()
-  const maxAllowedBottom = bottomControlsRect ? bottomControlsRect.top - 12 : container.getBoundingClientRect().bottom - 80
-
-  // Find the text elements that we want to scale
-  const textElements: HTMLElement[] = Array.from(
-    container.querySelectorAll(
-      '.story-content .story-description, .story-content .takeaway-text, .story-content .story-title, .story-content .takeaway-bullet'
-    )
-  )
-
-  if (textElements.length === 0) return
-
-  // Reset inline styles first to calculate based on stylesheet values
-  textElements.forEach(el => {
-    el.style.fontSize = ''
-    el.style.lineHeight = ''
-  })
-
-  // Find the target element to measure (the bottom-most element)
-  const getMeasureElement = () => {
-    const takeawaysList = container.querySelector('.takeaways-list')
-    if (takeawaysList) {
-      const takeawayItems = takeawaysList.querySelectorAll('.takeaway-item')
-      if (takeawayItems.length > 0) {
-        return takeawayItems[takeawayItems.length - 1]
-      }
-    }
-
-    const storyDesc = container.querySelector('.story-content .story-description')
-    if (storyDesc) return storyDesc
-
-    return null
-  }
-
-  const measureEl = getMeasureElement() as HTMLElement
-  if (!measureEl) return
-
-  // Check if takeaways list is present to adjust target bottom threshold
-  const isTakeaways = !!container.querySelector('.takeaways-list')
-  const targetThreshold = isTakeaways ? maxAllowedBottom - 70 : maxAllowedBottom
-
-  // Store original computed sizes in pixels
-  const originalStyles = textElements.map(el => {
-    const computedStyle = window.getComputedStyle(el)
-    return {
-      fontSize: parseFloat(computedStyle.fontSize),
-      lineHeight: parseFloat(computedStyle.lineHeight)
-    }
-  })
-
-  let scale = 1.0
-  const minScale = 0.6
-  const step = 0.05
-  let iterations = 0
-  const maxIterations = 15
-
-  while (iterations < maxIterations) {
-    const rect = measureEl.getBoundingClientRect()
-    if (rect.bottom <= targetThreshold) {
-      break
-    }
-
-    scale -= step
-    if (scale < minScale) {
-      scale = minScale
-      textElements.forEach((el, index) => {
-        el.style.fontSize = `${originalStyles[index].fontSize * scale}px`
-        if (!isNaN(originalStyles[index].lineHeight)) {
-          el.style.lineHeight = `${originalStyles[index].lineHeight * scale}px`
-        } else {
-          el.style.lineHeight = '1.3'
-        }
-      })
-      break
-    }
-
-    textElements.forEach((el, index) => {
-      el.style.fontSize = `${originalStyles[index].fontSize * scale}px`
-      if (!isNaN(originalStyles[index].lineHeight)) {
-        el.style.lineHeight = `${originalStyles[index].lineHeight * scale}px`
-      } else {
-        el.style.lineHeight = '1.3'
-      }
-    })
-
-    iterations++
-  }
-}
-
-// Watch current page to recalculate font sizing when the slide changes
-watch(currentPage, () => {
-  adjustFontSize()
-})
-
 // Set --vh CSS variable for mobile viewport handling (Android address bar fix)
 const setVh = () => {
   document.documentElement.style.setProperty('--vh', `${window.innerHeight}px`)
-  adjustFontSize()
 }
 
 onMounted(() => {
@@ -910,7 +931,7 @@ onUnmounted(() => {
 }
 
 .text-section .story-description {
-  @apply text-lg leading-relaxed;
+  line-height: 1.45;
   @apply text-white;
 }
 
@@ -1046,7 +1067,7 @@ onUnmounted(() => {
 }
 
 .takeaways-title {
-  @apply text-2xl font-bold;
+  @apply font-bold;
   @apply font-spectral;
   @apply text-white;
 }
@@ -1060,13 +1081,13 @@ onUnmounted(() => {
 }
 
 .takeaway-bullet {
-  @apply text-white text-xl font-bold;
+  @apply text-white font-bold;
   @apply flex-shrink-0;
   @apply mt-1;
 }
 
 .takeaway-text {
-  @apply text-white text-base leading-relaxed;
+  @apply text-white leading-relaxed;
 }
 
 .author-info {
@@ -1113,11 +1134,11 @@ onUnmounted(() => {
 .story-title {
   @apply text-3xl font-bold mb-2;
   @apply font-spectral;
+  @apply text-white;
 }
 
 .story-description {
-  line-height: 1.2rem;
-  @apply text-base;
+  line-height: 1.45;
   @apply text-gray-200;
 }
 
@@ -1142,11 +1163,6 @@ onUnmounted(() => {
 
 .story-actions {
   @apply flex items-start space-x-4;
-}
-
-.like-button-container {
-  @apply relative;
-  @apply select-none;
 }
 
 .story-action-btn {
@@ -1198,36 +1214,6 @@ onUnmounted(() => {
 
 .nav-hint-down {
   @apply bottom-20;
-}
-
-/* Reaction Popup */
-.reactions-popup {
-  @apply absolute bg-black bg-opacity-80 p-2 rounded-full;
-  @apply flex space-x-1;
-  @apply shadow-lg;
-  z-index: 10;
-  @apply select-none;
-  /* Position above the button, centered */
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-10%);
-  margin-bottom: 8px;
-}
-
-.reaction-item {
-  @apply flex flex-col items-center cursor-pointer;
-  @apply text-white text-xs;
-  @apply p-1.5 rounded-full;
-  @apply hover:bg-gray-700;
-  @apply select-none;
-}
-
-.reaction-emoji {
-  @apply text-2xl mb-1;
-}
-
-.reaction-text {
-  @apply font-medium;
 }
 
 /* Comments Bottom Sheet */

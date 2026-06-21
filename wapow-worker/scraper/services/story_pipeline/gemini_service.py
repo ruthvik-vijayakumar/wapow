@@ -13,26 +13,31 @@ def build_pages_with_gemini(analyzed: AnalyzedArticle) -> list[dict] | None:
     if not api_key:
         return None
         
-    # Determine target range of slides (content slides) adaptively based on word count
+    # Determine target range of slides (content slides) adaptively based on word count.
+    # Bias toward fewer, denser slides.
     word_count = len(analyzed.body_text.split()) if analyzed.body_text else analyzed.word_count
-    if word_count < 150:
+    if word_count < 200:
         min_slides, max_slides = 1, 2
-    elif word_count < 600:
-        min_slides, max_slides = 2, 4
+    elif word_count < 700:
+        min_slides, max_slides = 2, 3
     else:
-        min_slides, max_slides = 3, 5
+        min_slides, max_slides = 3, 4
         
     prompt = f"""You are an expert mobile editor. Your task is to storyboard a mobile visual story (like Instagram/Snapchat Stories) from a news article.
 Summarize the article into between {min_slides} and {max_slides} content slides and 1 key takeaways overview slide.
-Determine the optimal number of content slides (within the range {min_slides} to {max_slides}) based on the actual complexity and length of the article.
-If the article is simple or short, favor a smaller number of slides (even just {min_slides}) so that the story is concise and doesn't drag.
+Determine the optimal number of content slides (within the range {min_slides} to {max_slides}) based on the actual substance of the article.
+
+CONTENT DENSITY (most important rule):
+- Each slide MUST carry a substantial, self-contained point — never a single thin fragment that says almost nothing.
+- It is far better to have FEWER, richer slides than many thin ones. Default to {min_slides} and only add a slide for a genuinely distinct development or topic shift.
+- If two ideas are closely related, COMBINE them onto one slide rather than splitting them.
 Ensure the slides tell an engaging, progressive narrative that explains the entire story.
 
 CRITICAL INSTRUCTIONS FOR TEXT QUALITY:
 1. DO NOT copy-paste sentences or paragraphs directly from the article body. Summarize and rewrite the content in a fresh, engaging, storytelling editor-curated voice.
 2. Keep the language active, punchy, and highly readable.
-3. If a slide has an accompanying image (i.e. "image_url" is set to a URL), keep its summary text highly concise: MAXIMUM 100 characters (1-2 punchy lines).
-4. If a slide does NOT have an accompanying image (i.e. "image_url" is null), the summary text must be between 200 and 320 characters (2-3 short sentences) to explain this part of the story fully.
+3. If a slide has an accompanying image (i.e. "image_url" is set to a URL), keep its summary text concise but complete: between 90 and 200 characters (1-2 punchy sentences).
+4. If a slide does NOT have an accompanying image (i.e. "image_url" is null), the summary text must be between 220 and 360 characters (2-3 short sentences) to explain this part of the story fully.
 
 You are provided with a list of IMAGE_URLS associated with the article.
 For each content slide:
@@ -129,20 +134,20 @@ ARTICLE_BODY:
                 "content": page_content
             })
             
-        # Append overview slide
-        if takeaways:
-            takeaways_text = "\n".join(f"• {t.strip()}" for t in takeaways)
-        else:
-            # Fallback
-            takeaways_text = f"• {analyzed.title}"
-            
-        pages.append({
-            "page_type": "overview",
-            "content": [
-                {"type": "text", "content": takeaways_text}
-            ]
-        })
-        
+        # Overview/takeaways slide only when there are multiple content slides.
+        if len(pages) >= 2:
+            if takeaways:
+                takeaways_text = "\n".join(f"• {t.strip()}" for t in takeaways)
+            else:
+                takeaways_text = f"• {analyzed.title}"
+
+            pages.append({
+                "page_type": "overview",
+                "content": [
+                    {"type": "text", "content": takeaways_text}
+                ]
+            })
+
         return pages
         
     except Exception as e:

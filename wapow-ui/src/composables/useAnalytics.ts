@@ -58,15 +58,6 @@ export function useAnalytics() {
     })
   }
 
-  function trackLike(contentId: string, liked: boolean, contentType = '', category = '') {
-    tracker.track('like', {
-      content_id: contentId,
-      content_type: contentType,
-      category,
-      properties: { liked },
-    })
-  }
-
   function trackSave(contentId: string, saved: boolean, contentType = '', category = '') {
     tracker.track('save', {
       content_id: contentId,
@@ -94,7 +85,12 @@ export function useAnalytics() {
     })
   }
 
-  function trackScrollDepth(contentId: string, depthPercent: number, contentType = '', category = '') {
+  function trackScrollDepth(
+    contentId: string,
+    depthPercent: number,
+    contentType = '',
+    category = '',
+  ) {
     tracker.track('scroll_depth', {
       content_id: contentId,
       content_type: contentType,
@@ -137,11 +133,7 @@ export function useAnalytics() {
     })
   }
 
-  function trackNavigate(
-    fromContentId: string,
-    toContentId: string,
-    direction: 'next' | 'prev',
-  ) {
+  function trackNavigate(fromContentId: string, toContentId: string, direction: 'next' | 'prev') {
     tracker.track('navigate', {
       properties: {
         from_content_id: fromContentId,
@@ -172,7 +164,6 @@ export function useAnalytics() {
     stopAllDwells,
     // convenience
     trackView,
-    trackLike,
     trackSave,
     trackShare,
     trackComment,

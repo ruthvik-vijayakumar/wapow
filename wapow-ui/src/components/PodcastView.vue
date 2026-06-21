@@ -3,20 +3,35 @@
     <div class="podcast-header">
       <button @click="handleBack" class="back-button">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M15 19l-7-7 7-7"
+          />
         </svg>
       </button>
 
       <div class="header-actions">
         <button
           class="action-button"
-          :class="{ 'saved': isSaved }"
+          :class="{ saved: isSaved }"
           @click.stop="handleSave"
           @touchend.stop.prevent="handleSave"
           aria-label="Save podcast"
         >
-          <svg class="w-5 h-5" :fill="isSaved ? 'currentColor' : 'none'" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+          <svg
+            class="w-5 h-5"
+            :fill="isSaved ? 'currentColor' : 'none'"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+            />
           </svg>
         </button>
       </div>
@@ -24,15 +39,11 @@
 
     <div class="podcast-content">
       <div class="album-art-container">
-        <img
-          :src="props.podcast.thumbnail"
-          :alt="props.podcast.title"
-          class="album-art"
-        />
+        <img :src="props.podcast.thumbnail" :alt="props.podcast.title" class="album-art" />
 
         <div v-if="!isPlaying" class="play-overlay" @click="togglePlay">
           <svg class="w-16 h-16" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M8 5v14l11-7z"/>
+            <path d="M8 5v14l11-7z" />
           </svg>
         </div>
       </div>
@@ -46,11 +57,27 @@
 
         <div class="controls-row">
           <button @click="togglePlay" class="control-button">
-            <svg v-if="isPlaying" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+            <svg
+              v-if="isPlaying"
+              class="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"
+              />
             </svg>
             <svg v-else class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5v14l11-7z" />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M8 5v14l11-7z"
+              />
             </svg>
           </button>
 
@@ -71,8 +98,8 @@
             :key="index"
             class="lyric-line"
             :class="{
-              'active': currentLyricIndex === index,
-              'completed': currentLyricIndex > index
+              active: currentLyricIndex === index,
+              completed: currentLyricIndex > index,
             }"
           >
             {{ lyric }}
@@ -81,12 +108,7 @@
       </div>
     </div>
 
-    <BottomControls
-      :initial-liked="isLiked"
-      :article-content="props.podcast"
-      @like="handleLike"
-      @comments="handleComment"
-    />
+    <BottomControls :article-content="props.podcast" @comments="handleComment" />
 
     <audio
       ref="audioPlayer"
@@ -116,7 +138,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   storyIndex: 0,
   totalStories: 1,
-  isSaved: false
+  isSaved: false,
 })
 
 const emit = defineEmits<{
@@ -141,12 +163,14 @@ const handleSave = async () => {
   const currentlySaved = props.isSaved
   try {
     if (currentlySaved) {
-      const res = await apiFetch(`/api/saved-articles/${encodeURIComponent(id)}`, { method: 'DELETE' })
+      const res = await apiFetch(`/api/saved-articles/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      })
       if (res.ok) emit('save', { id, collection, saved: false })
     } else {
       const res = await apiFetch('/api/saved-articles', {
         method: 'POST',
-        body: JSON.stringify({ article_id: id, collection })
+        body: JSON.stringify({ article_id: id, collection }),
       })
       if (res.ok) emit('save', { id, collection, saved: true })
     }
@@ -159,7 +183,6 @@ const isPlaying = ref(false)
 const currentTime = ref('0:00')
 const duration = ref('0:00')
 const audioProgress = ref(0)
-const isLiked = ref(false)
 const currentLyricIndex = ref(0)
 const isVisible = ref(false)
 
@@ -214,11 +237,12 @@ const handleTimeUpdate = () => {
       if (pct >= milestone && !_firedAudioMilestones.has(milestone)) {
         _firedAudioMilestones.add(milestone)
         const podcastId = String(props.podcast?.id ?? props.podcast?._id ?? '')
-        const listenMs = _audioStartTime ? Math.round(performance.now() - _audioStartTime) : Math.round(current * 1000)
+        const listenMs = _audioStartTime
+          ? Math.round(performance.now() - _audioStartTime)
+          : Math.round(current * 1000)
         trackAudioProgress(podcastId, milestone, listenMs, props.category)
       }
     }
-
   }
 }
 
@@ -232,11 +256,15 @@ const scrollToActiveLyric = () => {
   const containerRect = container.getBoundingClientRect()
   const elementRect = activeElement.getBoundingClientRect()
 
-  const scrollTop = activeElement.offsetTop - container.offsetTop - (containerRect.height / 2) + (elementRect.height / 2)
+  const scrollTop =
+    activeElement.offsetTop -
+    container.offsetTop -
+    containerRect.height / 2 +
+    elementRect.height / 2
 
   container.scrollTo({
     top: scrollTop,
-    behavior: 'smooth'
+    behavior: 'smooth',
   })
 }
 
@@ -254,10 +282,6 @@ const formatTime = (seconds: number): string => {
   const mins = Math.floor(seconds / 60)
   const secs = Math.floor(seconds % 60)
   return `${mins}:${secs.toString().padStart(2, '0')}`
-}
-
-const handleLike = () => {
-  isLiked.value = !isLiked.value
 }
 
 const handleComment = () => {
@@ -279,7 +303,7 @@ const setupIntersectionObserver = () => {
         }
       })
     },
-    { threshold: 0.5 }
+    { threshold: 0.5 },
   )
 
   intersectionObserver.observe(podcastContainer.value)
@@ -302,8 +326,8 @@ onMounted(() => {
 
 onUnmounted(() => {
   if (audioPlayer.value) {
-    audioPlayer.value.removeEventListener('play', () => isPlaying.value = true)
-    audioPlayer.value.removeEventListener('pause', () => isPlaying.value = false)
+    audioPlayer.value.removeEventListener('play', () => (isPlaying.value = true))
+    audioPlayer.value.removeEventListener('pause', () => (isPlaying.value = false))
   }
 
   if (intersectionObserver) {
@@ -389,7 +413,6 @@ onUnmounted(() => {
 }
 
 .progress-container {
-
 }
 
 .progress-bar-audio {
@@ -419,7 +442,7 @@ onUnmounted(() => {
 }
 
 .podcast-title {
-  @apply text-3xl font-bold text-white font-postoni
+  @apply text-3xl font-bold text-white font-postoni;
 }
 
 .podcast-artist {

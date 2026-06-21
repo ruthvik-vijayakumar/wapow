@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { onUnmounted } from 'vue'
+import { onUnmounted, ref, computed } from 'vue'
 import { getWordOfTheDay, allWords } from './words'
 import Keyboard from './Keyboard.vue'
 import BottomControls from '@/components/BottomControls.vue'
 import { LetterState } from './types'
-import { ref, computed } from 'vue'
 
 // Props for story navigation
 interface Props {
@@ -14,7 +13,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   storyIndex: 0,
-  totalStories: 1
+  totalStories: 1,
 })
 
 const emit = defineEmits<{
@@ -23,36 +22,49 @@ const emit = defineEmits<{
   'prev-story': []
 }>()
 
-// Get word of the day
+// ── Mode ────────────────────────────────────────────────────────────────────
+// "preview" = card in the feed showing a teaser + Enter Game button.
+// "playing" = fullscreen game, bottom bar hidden, keyboard active.
+const mode = ref<'preview' | 'playing'>('preview')
+
+const enterGame = () => {
+  mode.value = 'playing'
+  allowInput = true
+}
+
+const exitGame = () => {
+  mode.value = 'preview'
+  allowInput = false
+}
+
+// ── Game logic ───────────────────────────────────────────────────────────────
 const answer = getWordOfTheDay()
 
-// Board state. Each tile is represented as { letter, state }
 const board = ref(
   Array.from({ length: 6 }, () =>
     Array.from({ length: 5 }, () => ({
       letter: '',
-      state: LetterState.INITIAL
-    }))
-  )
+      state: LetterState.INITIAL,
+    })),
+  ),
 )
 
-// Current active row.
 let currentRowIndex = ref(0)
 const currentRow = computed(() => board.value[currentRowIndex.value])
 
-// Feedback state: message and shake
 let message = ref('')
 let grid = ref('')
 let shakeRowIndex = ref(-1)
 let success = ref(false)
 
-// Keep track of revealed letters for the virtual keyboard
 const letterStates = ref<Record<string, LetterState>>({})
 
-// Handle keyboard input.
-let allowInput = true
+// Keyboard input is disabled until the user enters fullscreen game mode.
+let allowInput = false
 
-const onKeyup = (e: KeyboardEvent) => onKey(e.key)
+const onKeyup = (e: KeyboardEvent) => {
+  if (mode.value === 'playing') onKey(e.key)
+}
 
 window.addEventListener('keyup', onKeyup)
 
@@ -99,14 +111,12 @@ function completeRow() {
     }
 
     const answerLetters: (string | null)[] = answer.split('')
-    // first pass: mark correct ones
     currentRow.value.forEach((tile, i) => {
       if (answerLetters[i] === tile.letter) {
         tile.state = letterStates.value[tile.letter] = LetterState.CORRECT
         answerLetters[i] = null
       }
     })
-    // second pass: mark the present
     currentRow.value.forEach((tile) => {
       if (!tile.state && answerLetters.includes(tile.letter)) {
         tile.state = LetterState.PRESENT
@@ -116,7 +126,6 @@ function completeRow() {
         }
       }
     })
-    // 3rd pass: mark absent
     currentRow.value.forEach((tile) => {
       if (!tile.state) {
         tile.state = LetterState.ABSENT
@@ -128,25 +137,22 @@ function completeRow() {
 
     allowInput = false
     if (currentRow.value.every((tile) => tile.state === LetterState.CORRECT)) {
-      // yay!
       setTimeout(() => {
         grid.value = genResultGrid()
         showMessage(
           ['Genius', 'Magnificent', 'Impressive', 'Splendid', 'Great', 'Phew'][
             currentRowIndex.value
           ],
-          -1
+          -1,
         )
         success.value = true
       }, 1600)
     } else if (currentRowIndex.value < board.value.length - 1) {
-      // go the next row
       currentRowIndex.value++
       setTimeout(() => {
         allowInput = true
       }, 1600)
     } else {
-      // game over :(
       setTimeout(() => {
         showMessage(answer.toUpperCase(), -1)
       }, 1600)
@@ -177,7 +183,7 @@ const icons = {
   [LetterState.CORRECT]: '🟩',
   [LetterState.PRESENT]: '🟨',
   [LetterState.ABSENT]: '⬜',
-  [LetterState.INITIAL]: null
+  [LetterState.INITIAL]: null,
 }
 
 function genResultGrid() {
@@ -189,22 +195,75 @@ function genResultGrid() {
     .join('\n')
 }
 
-// BottomControls event handlers
-const handleLike = (liked: boolean) => {
-  console.log('Game liked:', liked)
-}
-
-const handleComments = (articleContent?: any) => {
-  console.log('Comments requested for game:', articleContent)
-}
-
-const handleShare = () => {
-  console.log('Share requested for game')
-}
+// BottomControls handlers (preview mode only)
+const handleComments = () => {}
+const handleShare = () => {}
 </script>
 
 <template>
-  <div class="game-container">
+  <!-- ── PREVIEW CARD ── shows in the story feed -->
+  <div v-if="mode === 'preview'" class="preview-card">
+    <!-- Minimal header with back/skip navigation -->
+    <div class="preview-header">
+      <button @click="emit('back')" class="header-btn" aria-label="Back">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M15 19l-7-7 7-7"
+          />
+        </svg>
+      </button>
+      <span class="preview-label">Daily Wordle</span>
+      <div class="header-btn story-counter">
+        {{ props.storyIndex + 1 }}/{{ props.totalStories }}
+      </div>
+    </div>
+
+    <!-- Teaser: frozen board showing first row only -->
+    <div class="preview-body">
+      <div class="preview-board">
+        <div class="row" v-for="r in 1" :key="r">
+          <div class="tile" v-for="n in 5" :key="n">
+            <div class="front"></div>
+          </div>
+        </div>
+      </div>
+
+      <p class="preview-copy">Guess today's 5-letter word in 6 tries.</p>
+
+      <button class="enter-btn" @click="enterGame" aria-label="Enter game">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+          />
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+        Play Wordle
+      </button>
+    </div>
+
+    <!-- Bottom controls visible in preview -->
+    <BottomControls
+      :show-category="true"
+      :category="'Games'"
+      :article-content="{ title: 'Wordle Game', type: 'game' }"
+      @comments="handleComments"
+      @share="handleShare"
+    />
+  </div>
+
+  <!-- ── FULLSCREEN GAME ── bottom bar hidden, full viewport -->
+  <div v-else class="game-container">
     <!-- Toast message -->
     <Transition name="toast">
       <div class="toast" v-if="message">
@@ -213,16 +272,19 @@ const handleShare = () => {
       </div>
     </Transition>
 
-    <!-- Header -->
+    <!-- Header with back-to-preview button -->
     <div class="game-header">
-      <button @click="emit('back')" class="header-btn">
+      <button @click="exitGame" class="header-btn" aria-label="Exit game">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M15 19l-7-7 7-7"
+          />
         </svg>
       </button>
-
       <h1 class="game-title">Wordle</h1>
-
       <div class="header-btn story-counter">
         {{ props.storyIndex + 1 }}/{{ props.totalStories }}
       </div>
@@ -237,7 +299,7 @@ const handleShare = () => {
           :class="[
             'row',
             shakeRowIndex === rowIdx && 'shake',
-            success && currentRowIndex === rowIdx && 'jump'
+            success && currentRowIndex === rowIdx && 'jump',
           ]"
         >
           <div
@@ -252,7 +314,7 @@ const handleShare = () => {
               :class="['back', tile.state]"
               :style="{
                 transitionDelay: `${tileIdx * 300}ms`,
-                animationDelay: `${tileIdx * 100}ms`
+                animationDelay: `${tileIdx * 100}ms`,
               }"
             >
               {{ tile.letter }}
@@ -262,23 +324,121 @@ const handleShare = () => {
       </div>
     </div>
 
-    <!-- Keyboard -->
+    <!-- Keyboard — takes all remaining space -->
     <Keyboard @key="onKey" :letter-states="letterStates" />
-
-    <!-- Bottom Controls -->
-    <BottomControls
-      :show-category="true"
-      :category="'Games'"
-      :article-content="{ title: 'Wordle Game', type: 'game' }"
-      @like="handleLike"
-      @comments="handleComments"
-      @share="handleShare"
-    />
+    <!-- No BottomControls in fullscreen mode -->
   </div>
 </template>
 
 <style scoped>
-/* ── Container ─────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════
+   PREVIEW CARD
+   ═══════════════════════════════════════════════════════ */
+.preview-card {
+  position: relative;
+  height: 100vh;
+  height: calc(var(--vh, 100vh));
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #121213;
+  overflow: hidden;
+  color: #fff;
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+}
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.625rem 1rem;
+  border-bottom: 1px solid #3a3a3c;
+  flex-shrink: 0;
+}
+
+.preview-label {
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+.preview-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  padding: 2rem 1.5rem 6rem; /* room for bottom controls */
+}
+
+/* Mini frozen board (just 1 row of empty tiles as visual teaser) */
+.preview-board {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.preview-board .row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 5px;
+}
+
+.preview-board .tile {
+  width: 48px;
+  height: 48px;
+  position: relative;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.preview-board .tile .front {
+  position: absolute;
+  inset: 0;
+  background: transparent;
+  border: 2px solid #3a3a3c;
+  border-radius: 4px;
+}
+
+.preview-copy {
+  font-size: 0.9375rem;
+  color: #818384;
+  text-align: center;
+  max-width: 220px;
+  line-height: 1.45;
+}
+
+.enter-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.75rem;
+  background: #538d4e;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  border: none;
+  border-radius: 2rem;
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    transform 0.1s;
+}
+
+.enter-btn:hover {
+  background: #6aaf65;
+}
+.enter-btn:active {
+  transform: scale(0.97);
+}
+
+/* ═══════════════════════════════════════════════════════
+   FULLSCREEN GAME (same as original, bottom bar removed)
+   ═══════════════════════════════════════════════════════ */
 .game-container {
   position: relative;
   height: 100vh;
@@ -292,7 +452,6 @@ const handleShare = () => {
   font-family: 'Helvetica Neue', Arial, sans-serif;
 }
 
-/* ── Header ────────────────────────────────────────── */
 .game-header {
   display: flex;
   align-items: center;
@@ -341,7 +500,6 @@ const handleShare = () => {
   top: 4rem;
   transform: translateX(-50%);
   z-index: 20;
-  color: #fff;
   background: #fff;
   color: #121213;
   padding: 0.75rem 1.5rem;
@@ -357,10 +515,27 @@ const handleShare = () => {
   line-height: 1.6;
   text-align: center;
 }
-.toast-enter-active { animation: toast-in 0.15s ease-out; }
-.toast-leave-active { animation: toast-out 0.25s ease-in forwards; }
-@keyframes toast-in { from { opacity: 0; transform: translateX(-50%) translateY(-8px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
-@keyframes toast-out { to { opacity: 0; } }
+.toast-enter-active {
+  animation: toast-in 0.15s ease-out;
+}
+.toast-leave-active {
+  animation: toast-out 0.25s ease-in forwards;
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+@keyframes toast-out {
+  to {
+    opacity: 0;
+  }
+}
 
 /* ── Board ─────────────────────────────────────────── */
 .board-wrapper {
@@ -377,7 +552,8 @@ const handleShare = () => {
   grid-template-rows: repeat(6, 1fr);
   gap: 5px;
   width: min(330px, 80vw);
-  max-height: min(396px, calc(var(--vh, 100vh) - 280px));
+  /* More vertical room now that the bottom bar is gone */
+  max-height: min(396px, calc(var(--vh, 100vh) - 220px));
   aspect-ratio: 5 / 6;
 }
 
@@ -453,37 +629,75 @@ const handleShare = () => {
 
 /* ── Animations ────────────────────────────────────── */
 @keyframes pop {
-  0%   { transform: scale(1); }
-  50%  { transform: scale(1.12); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .shake {
   animation: shake 0.5s cubic-bezier(0.36, 0, 0.66, 1);
 }
 @keyframes shake {
-  10%, 90% { transform: translateX(-1px); }
-  20%, 80% { transform: translateX(2px); }
-  30%, 50%, 70% { transform: translateX(-4px); }
-  40%, 60% { transform: translateX(4px); }
+  10%,
+  90% {
+    transform: translateX(-1px);
+  }
+  20%,
+  80% {
+    transform: translateX(2px);
+  }
+  30%,
+  50%,
+  70% {
+    transform: translateX(-4px);
+  }
+  40%,
+  60% {
+    transform: translateX(4px);
+  }
 }
 
 .jump .tile .back {
   animation: bounce 1s ease;
 }
 @keyframes bounce {
-  0%, 20% { transform: translateY(0); }
-  40%     { transform: translateY(-30px); }
-  50%     { transform: translateY(5px); }
-  60%     { transform: translateY(-15px); }
-  80%     { transform: translateY(2px); }
-  100%    { transform: translateY(0); }
+  0%,
+  20% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-30px);
+  }
+  50% {
+    transform: translateY(5px);
+  }
+  60% {
+    transform: translateY(-15px);
+  }
+  80% {
+    transform: translateY(2px);
+  }
+  100% {
+    transform: translateY(0);
+  }
 }
 
 /* ── Small screens ─────────────────────────────────── */
 @media (max-height: 600px) {
-  .game-header { padding: 0.375rem 1rem; }
-  .game-title { font-size: 1.125rem; }
-  .board-wrapper { padding: 0.5rem 0; }
+  .game-header {
+    padding: 0.375rem 1rem;
+  }
+  .game-title {
+    font-size: 1.125rem;
+  }
+  .board-wrapper {
+    padding: 0.5rem 0;
+  }
 }
 </style>

@@ -6,7 +6,7 @@
           v-for="category in categories"
           :key="category.id"
           class="nav-category whitespace-nowrap"
-          :class="{ 'active': selectedCategory === category.id }"
+          :class="{ active: selectedCategory === category.id }"
           @click="selectCategory(category)"
         >
           <span class="category-name">{{ category.name }}</span>
@@ -40,12 +40,16 @@ const categories: Category[] = [
 
 const selectedCategory = ref('/sports')
 
-watch(() => route.path, (newPath) => {
-  const matchingCategory = categories.find(cat => cat.canonical_url === newPath)
-  if (matchingCategory) {
-    selectedCategory.value = matchingCategory.id
-  }
-}, { immediate: true })
+watch(
+  () => route.path,
+  (newPath) => {
+    const matchingCategory = categories.find((cat) => cat.canonical_url === newPath)
+    if (matchingCategory) {
+      selectedCategory.value = matchingCategory.id
+    }
+  },
+  { immediate: true },
+)
 
 const selectCategory = (category: Category) => {
   selectedCategory.value = category.id
