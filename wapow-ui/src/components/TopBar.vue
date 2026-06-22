@@ -4,11 +4,10 @@
       <!-- Left side - Menu -->
       <div class="flex items-center w-12">
         <button class="top-bar-btn" @click="handleMenu">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
             <path
               stroke-linecap="round"
               stroke-linejoin="round"
-              stroke-width="2"
               d="M4 6h16M4 12h16M4 18h16"
             />
           </svg>
@@ -23,12 +22,11 @@
       <!-- Right side - Search -->
       <div class="flex items-center justify-end w-12">
         <button class="top-bar-btn" @click="handleSearch">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
             <path
               stroke-linecap="round"
               stroke-linejoin="round"
-              stroke-width="2"
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.637 10.637z"
             />
           </svg>
         </button>
@@ -63,6 +61,12 @@ const handleSearch = () => {
 
 .top-bar-btn {
   color: var(--text-primary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: color 0.2s;
 }
 
@@ -76,3 +80,4 @@ const handleSearch = () => {
   transition: color 0.3s ease;
 }
 </style>
+

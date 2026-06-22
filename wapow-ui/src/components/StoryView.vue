@@ -1014,7 +1014,7 @@ onUnmounted(() => {
 }
 
 .text-section-bottom .story-description {
-  @apply text-base leading-relaxed;
+  @apply text-sm leading-relaxed;
   @apply text-gray-200;
 }
 
@@ -1132,14 +1132,14 @@ onUnmounted(() => {
 }
 
 .story-title {
-  @apply text-3xl font-bold mb-2;
+  @apply text-2xl font-bold mb-2;
   @apply font-spectral;
   @apply text-white;
 }
 
 .story-description {
   line-height: 1.45;
-  @apply text-gray-200;
+  @apply text-gray-300;
 }
 
 /* Bottom Controls */

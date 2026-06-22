@@ -84,6 +84,17 @@ async def lifespan(app: FastAPI):
         stop_conversion_worker,
     )
     ensure_conversion_jobs_indexes()
+    
+    # Ensure article indexes for fast deduplication
+    from scraper.db import get_collection
+    try:
+        get_collection("articles").create_index("_scraper_meta.url_hash", unique=True, sparse=True)
+        get_collection("articles").create_index("canonical_url")
+        get_collection("raw_articles").create_index("url", unique=True)
+        logger.info("Database indexes checked/created successfully")
+    except Exception as idx_err:
+        logger.warning(f"Failed to create database indexes: {idx_err}")
+
     asyncio.create_task(start_conversion_worker())
     
     yield
@@ -450,9 +461,9 @@ async def get_runs_endpoint(page: int = 1, limit: int = 10) -> dict[str, Any]:
     import math
     try:
         coll_runs = get_collection("scraper_runs")
-        total = coll_runs.count_documents({})
+        total = await asyncio.to_thread(coll_runs.count_documents, {})
         skip = (page - 1) * limit
-        raw_runs = list(coll_runs.find().sort("start_time", -1).skip(skip).limit(limit))
+        raw_runs = await asyncio.to_thread(lambda: list(coll_runs.find().sort("start_time", -1).skip(skip).limit(limit)))
         runs = []
         for run in raw_runs:
             run["_id"] = str(run["_id"])
@@ -485,9 +496,9 @@ async def get_articles_endpoint(page: int = 1, limit: int = 10) -> dict[str, Any
     import math
     try:
         coll_articles = get_collection("articles")
-        total = coll_articles.count_documents({})
+        total = await asyncio.to_thread(coll_articles.count_documents, {})
         skip = (page - 1) * limit
-        raw_articles = list(coll_articles.find().sort("created_date", -1).skip(skip).limit(limit))
+        raw_articles = await asyncio.to_thread(lambda: list(coll_articles.find().sort("created_date", -1).skip(skip).limit(limit)))
         articles = []
         for art in raw_articles:
             articles.append({
@@ -519,11 +530,15 @@ async def get_article_json(article_id: str) -> dict[str, Any]:
     from scraper.db import get_collection
     try:
         coll = get_collection("articles")
-        # Try finding by string ID first, since article IDs are stored as strings
-        doc = coll.find_one({"_id": article_id})
-        if not doc and ObjectId.is_valid(article_id):
-            # Fallback to ObjectId query if valid format
-            doc = coll.find_one({"_id": ObjectId(article_id)})
+        
+        # Wrap blocking MongoDB queries in asyncio.to_thread
+        def find_doc():
+            doc = coll.find_one({"_id": article_id})
+            if not doc and ObjectId.is_valid(article_id):
+                doc = coll.find_one({"_id": ObjectId(article_id)})
+            return doc
+
+        doc = await asyncio.to_thread(find_doc)
             
         if not doc:
             raise HTTPException(status_code=404, detail="Article not found")

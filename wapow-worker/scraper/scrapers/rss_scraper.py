@@ -1,6 +1,9 @@
 """RSS/Atom feed scraper using feedparser."""
 
+from __future__ import annotations
+
 import logging
+import asyncio
 from datetime import datetime
 from time import mktime
 from typing import Optional
@@ -59,18 +62,26 @@ class RSSScraper(BaseScraper):
                         return []
                     content = await response.text()
 
-            # Parse feed
-            feed = feedparser.parse(content)
+            # Parse feed in a thread executor to prevent event loop CPU-blocking
+            feed = await asyncio.to_thread(feedparser.parse, content)
 
             if feed.bozo and not feed.entries:
                 logger.error(f"Failed to parse RSS feed {self.url}: {feed.bozo_exception}")
                 return []
 
+            # Parse feed entries concurrently, sharing browser process
+            from playwright.async_api import async_playwright
+            
             items = []
-            for entry in feed.entries[: settings.max_items_per_source]:
-                item = await self._parse_entry(entry)
-                if item:
-                    items.append(item)
+            async with async_playwright() as p:
+                browser = await p.chromium.launch(headless=True)
+                try:
+                    sem = asyncio.Semaphore(4)  # Max 4 concurrent browser context tabs
+                    tasks = [self._parse_entry(entry, browser, sem) for entry in feed.entries[: settings.max_items_per_source]]
+                    parsed_items = await asyncio.gather(*tasks)
+                    items = [item for item in parsed_items if item]
+                finally:
+                    await browser.close()
 
             logger.info(f"Scraped {len(items)} items from RSS feed: {self.source.name}")
             return items
@@ -79,7 +90,12 @@ class RSSScraper(BaseScraper):
             logger.error(f"Error scraping RSS feed {self.url}: {e}")
             return []
 
-    async def _parse_entry(self, entry: dict) -> Optional[ScrapedItem]:
+    async def _parse_entry(
+        self,
+        entry: dict,
+        browser=None,
+        semaphore: Optional[asyncio.Semaphore] = None
+    ) -> Optional[ScrapedItem]:
         """Parse a single feed entry into a ScrapedItem, fetching full content if allowed."""
         try:
             # Get URL
@@ -99,7 +115,8 @@ class RSSScraper(BaseScraper):
             # Strip HTML tags from description
             if description:
                 from bs4 import BeautifulSoup
-
+                # Thread executor fallback for html tags parser is not strictly required here
+                # since it's short, but bs4 is quick on summaries
                 description = BeautifulSoup(description, "lxml").get_text()[:500]
 
             # Get author
@@ -139,7 +156,13 @@ class RSSScraper(BaseScraper):
             if url:
                 if await self.can_scrape(url):
                     await self.wait_for_rate_limit(url)
-                    article_data = await extract_article_content(url)
+                    
+                    if semaphore:
+                        async with semaphore:
+                            article_data = await extract_article_content(url, browser=browser)
+                    else:
+                        article_data = await extract_article_content(url, browser=browser)
+                        
                     if article_data:
                         content_elements = article_data.get("content_elements") or []
                         full_body_text = article_data.get("body_text") or ""

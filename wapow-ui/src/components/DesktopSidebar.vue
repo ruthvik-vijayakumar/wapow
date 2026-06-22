@@ -2,14 +2,17 @@
   <aside class="desktop-sidebar">
     <div class="desktop-sidebar__inner">
       <button class="desktop-sidebar__brand" @click="goHome" type="button">
+        <svg class="w-5 h-5 text-current mr-2 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <path d="M4 10v4M8 6v12M12 4v16M16 8v8M20 11v2" />
+        </svg>
         <span class="desktop-sidebar__brand-text font-postoni font-bold">TunedIn</span>
       </button>
 
       <nav class="desktop-sidebar__nav" aria-label="Primary">
         <button class="desktop-sidebar__item" :class="{ active: isHome }" @click="goHome" type="button">
           <span class="desktop-sidebar__icon" aria-hidden="true">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
             </svg>
           </span>
           <span class="desktop-sidebar__label">Discover</span>
@@ -17,8 +20,8 @@
 
         <button class="desktop-sidebar__item" :class="{ active: isSearch }" @click="goSearch" type="button">
           <span class="desktop-sidebar__icon" aria-hidden="true">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.637 10.637z" />
             </svg>
           </span>
           <span class="desktop-sidebar__label">Search</span>
@@ -26,8 +29,9 @@
 
         <button class="desktop-sidebar__item" :class="{ active: isTopics }" @click="goTopics" type="button">
           <span class="desktop-sidebar__icon" aria-hidden="true">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+            <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581a1.125 1.125 0 001.591 0l7.181-7.181a1.125 1.125 0 000-1.591l-9.581-9.581A1.125 1.125 0 0011.159 3H9.57z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6z" />
             </svg>
           </span>
           <span class="desktop-sidebar__label">Topics</span>
@@ -35,8 +39,8 @@
 
         <button class="desktop-sidebar__item" :class="{ active: isGames }" @click="emit('navigate', 'games')" type="button">
           <span class="desktop-sidebar__icon" aria-hidden="true">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.59 14.37a6 6 0 01-7.18 0M3 12a9 9 0 1118 0 9 9 0 01-18 0z" />
             </svg>
           </span>
           <span class="desktop-sidebar__label">Games</span>
@@ -44,8 +48,8 @@
 
         <button class="desktop-sidebar__item" :class="{ active: isProfile }" @click="goProfile" type="button">
           <span class="desktop-sidebar__icon" aria-hidden="true">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
             </svg>
           </span>
           <span class="desktop-sidebar__label">Profile</span>
@@ -92,24 +96,28 @@ const goProfile = () => router.push('/profile')
   position: sticky;
   top: 0;
   height: 100vh;
-  padding: 1rem 0.75rem;
+  padding: 1.5rem 0.75rem;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 1.25rem;
 }
 
 .desktop-sidebar__brand {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  padding: 0.5rem 0.5rem;
-  border-radius: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
   color: var(--text-primary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  width: 100%;
 }
 
 .desktop-sidebar__brand-text {
-  font-size: 1.45rem;
-  letter-spacing: 0.02em;
+  font-size: 1.25rem;
+  letter-spacing: -0.015em;
   font-weight: bold;
 }
 
@@ -123,12 +131,15 @@ const goProfile = () => router.push('/profile')
 .desktop-sidebar__more {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.625rem;
   width: 100%;
-  padding: 0.625rem 0.75rem;
-  border-radius: 0.75rem;
+  padding: 0.5rem 0.625rem;
+  border-radius: 0.375rem;
   color: var(--text-secondary);
-  transition: background-color 0.2s ease, color 0.2s ease;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .desktop-sidebar__item:hover,
@@ -144,11 +155,15 @@ const goProfile = () => router.push('/profile')
 
 .desktop-sidebar__icon {
   flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
 }
 
 .desktop-sidebar__label {
-  font-size: 0.95rem;
-  font-weight: 600;
+  font-size: 0.875rem;
+  font-weight: 500;
 }
 
 .desktop-sidebar__footer {
@@ -156,3 +171,4 @@ const goProfile = () => router.push('/profile')
   padding-top: 0.5rem;
 }
 </style>
+

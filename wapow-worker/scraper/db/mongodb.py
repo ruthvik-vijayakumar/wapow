@@ -18,6 +18,8 @@ def get_client() -> MongoClient:
             authSource="admin",
             retryWrites=True,
             w="majority",
+            maxPoolSize=50,
+            minPoolSize=10,
         )
     return _client
 

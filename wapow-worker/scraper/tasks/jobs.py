@@ -191,19 +191,74 @@ async def _save_raw_articles(items: list[ScrapedItem]) -> None:
             logger.error(f"Error bulk saving raw articles to MongoDB: {e}")
 
 
+async def scrape_single_source(source: Any, normalizer: ContentNormalizer) -> dict[str, Any]:
+    """Scrape a single RSS source and return normalized metrics and saved items."""
+    import time
+    from scraper.scrapers.rss_scraper import RSSScraper
+
+    start_src_time = time.time()
+    src_status = "success"
+    src_items_scraped = 0
+    src_items_saved = 0
+    src_error = ""
+    saved_info = []
+
+    try:
+        scraper = RSSScraper(source)
+        items = await scraper.scrape()
+        src_items_scraped = len(items)
+
+        # Save raw articles before normalization
+        await _save_raw_articles(items)
+
+        # Normalize items
+        normalized = [normalizer.normalize(item) for item in items]
+
+        # Filter duplicates (do not log individual feed skip counts concurrently to keep logs neat)
+        unique = await deduplicator.filter_duplicates(normalized, log_skipped=False)
+
+        # Save to MongoDB
+        saved_info = await _save_items(unique)
+        src_items_saved = len(saved_info)
+
+        logger.info(
+            f"RSS {source.name}: scraped={len(items)}, unique={len(unique)}, saved={len(saved_info)}"
+        )
+
+    except asyncio.CancelledError:
+        logger.warning(f"RSS scrape for {source.name} was cancelled.")
+        src_status = "cancelled"
+        src_error = "Cancelled by user"
+        raise
+    except Exception as e:
+        src_status = "failed"
+        src_error = str(e)
+        logger.error(f"Error in RSS scrape for {source.name}: {e}")
+
+    return {
+        "source_name": source.name,
+        "status": src_status,
+        "items_scraped": src_items_scraped,
+        "items_saved": src_items_saved,
+        "saved_articles": saved_info,
+        "duration": time.time() - start_src_time,
+        "error": src_error
+    }
+
+
 async def run_rss_scrape() -> dict[str, Any]:
-    """Run RSS feed scraping job with observability tracking."""
+    """Run RSS feed scraping job with parallel execution for feeds and feed URLs."""
     from scraper.tasks.running import active_tasks
-    
+
     if "rss_feeds" in active_tasks:
         logger.warning("RSS feeds scraping job is already running. Skipping this execution.")
         return {"scraped": 0, "saved": 0, "status": "already_running"}
-        
+
     current_task = asyncio.current_task()
     active_tasks["rss_feeds"] = current_task
-    
+
     try:
-        logger.info("Starting RSS scrape job")
+        logger.info("Starting RSS scrape job (parallel feeds & entry URLs execution)")
         tracker = ScraperRunTracker("rss_feeds")
         tracker.start()
 
@@ -213,72 +268,57 @@ async def run_rss_scrape() -> dict[str, Any]:
         total_scraped = 0
         total_saved = 0
 
+        # Build list of coroutines for enabled sources
+        tasks = []
+        for source in sources.rss:
+            if not source.enabled:
+                continue
+            tasks.append(scrape_single_source(source, normalizer))
+
+        if not tasks:
+            tracker.finish("success")
+            return {"scraped": 0, "saved": 0}
+
         try:
-            for source in sources.rss:
-                if not source.enabled:
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+
+            for res in results:
+                if isinstance(res, Exception):
+                    logger.error(f"Scraper task raised an exception: {res}")
+                    tracker.add_error(f"Scraper task exception: {res}")
                     continue
 
-                start_src_time = time.time()
-                src_status = "success"
-                src_items_scraped = 0
-                src_items_saved = 0
-                src_error = ""
-                try:
-                    scraper = RSSScraper(source)
-                    items = await scraper.scrape()
-                    src_items_scraped = len(items)
-                    total_scraped += src_items_scraped
+                total_scraped += res["items_scraped"]
+                total_saved += res["items_saved"]
 
-                    # Save raw articles before normalization
-                    await _save_raw_articles(items)
+                # Add saved articles to tracker
+                for item_id, item_title in res["saved_articles"]:
+                    tracker.add_saved_article(item_id, item_title)
 
-                    # Normalize items
-                    normalized = [(normalizer.normalize(item)) for item in items]
+                # Add errors to tracker if any
+                if res["error"] and res["status"] != "cancelled":
+                    tracker.add_error(f"Error in RSS scrape for {res['source_name']}: {res['error']}")
 
-                    # Filter duplicates
-                    unique = deduplicator.filter_duplicates(normalized)
-
-                    # Save to MongoDB
-                    saved_info = await _save_items(unique)
-                    src_items_saved = len(saved_info)
-                    total_saved += src_items_saved
-                    for item_id, item_title in saved_info:
-                        tracker.add_saved_article(item_id, item_title)
-
-                    logger.info(
-                        f"RSS {source.name}: scraped={len(items)}, unique={len(unique)}, saved={len(saved_info)}"
-                    )
-
-                except asyncio.CancelledError:
-                    logger.warning(f"RSS scrape for {source.name} was cancelled.")
-                    src_status = "cancelled"
-                    src_error = "Cancelled by user"
-                    raise
-                except Exception as e:
-                    src_status = "failed"
-                    src_error = str(e)
-                    err_msg = f"Error in RSS scrape for {source.name}: {e}"
-                    logger.error(err_msg)
-                    tracker.add_error(err_msg)
-                finally:
-                    src_duration = time.time() - start_src_time
+                # Update individual source status in MongoDB
+                source = next((s for s in sources.rss if s.name == res["source_name"]), None)
+                if source:
                     update_source_status(
                         source_name=source.name,
                         source_type="rss",
                         url=source.url,
                         category=source.category,
                         enabled=source.enabled,
-                        status=src_status,
-                        items_scraped=src_items_scraped,
-                        items_saved=src_items_saved,
-                        duration=src_duration,
-                        error_msg=src_error
+                        status=res["status"],
+                        items_scraped=res["items_scraped"],
+                        items_saved=res["items_saved"],
+                        duration=res["duration"],
+                        error_msg=res["error"]
                     )
 
             tracker.items_scraped = total_scraped
             tracker.finish("success")
         except asyncio.CancelledError:
-            logger.warning("RSS scrape job cancelled during sources loop.")
+            logger.warning("RSS scrape job cancelled during parallel execution.")
             tracker.add_error("Job cancelled by user")
             tracker.finish("failed")
             raise

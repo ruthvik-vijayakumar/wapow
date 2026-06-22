@@ -14,10 +14,11 @@ def refine_takeaways_with_openai(title: str, body_excerpt: str) -> str | None:
     If OPENAI_API_KEY is set, return bullet takeaways string; else None.
     body_excerpt should be truncated to save tokens.
     """
-    key = os.getenv("OPENAI_API_KEY", "").strip()
+    from scraper.config import settings
+    key = settings.openai_api_key or os.getenv("OPENAI_API_KEY", "").strip()
     if not key:
         return None
-    model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+    model = settings.openai_model or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
     excerpt = body_excerpt[:8000]
     payload = {
         "model": model,

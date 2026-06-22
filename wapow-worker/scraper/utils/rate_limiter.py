@@ -22,7 +22,7 @@ class RateLimiter:
         self.default_delay = default_delay or settings.default_rate_limit_delay
         self._last_request: dict[str, float] = {}
         self._domain_delays: dict[str, float] = {}
-        self._lock = asyncio.Lock()
+        self._locks: dict[str, asyncio.Lock] = {}
 
     def set_domain_delay(self, domain: str, delay: float) -> None:
         """Set a custom delay for a specific domain."""
@@ -46,7 +46,12 @@ class RateLimiter:
         domain = self._get_domain(url)
         delay = self._get_delay(domain)
 
-        async with self._lock:
+        # Retrieve or create a lock specific to this domain
+        if domain not in self._locks:
+            self._locks[domain] = asyncio.Lock()
+        lock = self._locks[domain]
+
+        async with lock:
             last = self._last_request.get(domain, 0)
             elapsed = time.time() - last
             wait_time = delay - elapsed
@@ -68,6 +73,7 @@ class RateLimiter:
         last = self._last_request.get(domain, 0)
         elapsed = time.time() - last
         return max(0, delay - elapsed)
+
 
 
 # Global rate limiter instance

@@ -16,64 +16,39 @@ class StoryPipeline(BasePipeline):
     """Concrete pipeline to segment an article and format it into visual StoryView slides."""
 
     def __init__(self, api_key: Optional[str] = None):
-        self.api_key = (api_key or os.getenv("GEMINI_API_KEY", "")).strip()
+        from scraper.config import settings
+        self.api_key = (api_key or settings.gemini_api_key or os.getenv("GEMINI_API_KEY", "")).strip()
 
-    def storyboard(self, tree: DocumentTree, min_slides: int, max_slides: int) -> Optional[Dict[str, Any]]:
+    def storyboard_single(self, tree: DocumentTree, unique_images: List[str]) -> Optional[Dict[str, Any]]:
         """
-        Stage 1: Narrative Storyboarding.
-        Asks Gemini to segment the article into between min_slides and max_slides beats,
-        providing both a short and long summary version of each beat for layout flexibility.
-        Also asks Gemini to select a relevant image from the article for each beat.
+        Stage 1: Narrative Storyboarding (Single/No Image Case).
+        Generates exactly one content segment focusing strictly on the central topic, stripping out unrelated details.
         """
         if not self.api_key:
-            logger.warning("No Gemini API key available for StoryPipeline storyboard stage.")
+            logger.warning("No Gemini API key available for StoryPipeline storyboard_single stage.")
             return None
 
-        # Gather available images with their captions from the article tree
-        images_data = []
-        for b in tree.blocks:
-            if b.type == "image" and b.url:
-                images_data.append({
-                    "url": b.url,
-                    "caption": b.content or ""
-                })
-        # Add the promo image if available and not already added
-        if tree.promo_image and not any(img["url"] == tree.promo_image for img in images_data):
-            images_data.append({
-                "url": tree.promo_image,
-                "caption": tree.title or ""
-            })
-
+        img_url = unique_images[0] if unique_images else None
         prompt = f"""You are an expert editor creating a mobile visual story (like Instagram/Snapchat Stories) from a news article.
-Your task is to summarize the article into between {min_slides} and {max_slides} sequential narrative segments (beats) that explain the entire story.
-Determine the optimal number of segments (within the range {min_slides} to {max_slides}) based on the actual substance of the article.
+Your task is to summarize the article into EXACTLY ONE content segment.
 
-CONTENT DENSITY (most important rule):
-- Each segment MUST be a substantial, self-contained narrative beat — roughly a full short paragraph of information.
-- NEVER produce a segment whose content is just a single thin sentence. A slide that says almost nothing is worse than no slide.
-- It is far better to have FEWER, richer segments than many thin ones. Default to the low end of the range and only add a segment when there is a genuinely distinct new development, fact, or topic shift.
-- If two ideas are closely related, COMBINE them into one segment rather than splitting them across two slides.
-- Prefer {min_slides} segments unless the article clearly contains enough distinct substance to justify more.
+CONTENT INSTRUCTIONS:
+- The summary MUST focus strictly and only on the central topic of the article.
+- Strip off any unrelated, side, or tangential information. Keep it highly focused on the core theme.
+- The summary must be a substantial, self-contained narrative beat — not a thin sentence.
 
-For each segment, you must provide both a short and long summary version to accommodate different slide layouts.
-
-IMAGE SELECTION:
-You are provided with a list of AVAILABLE IMAGES associated with this article.
-For each segment, select the most relevant image URL from the list that has a strong semantic connection and directly supports that slide's narrative beat.
-Each image URL from the list of AVAILABLE IMAGES must be suggested AT MOST ONCE across all segments. Do not repeat the same image URL.
-If no image has a strong connection to the narrative beat, or if the list of AVAILABLE IMAGES is empty, set "suggested_image_url" to null.
-Do not force an image match if it's not a highly relevant fit; in that case, set it to null so the slide renders as a clean text-only template.
+For this segment, you must provide both a short and long summary version to accommodate different slide layouts.
 
 Output a JSON object with:
-1. "segments": A list of the generated segment objects. Each segment object MUST contain:
-   - "key_phrases": A list of 2-3 unique key phrases or keyword groups that are highly specific to this part of the article.
-   - "short_summary": A concise summary of this segment for image/video layouts. Keep it strictly between 90 and 200 characters (1-2 punchy sentences). It must still convey a complete, meaningful point — not a fragment.
-   - "long_summary": A detailed, descriptive summary of this segment. Keep it strictly between 280 and 480 characters (3-4 sentences) to explain the segment fully.
-   - "suggested_image_url": A unique, relevant image URL from the list of AVAILABLE IMAGES, or null.
-2. "takeaways": A list of 3-5 short bullet points summarizing the key takeaways of the whole article.
+1. "segments": A list containing EXACTLY ONE segment object. The segment object MUST contain:
+   - "key_phrases": A list of 2-3 unique key phrases or keywords specific to the central topic.
+   - "short_summary": A concise summary of the central topic. Keep it strictly between 90 and 200 characters (1-2 punchy sentences).
+   - "long_summary": A detailed, descriptive summary of the central topic. Keep it strictly between 220 and 360 characters (2-3 sentences) to explain the core topic fully.
+   - "suggested_image_url": The image URL provided below, or null if none is available.
+2. "takeaways": A list of 3-5 short bullet points summarizing the key takeaways of the article (for metadata/fallback purposes).
 
-AVAILABLE IMAGES:
-{json.dumps(images_data, indent=2)}
+IMAGE PROVIDED:
+{img_url}
 
 TITLE:
 {tree.title}
@@ -84,7 +59,52 @@ DESCRIPTION:
 ARTICLE_BODY:
 {tree.get_plaintext()}
 """
+        logger.info(f"Calling Gemini to storyboard single-segment central topic for: {tree.title}")
+        return self._call_gemini_api(prompt)
 
+    def storyboard_multiple(self, tree: DocumentTree, target_images: List[str]) -> Optional[Dict[str, Any]]:
+        """
+        Stage 1: Narrative Storyboarding (Multiple Images Case).
+        Generates exactly one content segment per unique image.
+        """
+        if not self.api_key:
+            logger.warning("No Gemini API key available for StoryPipeline storyboard_multiple stage.")
+            return None
+
+        prompt = f"""You are an expert editor creating a mobile visual story (like Instagram/Snapchat Stories) from a news article.
+Your task is to storyboard the article into EXACTLY {len(target_images)} content segments, corresponding to the {len(target_images)} available images in order.
+
+CONTENT INSTRUCTIONS:
+- You must generate exactly {len(target_images)} segments.
+- Each segment corresponds to the image at the same index from the AVAILABLE IMAGES list.
+- The text (both short and long summaries) for each segment must be highly relevant and appropriate to the specific image shown on that slide.
+- Together, the segments must explain the narrative progression of the article.
+- Each segment must be a substantial, self-contained narrative beat.
+
+Output a JSON object with:
+1. "segments": A list containing EXACTLY {len(target_images)} segment objects. Each segment object MUST contain:
+   - "key_phrases": A list of 2-3 unique key phrases or keywords specific to this segment.
+   - "short_summary": A concise summary of this segment. Keep it strictly between 90 and 200 characters (1-2 punchy sentences).
+   - "long_summary": A detailed, descriptive summary of this segment. Keep it strictly between 220 and 360 characters (2-3 sentences).
+   - "suggested_image_url": The exact image URL from the AVAILABLE IMAGES list corresponding to this segment's index.
+2. "takeaways": A list of 3-5 short bullet points summarizing the key takeaways of the whole article.
+
+AVAILABLE IMAGES (in sequential order):
+{json.dumps(target_images, indent=2)}
+
+TITLE:
+{tree.title}
+
+DESCRIPTION:
+{tree.description}
+
+ARTICLE_BODY:
+{tree.get_plaintext()}
+"""
+        logger.info(f"Calling Gemini to storyboard {len(target_images)} segments for multi-image story: {tree.title}")
+        return self._call_gemini_api(prompt)
+
+    def _call_gemini_api(self, prompt: str) -> Optional[Dict[str, Any]]:
         payload = {
             "contents": [
                 {
@@ -135,7 +155,6 @@ ARTICLE_BODY:
         )
 
         try:
-            logger.info(f"Calling Gemini to storyboard dynamic segments ({min_slides}-{max_slides}) for: {tree.title}")
             with urllib.request.urlopen(req, timeout=45) as resp:
                 raw_data = json.loads(resp.read().decode("utf-8"))
 
@@ -159,70 +178,31 @@ ARTICLE_BODY:
             try:
                 return json.loads(cleaned_text)
             except json.JSONDecodeError as jde:
-                logger.error(f"JSON Decode Error in StoryPipeline storyboard: {jde}\nRaw text:\n{cleaned_text}")
+                logger.error(f"JSON Decode Error in StoryPipeline: {jde}\nRaw text:\n{cleaned_text}")
                 return None
         except Exception as e:
-            logger.error(f"Error in StoryPipeline storyboard: {e}")
+            logger.error(f"Error in StoryPipeline API call: {e}")
             return None
 
-    def _find_best_block_match(self, tree: DocumentTree, key_phrases: List[str], segment_text: str) -> int:
-        """Helper to find the sequential index of the text block that best matches this narrative beat."""
-        best_idx = 0
-        best_score = 0
-
-        # Compile list of text blocks with content
-        text_blocks = [(idx, b) for idx, b in enumerate(tree.blocks) if b.type in ("text", "header")]
-        if not text_blocks:
-            return 0
-
-        segment_words = set(segment_text.lower().split())
-        phrase_words = set()
-        for phrase in key_phrases:
-            phrase_words.update(phrase.lower().split())
-
-        for idx, block in text_blocks:
-            block_content_lower = block.content.lower()
-            
-            # Simple keyword matching score
-            score = 0
-            # 1. Check for key phrase match
-            for word in phrase_words:
-                if word in block_content_lower:
-                    score += 5
-            # 2. Check word overlap with the segment summary
-            for word in segment_words:
-                if len(word) > 3 and word in block_content_lower:
-                    score += 1
-
-            if score > best_score:
-                best_score = score
-                best_idx = idx
-
-        return best_idx
-
-    def align_media(self, tree: DocumentTree, segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def align_media_new(self, tree: DocumentTree, segments: List[Dict[str, Any]], unique_images: List[str]) -> List[Dict[str, Any]]:
         """
         Stage 2: Contextual Media Alignment.
-        Maps each storyboard segment to its corresponding matched media.
-        If the model suggested a relevant image, uses it. Otherwise, defaults to text-only template
-        unless there's a nearby video, preserving text-only templates where images are irrelevant.
+        Maps each storyboard segment to its corresponding matched image.
+        If suggested_image_url is null or not valid, falls back to the unique image at that index.
         """
         aligned_segments = []
-        used_images = set()
-        used_videos = set()
-
-        for segment in segments:
-            key_phrases = segment.get("key_phrases") or []
+        for i, segment in enumerate(segments):
             short_summary = segment.get("short_summary") or ""
             long_summary = segment.get("long_summary") or ""
             suggested_img = segment.get("suggested_image_url")
             
-            # 1. Prioritize using the LLM's selected image if valid and unused
-            all_images = tree.get_images()
-            if suggested_img and suggested_img in all_images and suggested_img not in used_images:
-                used_images.add(suggested_img)
-                # Find focal point from the SemanticBlock if it exists
-                focal_point = None
+            # Index fallback if the model returned null
+            if not suggested_img and i < len(unique_images):
+                suggested_img = unique_images[i]
+
+            # Find focal point from the SemanticBlock if it exists
+            focal_point = None
+            if suggested_img:
                 for block in tree.blocks:
                     if block.type == "image" and block.url == suggested_img:
                         focal_point = block.focal_point
@@ -230,73 +210,26 @@ ARTICLE_BODY:
                 if not focal_point and suggested_img == tree.promo_image:
                     focal_point = tree.promo_image_focal_point
 
-                aligned_segments.append({
-                    "short_summary": short_summary,
-                    "long_summary": long_summary,
-                    "video_url": None,
-                    "embed_code": None,
-                    "image_url": suggested_img,
-                    "focal_point": focal_point,
-                })
-                continue
-
-            # 2. Otherwise, check for layout adjacent video
-            match_block_idx = self._find_best_block_match(tree, key_phrases, short_summary or long_summary)
-            matched_video = tree.get_adjacent_video(match_block_idx, max_distance=4)
-            if matched_video and matched_video["url"] not in used_videos:
-                used_videos.add(matched_video["url"])
-                aligned_segments.append({
-                    "short_summary": short_summary,
-                    "long_summary": long_summary,
-                    "video_url": matched_video["url"],
-                    "embed_code": matched_video["embed_code"],
-                    "image_url": None,
-                    "focal_point": None,
-                })
-                continue
-
-            # 3. Otherwise, keep it as a clean text-only segment (no fallbacks forcing irrelevant images)
             aligned_segments.append({
                 "short_summary": short_summary,
                 "long_summary": long_summary,
-                "video_url": None,
-                "embed_code": None,
-                "image_url": None,
-                "focal_point": None,
+                "image_url": suggested_img,
+                "focal_point": focal_point,
             })
-
-        # Safeguard Fallback: If no media was matched at all across the entire story, 
-        # assign the promo_image to the first slide as a cover card.
-        has_any_media = bool(used_images) or bool(used_videos)
-        if not has_any_media and tree.promo_image and aligned_segments:
-            aligned_segments[0]["image_url"] = tree.promo_image
-            aligned_segments[0]["focal_point"] = tree.promo_image_focal_point
-            used_images.add(tree.promo_image)
 
         return aligned_segments
 
-    def refine(self, aligned_segments: List[Dict[str, Any]], takeaways: List[str], tree: DocumentTree) -> List[Dict[str, Any]]:
+    def refine_new(self, aligned_segments: List[Dict[str, Any]], takeaways: List[str], tree: DocumentTree) -> List[Dict[str, Any]]:
         """
         Stage 3: Layout Refinement.
-        Selects the appropriate summary version based on visual layout constraints and outputs the final slides list.
+        Formats the segments into content and overview slides.
         """
         pages = []
         for seg in aligned_segments:
             img_url = seg.get("image_url")
-            vid_url = seg.get("video_url")
-            embed_code = seg.get("embed_code")
             focal_point = seg.get("focal_point")
             
-            # Select appropriate content based on layout constraints (with video vs with image vs text-only).
-            # No character-based truncation here — the frontend scales text to fit the slide
-            # and only ellipsizes when content actually exceeds the container height.
-            if vid_url:
-                text_content = seg.get("short_summary") or ""
-                page_content = [
-                    {"type": "text", "content": text_content},
-                    {"type": "video", "content_url": vid_url, "embed_code": embed_code or ""}
-                ]
-            elif img_url:
+            if img_url:
                 text_content = seg.get("short_summary") or ""
                 image_item: Dict[str, Any] = {"type": "image", "content_url": img_url}
                 if focal_point:
@@ -318,8 +251,8 @@ ARTICLE_BODY:
                 "content": page_content
             })
 
-        # Takeaways/overview slide only adds value when there are multiple content
-        # slides to summarize. For a single-slide (short) article, skip it entirely.
+        # Overview/takeaways slide only when there are multiple content slides to summarize.
+        # For a single-slide (short) article, skip it entirely.
         if len(pages) >= 2:
             if takeaways:
                 takeaways_text = "\n".join(f"• {t.strip()}" for t in takeaways)
@@ -335,106 +268,65 @@ ARTICLE_BODY:
 
         return pages
 
-    def stitch_segments(self, aligned_segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """
-        Merge consecutive text-only segments if their combined text length is within
-        an adaptive threshold based on the media density of the story.
-        """
-        if not aligned_segments:
-            return []
-
-        # Count slides with media
-        media_count = sum(1 for seg in aligned_segments if seg.get("image_url") or seg.get("video_url"))
-        total_count = len(aligned_segments)
-        media_ratio = media_count / total_count if total_count > 0 else 0
-
-        # Determine adaptive threshold
-        if media_ratio > 0.5:
-            max_chars = 350
-        elif media_ratio > 0.25:
-            max_chars = 420
-        else:
-            max_chars = 500
-
-        logger.info(f"Slide stitching media ratio: {media_ratio:.2f}. Adaptive character limit: {max_chars}")
-
-        stitched = []
-        i = 0
-        while i < len(aligned_segments):
-            curr = aligned_segments[i]
-            
-            # If the current segment has media, we keep it as is
-            if curr.get("image_url") or curr.get("video_url"):
-                stitched.append(curr)
-                i += 1
-                continue
-                
-            # It's a text-only segment. Look ahead to merge consecutive text-only segments
-            merged_seg = {
-                "short_summary": curr.get("short_summary") or "",
-                "long_summary": curr.get("long_summary") or "",
-                "video_url": None,
-                "embed_code": None,
-                "image_url": None,
-                "focal_point": None,
-            }
-            
-            j = i + 1
-            while j < len(aligned_segments):
-                next_seg = aligned_segments[j]
-                
-                # Check if next is also text-only
-                if next_seg.get("image_url") or next_seg.get("video_url"):
-                    break
-                    
-                next_long = next_seg.get("long_summary") or ""
-                # Check if combined length exceeds threshold
-                combined_len = len(merged_seg["long_summary"]) + len(next_long) + 2  # +2 for '\n\n'
-                if combined_len <= max_chars:
-                    merged_seg["long_summary"] = merged_seg["long_summary"] + "\n\n" + next_long
-                    next_short = next_seg.get("short_summary") or ""
-                    if merged_seg["short_summary"] and next_short:
-                        merged_seg["short_summary"] = merged_seg["short_summary"] + "; " + next_short
-                    else:
-                        merged_seg["short_summary"] = merged_seg["short_summary"] or next_short
-                    j += 1
-                else:
-                    break
-                    
-            stitched.append(merged_seg)
-            i = j
-            
-        return stitched
-
     def execute(self, tree: DocumentTree) -> Optional[List[Dict[str, Any]]]:
-        """Orchestrate the 3-stage visual slides generation flow."""
-        # Determine number of content slides (beats) adaptively based on word count.
-        # Bias toward FEWER, denser beats — a single substantial slide beats several thin ones.
-        word_count = len(tree.get_plaintext().split())
-        if word_count < 250:
-            min_slides, max_slides = 1, 2
-        elif word_count < 750:
-            # Typical news article: lead+image slide + one consolidated body slide.
-            min_slides, max_slides = 2, 2
-        elif word_count < 1300:
-            min_slides, max_slides = 3, 3
-        else:
-            min_slides, max_slides = 3, 4
+        """Orchestrate the single/multiple images visual slides generation flow."""
+        unique_images = tree.get_images()
+        num_images = len(unique_images)
+        logger.info(f"Starting StoryPipeline slide generation. Unique images: {num_images}")
 
-        # Stage 1: Storyboard
-        storyboard_data = self.storyboard(tree, min_slides, max_slides)
+        if num_images <= 1:
+            # Stage 1: Single slide for central topic
+            storyboard_data = self.storyboard_single(tree, unique_images)
+        else:
+            # Stage 1: One content slide per image, up to 5
+            target_images = unique_images[:5]
+            storyboard_data = self.storyboard_multiple(tree, target_images)
+
         if not storyboard_data:
+            logger.warning("Storyboard generation returned no data.")
             return None
 
         segments = storyboard_data.get("segments") or []
         takeaways = storyboard_data.get("takeaways") or []
 
-        # Stage 2: Media Alignment
-        aligned_segments = self.align_media(tree, segments)
+        # Stage 2: Contextual Media Alignment
+        aligned_segments = self.align_media_new(tree, segments, unique_images)
 
-        # Stage 2.5: Slide Stitching / Merging
-        stitched_segments = self.stitch_segments(aligned_segments)
-
-        # Stage 3: Refine Layout
-        pages = self.refine(stitched_segments, takeaways, tree)
+        # Stage 3: Refine Layout (skip stitching to enforce strict image mapping)
+        pages = self.refine_new(aligned_segments, takeaways, tree)
         return pages
+
+    # ==========================================
+    # ARCHIVED LEGACY CONVERSION WORKFLOW METHODS
+    # ==========================================
+
+    def storyboard(self, tree: DocumentTree, min_slides: int, max_slides: int) -> Optional[Dict[str, Any]]:
+        """Archived legacy Stage 1 storyboard method."""
+        if not self.api_key:
+            return None
+        images_data = []
+        for b in tree.blocks:
+            if b.type == "image" and b.url:
+                images_data.append({"url": b.url, "caption": b.content or ""})
+        if tree.promo_image and not any(img["url"] == tree.promo_image for img in images_data):
+            images_data.append({"url": tree.promo_image, "caption": tree.title or ""})
+
+        prompt = f"""Archived Legacy Prompt..."""
+        # (Omitted legacy implementation details for brevity/archival reference only)
+        return None
+
+    def align_media(self, tree: DocumentTree, segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Archived legacy Stage 2 align_media method."""
+        return []
+
+    def refine(self, aligned_segments: List[Dict[str, Any]], takeaways: List[str], tree: DocumentTree) -> List[Dict[str, Any]]:
+        """Archived legacy Stage 3 refine method."""
+        return []
+
+    def stitch_segments(self, aligned_segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Archived legacy stitch_segments method."""
+        return []
+
+    def _find_best_block_match(self, tree: DocumentTree, key_phrases: List[str], segment_text: str) -> int:
+        """Archived legacy block matcher helper."""
+        return 0

@@ -7,15 +7,14 @@
         :class="{ active: currentRoute === 'home' }"
         @click="navigateTo('home')"
       >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
           <path
             stroke-linecap="round"
             stroke-linejoin="round"
-            stroke-width="2"
-            d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+            d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"
           />
         </svg>
-        <span class="text-xs mt-1">Home</span>
+        <span class="text-[10px] mt-1 font-medium">Home</span>
       </button>
 
       <!-- Search -->
@@ -24,15 +23,14 @@
         :class="{ active: currentRoute === 'search' }"
         @click="navigateTo('search')"
       >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
           <path
             stroke-linecap="round"
             stroke-linejoin="round"
-            stroke-width="2"
-            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.637 10.637z"
           />
         </svg>
-        <span class="text-xs mt-1">Search</span>
+        <span class="text-[10px] mt-1 font-medium">Search</span>
       </button>
 
       <!-- Games -->
@@ -41,15 +39,14 @@
         :class="{ active: currentRoute === 'games' }"
         @click="navigateTo('games')"
       >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
           <path
             stroke-linecap="round"
             stroke-linejoin="round"
-            stroke-width="2"
-            d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            d="M15.59 14.37a6 6 0 01-7.18 0M3 12a9 9 0 1118 0 9 9 0 01-18 0z"
           />
         </svg>
-        <span class="text-xs mt-1">Games</span>
+        <span class="text-[10px] mt-1 font-medium">Games</span>
       </button>
 
       <!-- Profile -->
@@ -58,15 +55,14 @@
         :class="{ active: currentRoute === 'profile' }"
         @click="navigateTo('profile')"
       >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
           <path
             stroke-linecap="round"
             stroke-linejoin="round"
-            stroke-width="2"
-            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+            d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"
           />
         </svg>
-        <span class="text-xs mt-1">Profile</span>
+        <span class="text-[10px] mt-1 font-medium">Profile</span>
       </button>
     </div>
   </nav>
@@ -112,10 +108,13 @@ const navigateTo = (navRoute: string) => {
 
 .nav-item {
   @apply flex flex-col items-center justify-center;
-  @apply px-2 py-1 rounded-lg;
+  @apply px-2 py-2;
   @apply transition-colors;
   @apply min-w-0 flex-1;
   color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
 }
 
 .nav-item:hover {
@@ -130,3 +129,4 @@ const navigateTo = (navRoute: string) => {
   @apply transition-colors;
 }
 </style>
+

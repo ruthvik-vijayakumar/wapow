@@ -17,14 +17,14 @@
     ></div>
 
     <div
-      class="relative overflow-hidden rounded-lg"
+      class="relative overflow-hidden"
       :style="{ aspectRatio: content.subtype === 'audio' ? '1.77' : '0.67' }"
     >
       <!-- Thumbnail with lazy loading for performance -->
       <img
         :src="content.promo_items?.basic?.url"
         :alt="content.headlines?.basic || 'Article'"
-        class="w-full h-full object-cover tile-image"
+        class="w-full h-full object-cover tile-image rounded-t-lg"
         :style="tileImageStyle"
         loading="lazy"
         decoding="async"
@@ -54,7 +54,7 @@
       </div>
 
       <!-- Title -->
-      <h3 style="line-height: 1.2" class="tracking-tight font-bold tile-text-primary font-postoni">
+      <h3 style="line-height: 1.2" class="text-sm font-bold tile-text-primary font-postoni">
         {{ content.headlines?.basic || 'Article Title' }}
       </h3>
 
@@ -64,7 +64,7 @@
       </p> -->
 
       <!-- Author info -->
-      <div v-if="content.subtype !== 'recipe-template'" class="flex items-center space-x-2 pt-2">
+      <div v-if="content.subtype !== 'recipe-template'" class="flex items-center space-x-2">
         <span class="text-xs tile-text-primary" style="opacity: 0.85"
           >by {{ getAuthorName() }}</span
         >

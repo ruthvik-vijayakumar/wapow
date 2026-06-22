@@ -43,7 +43,6 @@ def _collect_from_content_elements(elements: list) -> tuple[str, list[str], list
     parts: list[str] = []
     images: list[str] = []
     videos: list[dict] = []
-    seen_video_urls: set[str] = set()
     if not elements:
         return "", images, videos
     for el in elements:
@@ -65,12 +64,6 @@ def _collect_from_content_elements(elements: list) -> tuple[str, list[str], list
                 url = basic.get("url")
             if isinstance(url, str) and url.startswith("http"):
                 images.append(url)
-        elif typ == "video":
-            url = el.get("url") or el.get("content_url") or ""
-            embed_code = el.get("embed_code") or el.get("content") or ""
-            if url and url not in seen_video_urls:
-                seen_video_urls.add(url)
-                videos.append({"url": url, "embed_code": embed_code})
     return "\n\n".join(p for p in parts if p), images, videos
 
 

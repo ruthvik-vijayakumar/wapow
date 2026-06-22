@@ -105,29 +105,20 @@ def _takeaways_from_chunks(title: str, chunks: list[str]) -> str:
     return "\n".join(lines)
 
 
-def _make_video_page(video: dict) -> dict:
-    """Build a video slide page."""
-    return {
-        "page_type": "content",
-        "content": [
-            {"type": "video", "content_url": video["url"], "embed_code": video.get("embed_code") or ""},
-        ],
-    }
-
-
 def build_pages(analyzed: AnalyzedArticle) -> list[dict]:
     """Produce pages array (content + overview) for ai_summary."""
-    n = _content_slide_count(analyzed.word_count)
+    # Determine the number of content pages based on number of unique images
+    num_images = len(analyzed.image_urls)
+    if num_images <= 1:
+        n = 1
+    else:
+        n = min(num_images, 5)
+
     chunks = _split_into_chunks(analyzed.body_text, n)
     pages: list[dict] = []
     for i, chunk in enumerate(chunks):
         img = analyzed.image_urls[i] if i < len(analyzed.image_urls) else None
         pages.append(_make_content_page(chunk, img))
-
-    # Inject video slides after the first content slide (one per unique video, max 2)
-    if analyzed.video_items:
-        video_slides = [_make_video_page(v) for v in analyzed.video_items[:2]]
-        pages = pages[:1] + video_slides + pages[1:]
 
     # Takeaways slide only when there are multiple content slides to summarize.
     if len(pages) >= 2:

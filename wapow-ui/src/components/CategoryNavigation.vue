@@ -64,7 +64,7 @@ const selectCategory = (category: Category) => {
 }
 
 .nav-category {
-  @apply px-3 py-1.5 rounded-full text-sm transition-all duration-200;
+  @apply px-2 py-1.5 rounded-full text-xs transition-all duration-200;
   @apply flex items-center space-x-1;
   color: var(--cat-inactive-text);
 }

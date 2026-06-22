@@ -16,7 +16,7 @@
             class="podcast-action-btn"
             :class="{ active: isListening }"
           >
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -29,7 +29,7 @@
 
           <!-- Share Button -->
           <button @click="handleShare" class="podcast-action-btn">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -42,7 +42,7 @@
         </div>
         <div class="discuss-button">
           <button @click="handleComments" class="follow-button">
-            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -253,7 +253,7 @@ const shareImageAsset = async (blobImageAsset: Blob): Promise<boolean> => {
 }
 
 .category-tag {
-  @apply text-white text-base font-medium;
+  @apply text-white text-sm font-medium;
   @apply pr-2.5 py-1;
   @apply truncate;
 }
