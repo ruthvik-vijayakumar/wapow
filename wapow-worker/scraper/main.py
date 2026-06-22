@@ -27,6 +27,7 @@ from scraper.tasks.jobs import (
     load_sources,
     save_sources,
     run_rss_scrape,
+    run_podcast_scrape,
     run_all_scrapers,
 )
 from scraper.services.conversion_jobs import (
@@ -91,6 +92,8 @@ async def lifespan(app: FastAPI):
         get_collection("articles").create_index("_scraper_meta.url_hash", unique=True, sparse=True)
         get_collection("articles").create_index("canonical_url")
         get_collection("raw_articles").create_index("url", unique=True)
+        get_collection("podcasts").create_index("_scraper_meta.url_hash", unique=True, sparse=True)
+        get_collection("podcasts").create_index("canonical_url")
         logger.info("Database indexes checked/created successfully")
     except Exception as idx_err:
         logger.warning(f"Failed to create database indexes: {idx_err}")
@@ -193,10 +196,12 @@ async def trigger_job_endpoint(job_id: str) -> dict[str, Any]:
 
     Valid job IDs:
     - rss_feeds: RSS feed scraping
-    - all: Run active scrapers (RSS only)
+    - podcast_scrape: Podcast Index scraping
+    - all: Run active scrapers (RSS and Podcasts)
     """
     job_map = {
         "rss_feeds": run_rss_scrape,
+        "podcast_scrape": run_podcast_scrape,
         "all": run_all_scrapers,
     }
 

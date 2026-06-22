@@ -32,7 +32,7 @@ rss:
   category: sports
   enabled: true
 - name: CBS Sports
-  url: https://www.cbssports.com/rss/news/
+  url: https://www.cbssports.com/rss/headlines/
   category: sports
   enabled: true
 - name: NBC Sports
@@ -42,7 +42,7 @@ rss:
 - name: Lonely Planet
   url: https://www.lonelyplanet.com/blog/feed
   category: travel
-  enabled: true
+  enabled: false
 - name: Travel + Leisure
   url: https://www.travelandleisure.com/feeds/all
   category: travel
@@ -54,7 +54,7 @@ rss:
 - name: Fodor's Travel
   url: https://www.fodors.com/news/feed
   category: travel
-  enabled: true
+  enabled: false
 - name: Vogue
   url: https://www.vogue.com/feed/rss
   category: style
@@ -78,7 +78,7 @@ rss:
 - name: Well+Good
   url: https://www.wellandgood.com/feed/
   category: wellbeing
-  enabled: true
+  enabled: false
 - name: Healthline
   url: https://www.healthline.com/rss/nutrition
   category: wellbeing

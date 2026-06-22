@@ -342,6 +342,7 @@ watch(
   () => [props.initialArticle, props.articles] as const,
   () => {
     stories.value = buildStories()
+    feedPage.value = 1
   },
 )
 
@@ -361,6 +362,84 @@ watch(
   },
   { immediate: true },
 )
+
+const isFetchingMore = ref(false)
+const feedPage = ref(1)
+
+async function loadMoreFeedItems() {
+  if (isFetchingMore.value) return
+  isFetchingMore.value = true
+  try {
+    feedPage.value++
+    const cat = props.category?.toLowerCase() || 'technology'
+    const validCategories = ['sports', 'style', 'technology', 'travel', 'wellbeing']
+    const catQuery = validCategories.includes(cat) ? `category=${cat}` : ''
+    const res = await apiFetch(`/api/articles?${catQuery}&page=${feedPage.value}&limit=10`)
+    if (res.ok) {
+      const json = await res.json()
+      const fetchedArticles = json.data ?? []
+
+      if (fetchedArticles.length > 0) {
+        const newStories: Story[] = []
+        const videos = contentStore.videos
+        const podcasts = contentStore.podcastClips
+
+        fetchedArticles.forEach((article: any, i: number) => {
+          if (article && article.headlines?.basic && !stories.value.some(s => s.id.includes(article._id))) {
+            newStories.push({
+              id: `story-more-${article._id}`,
+              mediaType: 'story',
+              content: convertArticleToStoryContent(article),
+              category: getCategoryFromArticle(article),
+            })
+            
+            // Interleave a video or podcast (e.g. every 2 articles)
+            if (i % 2 === 0) {
+              const video = videos[Math.floor(Math.random() * videos.length)]
+              if (video && !stories.value.some(s => s.id.includes(video.content_id))) {
+                newStories.push({
+                  id: `video-more-${video.content_id}`,
+                  mediaType: 'video',
+                  video: video,
+                  category: getCategoryFromVideo(video),
+                })
+              }
+            } else if (i % 3 === 0) {
+              const podcast = podcasts[Math.floor(Math.random() * podcasts.length)]
+              if (podcast && !stories.value.some(s => s.id.includes(podcast.id))) {
+                newStories.push({
+                  id: `podcast-more-${podcast.id}`,
+                  mediaType: 'podcast',
+                  podcast: podcast,
+                  category: getCategoryFromPodcast(podcast),
+                })
+              }
+            }
+          }
+        })
+
+        if (newStories.length > 0) {
+          // Shuffle only the new items
+          for (let i = newStories.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1))
+            ;[newStories[i], newStories[j]] = [newStories[j], newStories[i]]
+          }
+          stories.value = [...stories.value, ...newStories]
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load more feed items:', error)
+  } finally {
+    isFetchingMore.value = false
+  }
+}
+
+watch(currentStoryIndex, async (index) => {
+  if (index >= stories.value.length - 3) {
+    await loadMoreFeedItems()
+  }
+})
 
 const handleTouchStart = (event: TouchEvent) => {
   touchStart.value = { x: event.touches[0].clientX, y: event.touches[0].clientY }

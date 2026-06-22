@@ -16,6 +16,7 @@ def start_scheduler() -> None:
     """Start the scheduler with configured jobs."""
     from scraper.tasks.jobs import (
         run_rss_scrape,
+        run_podcast_scrape,
     )
 
     # RSS feeds - every hour
@@ -27,8 +28,17 @@ def start_scheduler() -> None:
         replace_existing=True,
     )
 
+    # Podcast feeds - every 6 hours (360 minutes)
+    scheduler.add_job(
+        run_podcast_scrape,
+        trigger=IntervalTrigger(minutes=360),
+        id="podcast_scrape",
+        name="Podcast Index Scraper",
+        replace_existing=True,
+    )
+
     scheduler.start()
-    logger.info("Scheduler started with RSS feeds scraping job")
+    logger.info("Scheduler started with RSS feeds and Podcast Index scraping jobs")
 
 
 def shutdown_scheduler() -> None:

@@ -335,12 +335,88 @@ async def run_rss_scrape() -> dict[str, Any]:
             active_tasks.pop("rss_feeds", None)
 
 
+async def run_podcast_scrape() -> dict[str, Any]:
+    """Run podcast discovery and episode scraping from Podcast Index."""
+    from scraper.tasks.running import active_tasks
+    from scraper.scrapers.podcast_scraper import PodcastScraper
+
+    if "podcast_scrape" in active_tasks:
+        logger.warning("Podcast scraping job is already running. Skipping this execution.")
+        return {"scraped": 0, "saved": 0, "status": "already_running"}
+
+    current_task = asyncio.current_task()
+    active_tasks["podcast_scrape"] = current_task
+
+    try:
+        logger.info("Starting Podcast Index scrape job")
+        tracker = ScraperRunTracker("podcast_scrape")
+        tracker.start()
+
+        scraper = PodcastScraper()
+        scraped_items = await scraper.scrape()
+
+        total_scraped = len(scraped_items)
+        total_saved = 0
+
+        # Build list of (collection_name, document) tuples for saving
+        to_save = []
+        now = datetime.utcnow()
+        for item in scraped_items:
+            doc = {
+                "title": item.title,
+                "description": item.description,
+                "audioUrl": item.raw_data.get("audioUrl") or item.url,
+                "imageUrl": item.image_url,
+                "category": item.category,
+                "created_date": item.publish_date or now,
+                "publish_date": item.publish_date or now,
+                "author": item.raw_data.get("author") or {"name": item.author},
+                "additional_properties": item.raw_data.get("additional_properties") or {},
+                "source": item.raw_data.get("source") or {},
+                "canonical_url": item.raw_data.get("audioUrl") or item.url,
+                "_scraper_meta": {
+                    "url_hash": deduplicator._hash_url(item.raw_data.get("audioUrl") or item.url),
+                    "publisher": item.raw_data.get("source", {}).get("name") or item.author,
+                    "scraped_at": now
+                }
+            }
+            to_save.append(("podcasts", doc))
+
+        # Filter duplicates using deduplicator
+        unique = await deduplicator.filter_duplicates(to_save, log_skipped=True)
+
+        # Save to database
+        saved_info = await _save_items(unique)
+        total_saved = len(saved_info)
+
+        for item_id, item_title in saved_info:
+            tracker.add_saved_article(item_id, item_title)
+
+        tracker.items_scraped = total_scraped
+        tracker.finish("success")
+
+        logger.info(f"Podcast scrape complete: total_scraped={total_scraped}, total_saved={total_saved}")
+        return {"scraped": total_scraped, "saved": total_saved}
+
+    except asyncio.CancelledError:
+        logger.warning("Podcast scrape job cancelled.")
+        raise
+    except Exception as e:
+        err_msg = f"Fatal error in podcast scrape: {e}"
+        logger.error(err_msg)
+        return {"scraped": 0, "saved": 0, "error": str(e)}
+    finally:
+        if active_tasks.get("podcast_scrape") == current_task:
+            active_tasks.pop("podcast_scrape", None)
+
+
 async def run_all_scrapers() -> dict[str, Any]:
-    """Run active scrapers (RSS only)."""
-    logger.info("Starting run of all active scrapers (RSS only)")
-    res = await run_rss_scrape()
+    """Run active scrapers (RSS & Podcasts)."""
+    logger.info("Starting run of all active scrapers")
+    rss_res = await run_rss_scrape()
+    podcast_res = await run_podcast_scrape()
     return {
-        "results": {"rss": res},
-        "total_scraped": res.get("scraped", 0),
-        "total_saved": res.get("saved", 0),
+        "results": {"rss": rss_res, "podcasts": podcast_res},
+        "total_scraped": rss_res.get("scraped", 0) + podcast_res.get("scraped", 0),
+        "total_saved": rss_res.get("saved", 0) + podcast_res.get("saved", 0),
     }

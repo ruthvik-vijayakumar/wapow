@@ -468,7 +468,7 @@ const formatTime = (isoString: string): string => {
   @apply flex items-center justify-between px-4 py-4;
 }
 .comments-title {
-  @apply text-white text-lg font-semibold;
+  @apply text-white;
 }
 .close-button {
   @apply text-gray-400 hover:text-white transition-colors duration-200;
@@ -477,10 +477,10 @@ const formatTime = (isoString: string): string => {
   @apply flex items-center justify-start px-4 border-b border-gray-900 space-x-6;
 }
 .tab-button {
-  @apply flex items-center text-gray-400 text-base font-medium transition-colors duration-200 relative pb-3 px-2;
+  @apply flex items-center text-gray-400 text-sm transition-colors duration-200 relative pb-3 px-2;
 }
 .tab-button.active {
-  @apply text-white font-bold;
+  @apply text-white;
 }
 .tab-button.active::after {
   content: '';
@@ -633,7 +633,7 @@ const formatTime = (isoString: string): string => {
   @apply text-xs opacity-70 mt-1;
 }
 .input-section {
-  @apply border-t border-gray-700;
+  @apply border-t border-gray-900;
 }
 .comment-input {
   @apply flex flex-col p-4;

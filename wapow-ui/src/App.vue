@@ -3,7 +3,6 @@ import { RouterView } from 'vue-router'
 import { onMounted, watch } from 'vue'
 import { useContentStore } from '@/stores/content'
 import { useAuthStore } from '@/stores/auth'
-import { apiFetch } from '@/lib/api'
 import { tracker } from '@/lib/analytics'
 import { useTheme } from '@/composables/useTheme'
 
@@ -18,23 +17,12 @@ const contentStore = useContentStore()
 // Start the analytics event tracker
 tracker.start()
 
-// When the user becomes authenticated, call /api/me to upsert user document
-// in MongoDB and use the returned _id for the analytics tracker.
+// Synchronize analytics tracker user ID with Auth0 user ID
 watch(
-  () => authStore.isAuthenticated,
-  async (authenticated) => {
-    if (authenticated) {
-      try {
-        const res = await apiFetch('/api/me')
-        if (!res.ok) return
-        const data = await res.json()
-        if (data._id) {
-          authStore.setMongoId(data._id)
-          tracker.setUserId(data._id)
-        }
-      } catch {
-        // Non-critical — user will be created on next interaction
-      }
+  () => authStore.userId,
+  (userId) => {
+    if (userId) {
+      tracker.setUserId(userId)
     } else {
       tracker.setUserId('')
     }

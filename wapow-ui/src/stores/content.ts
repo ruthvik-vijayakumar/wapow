@@ -263,6 +263,7 @@ export interface StoryContent {
   createdAt: string
   aspectRatio: number
   mediaType: 'story'
+  audioUrl?: string
 }
 
 export type MediaItem = Video | StoryContent
@@ -494,19 +495,37 @@ export const useContentStore = defineStore('content', () => {
       const { data } = await getSectionData('/podcasts')
       return (data ?? []).map((clip: any) => {
         const ap = clip.additional_properties ?? {}
-        const audioUrl = ap.audio_article_raw_url || ap.audio?.[0]?.url || ''
-        const thumbnail = clip.promo_items?.basic?.url || ap.lead_art?.url || ''
+        const audioUrl = clip.audioUrl || ap.audio_article_raw_url || ap.audio?.[0]?.url || ''
+        const thumbnail = clip.imageUrl || clip.thumbnail || clip.promo_items?.basic?.url || ap.lead_art?.url || ''
+        
+        let author = {
+          name: 'The Washington Post',
+          username: '@washingtonpost',
+          avatar: 'https://picsum.photos/50/50?random=wapo',
+        }
+        if (clip.author) {
+          if (typeof clip.author === 'object') {
+            author = {
+              name: clip.author.name || 'Unknown Author',
+              username: clip.author.username || '@unknown',
+              avatar: clip.author.avatar || 'https://picsum.photos/50/50?random=podcast',
+            }
+          } else if (typeof clip.author === 'string') {
+            author = {
+              name: clip.author,
+              username: '@' + clip.author.toLowerCase().replace(/[^a-z0-9]/g, ''),
+              avatar: 'https://picsum.photos/50/50?random=podcast',
+            }
+          }
+        }
+
         return {
           id: clip._id,
-          title: clip.headlines?.basic,
-          description: clip.description?.basic,
+          title: clip.title || clip.headlines?.basic || 'Untitled Episode',
+          description: clip.description || clip.description?.basic || '',
           audioUrl,
           thumbnail,
-          author: {
-            name: 'The Washington Post',
-            username: '@washingtonpost',
-            avatar: 'https://picsum.photos/50/50?random=wapo',
-          },
+          author,
         }
       })
     } catch (error) {

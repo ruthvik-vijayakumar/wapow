@@ -1,5 +1,5 @@
 <template>
-  <div class="cat-nav-container">
+  <div ref="navContainer" class="cat-nav-container">
     <div class="flex overflow-x-scroll scrollbar-hide">
       <div class="flex space-x-2 px-4 py-3">
         <button
@@ -9,6 +9,32 @@
           :class="{ active: selectedCategory === category.id }"
           @click="selectCategory(category)"
         >
+          <span class="category-icon shrink-0">
+            <svg v-if="category.id === '/sports'" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 9l3 2v3H9v-3Z" />
+              <path d="M12 9V2M15 11l5.66-4M9 11L3.34 7M15 14l3.5 5.5M9 14L5.5 19.5" />
+            </svg>
+            <svg v-else-if="category.id === '/style'" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
+              <path d="m5 3 1 2.5L8.5 6 6 7 5 9.5 4 7 1.5 6 4 5 5 3Z" />
+              <path d="m19 17 1 2.5 2.5.5-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1 1-2.5Z" />
+            </svg>
+            <svg v-else-if="category.id === '/technology'" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="4" y="4" width="16" height="16" rx="2" />
+              <path d="M9 9h6v6H9z" />
+              <path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 15h3M1 9h3M1 15h3" />
+            </svg>
+            <svg v-else-if="category.id === '/wellbeing'" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3c-1.5 3-3.5 7-3.5 10 0 3 2 5 3.5 6 1.5-1 3.5-3 3.5-6 0-3-2-7-3.5-10Z" />
+              <path d="M12 10c-3-1-6.5-.5-8 2-1.5 2.5-.5 5.5 2.5 6.5 2 .7 4.5-.5 5.5-2" />
+              <path d="M12 10c3-1 6.5-.5 8 2 1.5 2.5.5 5.5-2.5 6.5-2 .7-4.5-.5-5.5-2" />
+              <path d="M4 21c4 2 12 2 16 0" />
+            </svg>
+            <svg v-else-if="category.id === '/travel'" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L14 19v-5.5l8 2.5z" />
+            </svg>
+          </span>
           <span class="category-name">{{ category.name }}</span>
         </button>
       </div>
@@ -17,25 +43,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 
 const router = useRouter()
 const route = useRoute()
+const navContainer = ref<HTMLElement | null>(null)
 
 interface Category {
   id: string
   canonical_url: string
   name: string
-  emoji: string
 }
 
 const categories: Category[] = [
-  { id: '/sports', canonical_url: '/sports', name: 'Sports', emoji: '' },
-  { id: '/style', canonical_url: '/style', name: 'Style', emoji: '' },
-  { id: '/technology', canonical_url: '/technology', name: 'Technology', emoji: '' },
-  { id: '/wellbeing', canonical_url: '/wellbeing', name: 'Well Being', emoji: '' },
-  { id: '/travel', canonical_url: '/travel', name: 'Travel', emoji: '' },
+  { id: '/sports', canonical_url: '/sports', name: 'Sports' },
+  { id: '/style', canonical_url: '/style', name: 'Style' },
+  { id: '/technology', canonical_url: '/technology', name: 'Technology' },
+  { id: '/wellbeing', canonical_url: '/wellbeing', name: 'Well Being' },
+  { id: '/travel', canonical_url: '/travel', name: 'Travel' },
 ]
 
 const selectedCategory = ref('/sports')
@@ -51,6 +77,19 @@ watch(
   { immediate: true },
 )
 
+watch(
+  () => selectedCategory.value,
+  async () => {
+    await nextTick()
+    if (navContainer.value) {
+      const activeEl = navContainer.value.querySelector('.nav-category.active')
+      if (activeEl) {
+        activeEl.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+      }
+    }
+  }
+)
+
 const selectCategory = (category: Category) => {
   selectedCategory.value = category.id
   router.push(category.canonical_url)
@@ -64,7 +103,7 @@ const selectCategory = (category: Category) => {
 }
 
 .nav-category {
-  @apply px-2 py-1.5 rounded-full text-xs transition-all duration-200;
+  @apply px-3 py-1.5 rounded-full text-sm transition-all duration-200;
   @apply flex items-center space-x-1;
   color: var(--cat-inactive-text);
 }
