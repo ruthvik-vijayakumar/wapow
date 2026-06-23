@@ -1,9 +1,6 @@
 """RSS/Atom feed scraper using feedparser."""
 
-from __future__ import annotations
-
 import logging
-import asyncio
 from datetime import datetime
 from time import mktime
 from typing import Optional
@@ -49,78 +46,31 @@ class RSSScraper(BaseScraper):
 
         try:
             # Fetch feed content
-            content = None
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "Accept": "application/rss+xml, application/rdf+xml, application/atom+xml, application/xml, text/xml, */*",
-                "Accept-Language": "en-US,en;q=0.9",
-            }
-            try:
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(
-                        self.url,
-                        timeout=aiohttp.ClientTimeout(total=15),
-                        headers=headers,
-                    ) as response:
-                        if response.status == 200:
-                            content = await response.text()
-                        else:
-                            logger.warning(
-                                f"aiohttp failed to fetch RSS feed {self.url} (status={response.status}). Trying Playwright fallback..."
-                            )
-            except Exception as e:
-                logger.warning(f"aiohttp error fetching RSS feed {self.url}: {e}. Trying Playwright fallback...")
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    self.url,
+                    timeout=aiohttp.ClientTimeout(total=30),
+                    headers={"User-Agent": "WAPOWBot/1.0"},
+                ) as response:
+                    if response.status != 200:
+                        logger.error(
+                            f"Failed to fetch RSS feed {self.url}: {response.status}"
+                        )
+                        return []
+                    content = await response.text()
 
-            if not content:
-                # Fallback to fetching feed via Playwright Chromium browser
-                logger.info(f"Falling back to Playwright to fetch RSS feed: {self.url}")
-                from playwright.async_api import async_playwright
-                async with async_playwright() as p:
-                    browser = await p.chromium.launch(headless=True)
-                    try:
-                        page = await browser.new_page()
-                        await page.set_extra_http_headers({
-                            "Accept-Language": "en-US,en;q=0.9"
-                        })
-                        response = await page.goto(self.url, wait_until="domcontentloaded", timeout=30000)
-                        if response:
-                            # Let it settle for a couple seconds in case of challenges
-                            await asyncio.sleep(2)
-                            # Evaluate document.body.textContent to extract raw XML out of tree viewers
-                            raw_text = await page.evaluate("document.body.textContent")
-                            if raw_text and ("<rss" in raw_text or "<feed" in raw_text or "<xml" in raw_text or "<rdf" in raw_text):
-                                content = raw_text
-                            else:
-                                content = await page.content()
-                    except Exception as playwright_err:
-                        logger.error(f"Playwright fallback failed for RSS feed {self.url}: {playwright_err}")
-                    finally:
-                        await browser.close()
-
-            if not content:
-                logger.error(f"Could not retrieve feed content for {self.url}")
-                return []
-
-            # Parse feed in a thread executor to prevent event loop CPU-blocking
-            feed = await asyncio.to_thread(feedparser.parse, content)
+            # Parse feed
+            feed = feedparser.parse(content)
 
             if feed.bozo and not feed.entries:
                 logger.error(f"Failed to parse RSS feed {self.url}: {feed.bozo_exception}")
                 return []
 
-            # Parse feed entries concurrently, sharing browser process
-            from playwright.async_api import async_playwright
-            
             items = []
-            async with async_playwright() as p:
-                browser = await p.chromium.launch(headless=True)
-                try:
-                    sem = asyncio.Semaphore(4)  # Max 4 concurrent browser context tabs
-                    tasks = [self._parse_entry(entry, browser, sem) for entry in feed.entries[: settings.max_items_per_source]]
-                    parsed_items = await asyncio.gather(*tasks)
-                    items = [item for item in parsed_items if item]
-                finally:
-                    await browser.close()
+            for entry in feed.entries[: settings.max_items_per_source]:
+                item = await self._parse_entry(entry)
+                if item:
+                    items.append(item)
 
             logger.info(f"Scraped {len(items)} items from RSS feed: {self.source.name}")
             return items
@@ -129,12 +79,7 @@ class RSSScraper(BaseScraper):
             logger.error(f"Error scraping RSS feed {self.url}: {e}")
             return []
 
-    async def _parse_entry(
-        self,
-        entry: dict,
-        browser=None,
-        semaphore: Optional[asyncio.Semaphore] = None
-    ) -> Optional[ScrapedItem]:
+    async def _parse_entry(self, entry: dict) -> Optional[ScrapedItem]:
         """Parse a single feed entry into a ScrapedItem, fetching full content if allowed."""
         try:
             # Get URL
@@ -154,8 +99,7 @@ class RSSScraper(BaseScraper):
             # Strip HTML tags from description
             if description:
                 from bs4 import BeautifulSoup
-                # Thread executor fallback for html tags parser is not strictly required here
-                # since it's short, but bs4 is quick on summaries
+
                 description = BeautifulSoup(description, "lxml").get_text()[:500]
 
             # Get author
@@ -195,13 +139,7 @@ class RSSScraper(BaseScraper):
             if url:
                 if await self.can_scrape(url):
                     await self.wait_for_rate_limit(url)
-                    
-                    if semaphore:
-                        async with semaphore:
-                            article_data = await extract_article_content(url, browser=browser)
-                    else:
-                        article_data = await extract_article_content(url, browser=browser)
-                        
+                    article_data = await extract_article_content(url)
                     if article_data:
                         content_elements = article_data.get("content_elements") or []
                         full_body_text = article_data.get("body_text") or ""

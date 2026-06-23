@@ -16,7 +16,7 @@ def start_scheduler() -> None:
     """Start the scheduler with configured jobs."""
     from scraper.tasks.jobs import (
         run_rss_scrape,
-        run_podcast_scrape,
+        run_web_scrape,
     )
 
     # RSS feeds - every hour
@@ -28,17 +28,17 @@ def start_scheduler() -> None:
         replace_existing=True,
     )
 
-    # Podcast feeds - every 6 hours (360 minutes)
+    # Web scraping - every 2 hours
     scheduler.add_job(
-        run_podcast_scrape,
-        trigger=IntervalTrigger(minutes=360),
-        id="podcast_scrape",
-        name="Podcast Index Scraper",
+        run_web_scrape,
+        trigger=IntervalTrigger(minutes=settings.scrape_interval_web),
+        id="web_scrape",
+        name="Web Scraper",
         replace_existing=True,
     )
 
     scheduler.start()
-    logger.info("Scheduler started with RSS feeds and Podcast Index scraping jobs")
+    logger.info("Scheduler started with all jobs")
 
 
 def shutdown_scheduler() -> None:
@@ -50,7 +50,6 @@ def shutdown_scheduler() -> None:
 
 def get_job_info() -> list[dict]:
     """Get information about all scheduled jobs."""
-    from scraper.tasks.running import active_tasks
     jobs = []
     for job in scheduler.get_jobs():
         # A manual/one-off run job doesn't represent a main scraper task
@@ -63,7 +62,6 @@ def get_job_info() -> list[dict]:
             "next_run": next_run.isoformat() if next_run else None,
             "trigger": str(job.trigger),
             "status": "paused" if next_run is None else "active",
-            "running": job.id in active_tasks,
         })
     return jobs
 

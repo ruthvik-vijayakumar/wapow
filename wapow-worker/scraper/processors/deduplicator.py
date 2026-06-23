@@ -1,11 +1,10 @@
 """Content deduplication to prevent duplicate entries."""
 
-from __future__ import annotations
-
 import hashlib
 import logging
-import asyncio
 from typing import Optional
+
+from pymongo.collection import Collection
 
 from scraper.db import get_collection
 from scraper.config import ARTICLES_COLLECTION
@@ -21,12 +20,39 @@ class Deduplicator:
         self._url_cache: dict[str, set[str]] = {
             ARTICLES_COLLECTION: set(),
         }
+        self._cache_loaded = False
+
+    def _load_cache(self) -> None:
+        """Load existing URL hashes from MongoDB into cache."""
+        if self._cache_loaded:
+            return
+
+        for collection_name in [ARTICLES_COLLECTION]:
+            try:
+                coll = get_collection(collection_name)
+                # Get all existing URL hashes from scraped content
+                cursor = coll.find(
+                    {"_scraper_meta.url_hash": {"$exists": True}},
+                    {"_scraper_meta.url_hash": 1},
+                )
+                for doc in cursor:
+                    url_hash = doc.get("_scraper_meta", {}).get("url_hash")
+                    if url_hash:
+                        self._url_cache[collection_name].add(url_hash)
+
+                logger.info(
+                    f"Loaded {len(self._url_cache[collection_name])} URL hashes for {collection_name}"
+                )
+            except Exception as e:
+                logger.warning(f"Error loading cache for {collection_name}: {e}")
+
+        self._cache_loaded = True
 
     def _hash_url(self, url: str) -> str:
         """Generate a hash of the URL."""
         return hashlib.sha256(url.encode()).hexdigest()[:16]
 
-    async def is_duplicate(self, url: str, collection_name: str) -> bool:
+    def is_duplicate(self, url: str, collection_name: str) -> bool:
         """
         Check if a URL already exists in the collection.
 
@@ -37,20 +63,21 @@ class Deduplicator:
         Returns:
             True if duplicate, False otherwise
         """
+        self._load_cache()
         url_hash = self._hash_url(url)
 
-        # Check local session cache first
+        # Check cache first
         if url_hash in self._url_cache.get(collection_name, set()):
             return True
 
-        # Double-check in MongoDB (on-demand query wrapped in thread)
+        # Double-check in MongoDB (in case cache is stale)
         try:
             coll = get_collection(collection_name)
-            exists = await asyncio.to_thread(
-                lambda: coll.find_one({"_scraper_meta.url_hash": url_hash}, {"_id": 1})
+            exists = coll.find_one(
+                {"_scraper_meta.url_hash": url_hash}, {"_id": 1}
             )
             if exists:
-                # Update local cache
+                # Update cache
                 self._url_cache.setdefault(collection_name, set()).add(url_hash)
                 return True
         except Exception as e:
@@ -69,7 +96,7 @@ class Deduplicator:
         url_hash = self._hash_url(url)
         self._url_cache.setdefault(collection_name, set()).add(url_hash)
 
-    async def filter_duplicates(
+    def filter_duplicates(
         self, items: list[tuple[str, dict]], log_skipped: bool = True
     ) -> list[tuple[str, dict]]:
         """
@@ -92,7 +119,7 @@ class Deduplicator:
                 filtered.append((collection_name, doc))
                 continue
 
-            if await self.is_duplicate(url, collection_name):
+            if self.is_duplicate(url, collection_name):
                 skipped += 1
                 continue
 
@@ -107,6 +134,7 @@ class Deduplicator:
         """Clear the in-memory URL cache."""
         for key in self._url_cache:
             self._url_cache[key] = set()
+        self._cache_loaded = False
 
 
 # Global deduplicator instance

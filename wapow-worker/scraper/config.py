@@ -2,7 +2,6 @@
 
 import os
 from pathlib import Path
-from typing import Optional
 
 from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
@@ -37,11 +36,6 @@ class Settings(BaseSettings):
     # After ingesting an article, call wapow-app to generate ai_summary (story slides)
     wapow_api_base_url: str = "http://localhost:3001"  # e.g. http://localhost:3001 (no trailing slash)
     story_convert_on_ingest: bool = True
-
-    # LLM Settings
-    gemini_api_key: str = ""
-    openai_api_key: Optional[str] = None
-    openai_model: str = "gpt-4o-mini"
 
     class Config:
         env_prefix = ""

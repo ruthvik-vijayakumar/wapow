@@ -23,7 +23,6 @@ class AnalyzedArticle:
     body_text: str
     word_count: int
     image_urls: list[str] = field(default_factory=list)
-    video_items: list[dict] = field(default_factory=list)  # [{url, embed_code}]
 
 
 def _dedupe_urls(urls: list[str]) -> list[str]:
@@ -39,12 +38,11 @@ def _dedupe_urls(urls: list[str]) -> list[str]:
     return out
 
 
-def _collect_from_content_elements(elements: list) -> tuple[str, list[str], list[dict]]:
+def _collect_from_content_elements(elements: list) -> tuple[str, list[str]]:
     parts: list[str] = []
     images: list[str] = []
-    videos: list[dict] = []
     if not elements:
-        return "", images, videos
+        return "", images
     for el in elements:
         if not isinstance(el, dict):
             continue
@@ -64,7 +62,7 @@ def _collect_from_content_elements(elements: list) -> tuple[str, list[str], list
                 url = basic.get("url")
             if isinstance(url, str) and url.startswith("http"):
                 images.append(url)
-    return "\n\n".join(p for p in parts if p), images, videos
+    return "\n\n".join(p for p in parts if p), images
 
 
 def is_valid_article_image(url: str) -> bool:
@@ -133,9 +131,8 @@ def analyze_article(doc: dict) -> AnalyzedArticle:
     if isinstance(content_field, str):
         body_from_content = _strip_html(content_field)
         ce_images: list[str] = []
-        ce_videos: list[dict] = []
     else:
-        body_from_content, ce_images, ce_videos = _collect_from_content_elements(
+        body_from_content, ce_images = _collect_from_content_elements(
             content_field if isinstance(content_field, list) else []
         )
 
@@ -163,6 +160,5 @@ def analyze_article(doc: dict) -> AnalyzedArticle:
         body_text=body_from_content,
         word_count=word_count,
         image_urls=images,
-        video_items=ce_videos,
     )
 

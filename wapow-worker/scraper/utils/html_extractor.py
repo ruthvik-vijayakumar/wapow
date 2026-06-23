@@ -11,76 +11,48 @@ from bs4 import BeautifulSoup
 logger = logging.getLogger(__name__)
 
 
-async def fetch_html(url: str, timeout_seconds: int = 30, browser=None) -> Optional[str]:
+async def fetch_html(url: str, timeout_seconds: int = 30) -> Optional[str]:
     """
-    Fetch raw HTML of a URL using Playwright for JS rendering, reusing browser if provided.
+    Fetch raw HTML of a URL using Playwright for JS rendering.
 
     Args:
         url: The web page URL
         timeout_seconds: Fetch timeout in seconds
-        browser: Shared Playwright Browser instance (optional)
 
     Returns:
         The raw HTML string, or None if the request fails
     """
     from playwright.async_api import async_playwright
 
-    context = None
-    local_browser = None
     try:
-        if browser is None:
-            playwright_context = async_playwright()
-            p = await playwright_context.__aenter__()
-            local_browser = await p.chromium.launch(headless=True)
-            active_browser = local_browser
-        else:
-            active_browser = browser
-
-        context = await active_browser.new_context(
-            viewport={"width": 1280, "height": 800},
-            user_agent=(
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            context = await browser.new_context(
+                viewport={"width": 1280, "height": 800},
+                user_agent=(
+                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
                 ),
             )
-        page = await context.new_page()
+            page = await context.new_page()
             
-        # Navigate to page and wait for DOM load event
-        try:
-            await page.goto(url, timeout=timeout_seconds * 1000, wait_until="load")
-        except Exception as nav_err:
-            logger.warning(f"Navigation timeout/error on {url}: {nav_err}")
+            # Navigate to page and wait for DOM load event
+            try:
+                await page.goto(url, timeout=timeout_seconds * 1000, wait_until="load")
+            except Exception as nav_err:
+                logger.warning(f"Navigation timeout/error on {url}: {nav_err}")
             
-        # Brief standard wait to ensure client-side rendering is ready
-        await page.wait_for_timeout(1000)
-        # Dismiss cookie consent popups
-        try:
-            from scraper.utils.cookie_handler import handle_cookie_consent
-            await handle_cookie_consent(page)
-        except Exception as consent_err:
-            logger.warning(f"Error handling cookie consent for {url}: {consent_err}")
-        
-        html = await page.content()
-        await context.close()
-        
-        if local_browser:
-            await local_browser.close()
-            await playwright_context.__aexit__(None, None, None)
+            # Wait brief moment for dynamic contents to render
+            try:
+                await page.wait_for_timeout(1000)
+            except Exception:
+                pass
             
-        return html
+            html = await page.content()
+            await browser.close()
+            return html
     except Exception as e:
         logger.warning(f"Error fetching HTML with Playwright for {url}: {e}")
-        try:
-            if context:
-                await context.close()
-        except Exception:
-            pass
-        try:
-            if local_browser:
-                await local_browser.close()
-                await playwright_context.__aexit__(None, None, None)
-        except Exception:
-            pass
         return None
 
 
@@ -372,7 +344,7 @@ def extract_elements_from_container(container: BeautifulSoup, url: str) -> tuple
     seen_elements = set()
     text_blocks = []
 
-    target_tags = ["p", "blockquote", "li", "h2", "h3", "h4", "h5", "h6", "img"]
+    target_tags = ["p", "blockquote", "li", "h2", "h3", "h4", "h5", "h6", "img", "iframe", "video"]
     for el in container.find_all(target_tags):
         # Prevent double-processing children of already processed containers
         parent = el.parent
@@ -437,6 +409,30 @@ def extract_elements_from_container(container: BeautifulSoup, url: str) -> tuple
                         "caption": caption.strip(),
                     })
 
+        elif tag_name == "iframe":
+            src = el.get("src") or ""
+            src = src.strip()
+            if "youtube.com" in src or "youtu.be" in src or "vimeo.com" in src:
+                content_elements.append({
+                    "type": "video",
+                    "url": urljoin(url, src),
+                    "embed_code": str(el),
+                })
+
+        elif tag_name == "video":
+            src = el.get("src") or ""
+            if not src:
+                source_tag = el.find("source")
+                if source_tag:
+                    src = source_tag.get("src") or ""
+            src = src.strip()
+            if src and not src.startswith("data:"):
+                content_elements.append({
+                    "type": "video",
+                    "url": urljoin(url, src),
+                    "embed_code": str(el),
+                })
+
     body_text = "\n\n".join(text_blocks)
     return content_elements, body_text
 
@@ -500,7 +496,7 @@ def extract_body_elements(soup: BeautifulSoup, url: str) -> tuple[list[dict[str,
     return extract_elements_from_container(container, url)
 
 
-async def extract_article_content(url: str, browser=None) -> dict[str, Any]:
+async def extract_article_content(url: str) -> dict[str, Any]:
     """
     Fetch the article page, extract its full body content, media elements, and metadata.
     Attempts to use readability-lxml first, falling back to a custom scoring parser if it fails
@@ -508,42 +504,23 @@ async def extract_article_content(url: str, browser=None) -> dict[str, Any]:
 
     Args:
         url: Web URL of the article
-        browser: Shared Playwright Browser instance (optional)
 
     Returns:
         A dict containing parsed metadata, content_elements list, and full body_text.
     """
-    html = await fetch_html(url, browser=browser)
+    html = await fetch_html(url)
     if not html:
         return {}
 
     try:
-        content_elements: list[dict] = []
+        content_elements = []
         body_text = ""
         readability_success = False
-        
-        # Pre-clean the HTML DOM of cookie/consent/CCPA wrappers
-        from scraper.utils.cookie_handler import clean_consent_elements, isolate_target_article
-        soup = BeautifulSoup(html, "lxml")
-        clean_consent_elements(soup)
-        
-        # Parse metadata first to get the target page title
-        metadata = extract_metadata(soup, url)
-        page_title = metadata.get("headline")
-        
-        # Isolate target article if multiple article wrappers are present (infinite scroll handling)
-        if page_title:
-            try:
-                isolate_target_article(soup, url, page_title)
-            except Exception as scroll_err:
-                logger.warning(f"Error isolating target article for {url}: {scroll_err}")
-                
-        cleaned_html = str(soup)
         
         # 1. Try readability-lxml first to extract body content
         try:
             from readability import Document
-            doc = Document(cleaned_html)
+            doc = Document(html)
             summary_html = doc.summary()
             if summary_html:
                 summary_soup = BeautifulSoup(summary_html, "lxml")
@@ -557,6 +534,8 @@ async def extract_article_content(url: str, browser=None) -> dict[str, Any]:
             logger.warning(f"Readability parsing error: {read_err}")
 
         # 2. Parse metadata from the full HTML using BeautifulSoup
+        soup = BeautifulSoup(html, "lxml")
+        metadata = extract_metadata(soup, url)
         
         # We determine if we have "all fields filled" by checking:
         # - readability succeeded
@@ -578,8 +557,6 @@ async def extract_article_content(url: str, browser=None) -> dict[str, Any]:
                 if elem.get("type") == "image" and elem.get("url"):
                     metadata["promo_image"] = elem["url"]
                     break
-
-
 
         return {
             "title": metadata.get("headline") or (doc.title() if 'doc' in locals() else "") or "Untitled",

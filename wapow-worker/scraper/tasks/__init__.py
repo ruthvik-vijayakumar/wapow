@@ -3,7 +3,7 @@
 from scraper.tasks.scheduler import scheduler, start_scheduler, shutdown_scheduler
 from scraper.tasks.jobs import (
     run_rss_scrape,
-    run_podcast_scrape,
+    run_web_scrape,
     run_all_scrapers,
 )
 
@@ -12,6 +12,6 @@ __all__ = [
     "start_scheduler",
     "shutdown_scheduler",
     "run_rss_scrape",
-    "run_podcast_scrape",
+    "run_web_scrape",
     "run_all_scrapers",
 ]

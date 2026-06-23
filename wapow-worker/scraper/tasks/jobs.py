@@ -21,6 +21,8 @@ from scraper.models import (
 )
 from scraper.scrapers.base import ScrapedItem
 from scraper.scrapers.rss_scraper import RSSScraper
+from scraper.scrapers.web_scraper import WebScraper
+from scraper.scrapers.playwright_scraper import PlaywrightScraper
 from scraper.processors.normalizer import ContentNormalizer
 from scraper.processors.deduplicator import deduplicator
 from scraper.processors.focal_point import enrich_document_with_focal_points
@@ -191,232 +193,189 @@ async def _save_raw_articles(items: list[ScrapedItem]) -> None:
             logger.error(f"Error bulk saving raw articles to MongoDB: {e}")
 
 
-async def scrape_single_source(source: Any, normalizer: ContentNormalizer) -> dict[str, Any]:
-    """Scrape a single RSS source and return normalized metrics and saved items."""
-    import time
-    from scraper.scrapers.rss_scraper import RSSScraper
-
-    start_src_time = time.time()
-    src_status = "success"
-    src_items_scraped = 0
-    src_items_saved = 0
-    src_error = ""
-    saved_info = []
-
-    try:
-        scraper = RSSScraper(source)
-        items = await scraper.scrape()
-        src_items_scraped = len(items)
-
-        # Save raw articles before normalization
-        await _save_raw_articles(items)
-
-        # Normalize items
-        normalized = [normalizer.normalize(item) for item in items]
-
-        # Filter duplicates (do not log individual feed skip counts concurrently to keep logs neat)
-        unique = await deduplicator.filter_duplicates(normalized, log_skipped=False)
-
-        # Save to MongoDB
-        saved_info = await _save_items(unique)
-        src_items_saved = len(saved_info)
-
-        logger.info(
-            f"RSS {source.name}: scraped={len(items)}, unique={len(unique)}, saved={len(saved_info)}"
-        )
-
-    except asyncio.CancelledError:
-        logger.warning(f"RSS scrape for {source.name} was cancelled.")
-        src_status = "cancelled"
-        src_error = "Cancelled by user"
-        raise
-    except Exception as e:
-        src_status = "failed"
-        src_error = str(e)
-        logger.error(f"Error in RSS scrape for {source.name}: {e}")
-
-    return {
-        "source_name": source.name,
-        "status": src_status,
-        "items_scraped": src_items_scraped,
-        "items_saved": src_items_saved,
-        "saved_articles": saved_info,
-        "duration": time.time() - start_src_time,
-        "error": src_error
-    }
-
-
 async def run_rss_scrape() -> dict[str, Any]:
-    """Run RSS feed scraping job with parallel execution for feeds and feed URLs."""
-    from scraper.tasks.running import active_tasks
+    """Run RSS feed scraping job with observability tracking."""
+    logger.info("Starting RSS scrape job")
+    tracker = ScraperRunTracker("rss_feeds")
+    tracker.start()
 
-    if "rss_feeds" in active_tasks:
-        logger.warning("RSS feeds scraping job is already running. Skipping this execution.")
-        return {"scraped": 0, "saved": 0, "status": "already_running"}
+    sources = load_sources()
+    normalizer = ContentNormalizer()
 
-    current_task = asyncio.current_task()
-    active_tasks["rss_feeds"] = current_task
+    total_scraped = 0
+    total_saved = 0
 
     try:
-        logger.info("Starting RSS scrape job (parallel feeds & entry URLs execution)")
-        tracker = ScraperRunTracker("rss_feeds")
-        tracker.start()
-
-        sources = load_sources()
-        normalizer = ContentNormalizer()
-
-        total_scraped = 0
-        total_saved = 0
-
-        # Build list of coroutines for enabled sources
-        tasks = []
         for source in sources.rss:
             if not source.enabled:
                 continue
-            tasks.append(scrape_single_source(source, normalizer))
 
-        if not tasks:
-            tracker.finish("success")
-            return {"scraped": 0, "saved": 0}
+            start_src_time = time.time()
+            src_status = "success"
+            src_items_scraped = 0
+            src_items_saved = 0
+            src_error = ""
+            try:
+                scraper = RSSScraper(source)
+                items = await scraper.scrape()
+                src_items_scraped = len(items)
+                total_scraped += src_items_scraped
 
-        try:
-            results = await asyncio.gather(*tasks, return_exceptions=True)
+                # Save raw articles before normalization
+                await _save_raw_articles(items)
 
-            for res in results:
-                if isinstance(res, Exception):
-                    logger.error(f"Scraper task raised an exception: {res}")
-                    tracker.add_error(f"Scraper task exception: {res}")
-                    continue
+                # Normalize items
+                normalized = [(normalizer.normalize(item)) for item in items]
 
-                total_scraped += res["items_scraped"]
-                total_saved += res["items_saved"]
+                # Filter duplicates
+                unique = deduplicator.filter_duplicates(normalized)
 
-                # Add saved articles to tracker
-                for item_id, item_title in res["saved_articles"]:
+                # Save to MongoDB
+                saved_info = await _save_items(unique)
+                src_items_saved = len(saved_info)
+                total_saved += src_items_saved
+                for item_id, item_title in saved_info:
                     tracker.add_saved_article(item_id, item_title)
 
-                # Add errors to tracker if any
-                if res["error"] and res["status"] != "cancelled":
-                    tracker.add_error(f"Error in RSS scrape for {res['source_name']}: {res['error']}")
+                logger.info(
+                    f"RSS {source.name}: scraped={len(items)}, unique={len(unique)}, saved={len(saved_info)}"
+                )
 
-                # Update individual source status in MongoDB
-                source = next((s for s in sources.rss if s.name == res["source_name"]), None)
-                if source:
-                    update_source_status(
-                        source_name=source.name,
-                        source_type="rss",
-                        url=source.url,
-                        category=source.category,
-                        enabled=source.enabled,
-                        status=res["status"],
-                        items_scraped=res["items_scraped"],
-                        items_saved=res["items_saved"],
-                        duration=res["duration"],
-                        error_msg=res["error"]
-                    )
-
-            tracker.items_scraped = total_scraped
-            tracker.finish("success")
-        except asyncio.CancelledError:
-            logger.warning("RSS scrape job cancelled during parallel execution.")
-            tracker.add_error("Job cancelled by user")
-            tracker.finish("failed")
-            raise
-        except Exception as e:
-            err_msg = f"Fatal error in RSS scrape: {e}"
-            logger.error(err_msg)
-            tracker.add_error(err_msg)
-            tracker.finish("failed")
-
-        logger.info(f"RSS scrape complete: total_scraped={total_scraped}, total_saved={total_saved}")
-        return {"scraped": total_scraped, "saved": total_saved}
-    finally:
-        if active_tasks.get("rss_feeds") == current_task:
-            active_tasks.pop("rss_feeds", None)
-
-
-async def run_podcast_scrape() -> dict[str, Any]:
-    """Run podcast discovery and episode scraping from Podcast Index."""
-    from scraper.tasks.running import active_tasks
-    from scraper.scrapers.podcast_scraper import PodcastScraper
-
-    if "podcast_scrape" in active_tasks:
-        logger.warning("Podcast scraping job is already running. Skipping this execution.")
-        return {"scraped": 0, "saved": 0, "status": "already_running"}
-
-    current_task = asyncio.current_task()
-    active_tasks["podcast_scrape"] = current_task
-
-    try:
-        logger.info("Starting Podcast Index scrape job")
-        tracker = ScraperRunTracker("podcast_scrape")
-        tracker.start()
-
-        scraper = PodcastScraper()
-        scraped_items = await scraper.scrape()
-
-        total_scraped = len(scraped_items)
-        total_saved = 0
-
-        # Build list of (collection_name, document) tuples for saving
-        to_save = []
-        now = datetime.utcnow()
-        for item in scraped_items:
-            doc = {
-                "title": item.title,
-                "description": item.description,
-                "audioUrl": item.raw_data.get("audioUrl") or item.url,
-                "imageUrl": item.image_url,
-                "category": item.category,
-                "created_date": item.publish_date or now,
-                "publish_date": item.publish_date or now,
-                "author": item.raw_data.get("author") or {"name": item.author},
-                "additional_properties": item.raw_data.get("additional_properties") or {},
-                "source": item.raw_data.get("source") or {},
-                "canonical_url": item.raw_data.get("audioUrl") or item.url,
-                "_scraper_meta": {
-                    "url_hash": deduplicator._hash_url(item.raw_data.get("audioUrl") or item.url),
-                    "publisher": item.raw_data.get("source", {}).get("name") or item.author,
-                    "scraped_at": now
-                }
-            }
-            to_save.append(("podcasts", doc))
-
-        # Filter duplicates using deduplicator
-        unique = await deduplicator.filter_duplicates(to_save, log_skipped=True)
-
-        # Save to database
-        saved_info = await _save_items(unique)
-        total_saved = len(saved_info)
-
-        for item_id, item_title in saved_info:
-            tracker.add_saved_article(item_id, item_title)
+            except Exception as e:
+                src_status = "failed"
+                src_error = str(e)
+                err_msg = f"Error in RSS scrape for {source.name}: {e}"
+                logger.error(err_msg)
+                tracker.add_error(err_msg)
+            finally:
+                src_duration = time.time() - start_src_time
+                update_source_status(
+                    source_name=source.name,
+                    source_type="rss",
+                    url=source.url,
+                    category=source.category,
+                    enabled=source.enabled,
+                    status=src_status,
+                    items_scraped=src_items_scraped,
+                    items_saved=src_items_saved,
+                    duration=src_duration,
+                    error_msg=src_error
+                )
 
         tracker.items_scraped = total_scraped
         tracker.finish("success")
-
-        logger.info(f"Podcast scrape complete: total_scraped={total_scraped}, total_saved={total_saved}")
-        return {"scraped": total_scraped, "saved": total_saved}
-
-    except asyncio.CancelledError:
-        logger.warning("Podcast scrape job cancelled.")
-        raise
     except Exception as e:
-        err_msg = f"Fatal error in podcast scrape: {e}"
+        err_msg = f"Fatal error in RSS scrape: {e}"
         logger.error(err_msg)
-        return {"scraped": 0, "saved": 0, "error": str(e)}
-    finally:
-        if active_tasks.get("podcast_scrape") == current_task:
-            active_tasks.pop("podcast_scrape", None)
+        tracker.add_error(err_msg)
+        tracker.finish("failed")
+
+    logger.info(f"RSS scrape complete: total_scraped={total_scraped}, total_saved={total_saved}")
+    return {"scraped": total_scraped, "saved": total_saved}
+
+
+async def run_web_scrape() -> dict[str, Any]:
+    """Run web scraping job with observability tracking."""
+    logger.info("Starting web scrape job")
+    tracker = ScraperRunTracker("web_scrape")
+    tracker.start()
+
+    sources = load_sources()
+    normalizer = ContentNormalizer()
+
+    total_scraped = 0
+    total_saved = 0
+
+    try:
+        for source in sources.web:
+            if not source.enabled:
+                continue
+
+            start_src_time = time.time()
+            src_status = "success"
+            src_items_scraped = 0
+            src_items_saved = 0
+            src_error = ""
+            try:
+                # Use Playwright for JS-heavy sites
+                if source.use_playwright:
+                    scraper = PlaywrightScraper(source)
+                else:
+                    scraper = WebScraper(source)
+
+                items = await scraper.scrape()
+                src_items_scraped = len(items)
+                total_scraped += src_items_scraped
+
+                # Save raw articles before normalization
+                await _save_raw_articles(items)
+
+                # Normalize items
+                normalized = [(normalizer.normalize(item)) for item in items]
+
+                # Filter duplicates
+                unique = deduplicator.filter_duplicates(normalized)
+
+                # Save to MongoDB
+                saved_info = await _save_items(unique)
+                src_items_saved = len(saved_info)
+                total_saved += src_items_saved
+                for item_id, item_title in saved_info:
+                    tracker.add_saved_article(item_id, item_title)
+
+                logger.info(
+                    f"Web {source.name}: scraped={len(items)}, unique={len(unique)}, saved={len(saved_info)}"
+                )
+
+            except Exception as e:
+                src_status = "failed"
+                src_error = str(e)
+                err_msg = f"Error in web scrape for {source.name}: {e}"
+                logger.error(err_msg)
+                tracker.add_error(err_msg)
+            finally:
+                src_duration = time.time() - start_src_time
+                update_source_status(
+                    source_name=source.name,
+                    source_type="web",
+                    url=source.url,
+                    category=source.category,
+                    enabled=source.enabled,
+                    status=src_status,
+                    items_scraped=src_items_scraped,
+                    items_saved=src_items_saved,
+                    duration=src_duration,
+                    error_msg=src_error
+                )
+
+        tracker.items_scraped = total_scraped
+        tracker.finish("success")
+    except Exception as e:
+        err_msg = f"Fatal error in web scrape: {e}"
+        logger.error(err_msg)
+        tracker.add_error(err_msg)
+        tracker.finish("failed")
+
+    logger.info(f"Web scrape complete: total_scraped={total_scraped}, total_saved={total_saved}")
+    return {"scraped": total_scraped, "saved": total_saved}
 
 
 async def run_all_scrapers() -> dict[str, Any]:
-    """Run active scrapers (RSS & Podcasts)."""
-    logger.info("Starting run of all active scrapers")
-    rss_res = await run_rss_scrape()
-    podcast_res = await run_podcast_scrape()
+    """Run all scrapers sequentially."""
+    logger.info("Starting full scrape of all sources")
+
+    results = {
+        "rss": await run_rss_scrape(),
+        "web": await run_web_scrape(),
+    }
+
+    total_scraped = sum(r.get("scraped", 0) for r in results.values())
+    total_saved = sum(r.get("saved", 0) for r in results.values())
+
+    logger.info(f"Full scrape complete: total_scraped={total_scraped}, total_saved={total_saved}")
+
     return {
-        "results": {"rss": rss_res, "podcasts": podcast_res},
-        "total_scraped": rss_res.get("scraped", 0) + podcast_res.get("scraped", 0),
-        "total_saved": rss_res.get("saved", 0) + podcast_res.get("saved", 0),
+        "results": results,
+        "total_scraped": total_scraped,
+        "total_saved": total_saved,
     }

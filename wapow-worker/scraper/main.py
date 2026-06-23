@@ -27,7 +27,7 @@ from scraper.tasks.jobs import (
     load_sources,
     save_sources,
     run_rss_scrape,
-    run_podcast_scrape,
+    run_web_scrape,
     run_all_scrapers,
 )
 from scraper.services.conversion_jobs import (
@@ -85,19 +85,6 @@ async def lifespan(app: FastAPI):
         stop_conversion_worker,
     )
     ensure_conversion_jobs_indexes()
-    
-    # Ensure article indexes for fast deduplication
-    from scraper.db import get_collection
-    try:
-        get_collection("articles").create_index("_scraper_meta.url_hash", unique=True, sparse=True)
-        get_collection("articles").create_index("canonical_url")
-        get_collection("raw_articles").create_index("url", unique=True)
-        get_collection("podcasts").create_index("_scraper_meta.url_hash", unique=True, sparse=True)
-        get_collection("podcasts").create_index("canonical_url")
-        logger.info("Database indexes checked/created successfully")
-    except Exception as idx_err:
-        logger.warning(f"Failed to create database indexes: {idx_err}")
-
     asyncio.create_task(start_conversion_worker())
     
     yield
@@ -196,12 +183,12 @@ async def trigger_job_endpoint(job_id: str) -> dict[str, Any]:
 
     Valid job IDs:
     - rss_feeds: RSS feed scraping
-    - podcast_scrape: Podcast Index scraping
-    - all: Run active scrapers (RSS and Podcasts)
+    - web_scrape: Web scraping
+    - all: Run all scrapers
     """
     job_map = {
         "rss_feeds": run_rss_scrape,
-        "podcast_scrape": run_podcast_scrape,
+        "web_scrape": run_web_scrape,
         "all": run_all_scrapers,
     }
 
@@ -228,24 +215,9 @@ async def trigger_job_endpoint(job_id: str) -> dict[str, Any]:
         )
 
 
-@app.post("/jobs/{job_id}/stop")
-async def stop_job_endpoint(job_id: str) -> dict[str, Any]:
-    """Stop a running scraping job."""
-    from scraper.tasks.running import active_tasks
-    task = active_tasks.get(job_id)
-    if not task:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Job {job_id} is not currently running.",
-        )
-    task.cancel()
-    logger.info(f"Cancellation signal sent to running job task: {job_id}")
-    return {"success": True, "message": f"Stop request sent to job {job_id}."}
-
-
 @app.get("/sources")
 async def list_sources() -> dict[str, Any]:
-    """List all configured content sources (RSS only)."""
+    """List all configured content sources."""
     sources = load_sources()
 
     return {
@@ -258,10 +230,20 @@ async def list_sources() -> dict[str, Any]:
             }
             for s in sources.rss
         ],
-        "web": [],
+        "web": [
+            {
+                "name": s.name,
+                "url": s.url,
+                "category": s.category,
+                "enabled": s.enabled,
+                "use_playwright": s.use_playwright,
+                "selectors": s.selectors,
+            }
+            for s in sources.web
+        ],
         "totals": {
             "rss": len([s for s in sources.rss if s.enabled]),
-            "web": 0,
+            "web": len([s for s in sources.web if s.enabled]),
         },
     }
 
@@ -310,10 +292,7 @@ class SourceDeleteInput(BaseModel):
 
 @app.post("/api/sources/add")
 async def add_source_endpoint(input_data: SourceInput) -> dict[str, Any]:
-    """Add a new RSS source to sources.yaml."""
-    if input_data.type != "rss":
-        raise HTTPException(status_code=400, detail="Only RSS sources are supported.")
-        
+    """Add a new RSS or Web source to sources.yaml."""
     config = load_sources()
     
     # Check for duplicate name
@@ -321,13 +300,27 @@ async def add_source_endpoint(input_data: SourceInput) -> dict[str, Any]:
     if input_data.name in all_names:
         raise HTTPException(status_code=400, detail=f"Source with name '{input_data.name}' already exists.")
         
-    new_src = RSSSource(
-        name=input_data.name,
-        url=input_data.url,
-        category=input_data.category,
-        enabled=input_data.enabled
-    )
-    config.rss.append(new_src)
+    if input_data.type == "rss":
+        new_src = RSSSource(
+            name=input_data.name,
+            url=input_data.url,
+            category=input_data.category,
+            enabled=input_data.enabled
+        )
+        config.rss.append(new_src)
+    elif input_data.type == "web":
+        new_src = WebSource(
+            name=input_data.name,
+            url=input_data.url,
+            category=input_data.category,
+            enabled=input_data.enabled,
+            use_playwright=input_data.use_playwright,
+            selectors=input_data.selectors
+        )
+        config.web.append(new_src)
+    else:
+        raise HTTPException(status_code=400, detail="Invalid source type. Must be 'rss' or 'web'.")
+        
     save_sources(config)
     return {"success": True, "message": f"Successfully added source '{input_data.name}'"}
 
@@ -335,23 +328,34 @@ async def add_source_endpoint(input_data: SourceInput) -> dict[str, Any]:
 @app.post("/api/sources/edit")
 async def edit_source_endpoint(input_data: SourceEditInput) -> dict[str, Any]:
     """Edit properties of an existing source in sources.yaml."""
-    if input_data.type != "rss":
-        raise HTTPException(status_code=400, detail="Only RSS sources are supported.")
-        
     config = load_sources()
     
     # Find and update
     found = False
-    for i, s in enumerate(config.rss):
-        if s.name == input_data.old_name:
-            config.rss[i] = RSSSource(
-                name=input_data.name,
-                url=input_data.url,
-                category=input_data.category,
-                enabled=input_data.enabled
-            )
-            found = True
-            break
+    if input_data.type == "rss":
+        for i, s in enumerate(config.rss):
+            if s.name == input_data.old_name:
+                config.rss[i] = RSSSource(
+                    name=input_data.name,
+                    url=input_data.url,
+                    category=input_data.category,
+                    enabled=input_data.enabled
+                )
+                found = True
+                break
+    elif input_data.type == "web":
+        for i, s in enumerate(config.web):
+            if s.name == input_data.old_name:
+                config.web[i] = WebSource(
+                    name=input_data.name,
+                    url=input_data.url,
+                    category=input_data.category,
+                    enabled=input_data.enabled,
+                    use_playwright=input_data.use_playwright,
+                    selectors=input_data.selectors or s.selectors
+                )
+                found = True
+                break
                 
     if not found:
         raise HTTPException(status_code=404, detail=f"Source '{input_data.old_name}' not found.")
@@ -363,19 +367,24 @@ async def edit_source_endpoint(input_data: SourceEditInput) -> dict[str, Any]:
 @app.post("/api/sources/toggle")
 async def toggle_source_endpoint(input_data: SourceToggleInput) -> dict[str, Any]:
     """Toggle enabled status of a source in sources.yaml."""
-    if input_data.type != "rss":
-        raise HTTPException(status_code=400, detail="Only RSS sources are supported.")
-        
     config = load_sources()
     
     found = False
     new_state = False
-    for s in config.rss:
-        if s.name == input_data.name:
-            s.enabled = not s.enabled
-            new_state = s.enabled
-            found = True
-            break
+    if input_data.type == "rss":
+        for s in config.rss:
+            if s.name == input_data.name:
+                s.enabled = not s.enabled
+                new_state = s.enabled
+                found = True
+                break
+    elif input_data.type == "web":
+        for s in config.web:
+            if s.name == input_data.name:
+                s.enabled = not s.enabled
+                new_state = s.enabled
+                found = True
+                break
                 
     if not found:
         raise HTTPException(status_code=404, detail=f"Source '{input_data.name}' not found.")
@@ -388,17 +397,21 @@ async def toggle_source_endpoint(input_data: SourceToggleInput) -> dict[str, Any
 @app.post("/api/sources/delete")
 async def delete_source_endpoint(input_data: SourceDeleteInput) -> dict[str, Any]:
     """Delete a source from sources.yaml."""
-    if input_data.type != "rss":
-        raise HTTPException(status_code=400, detail="Only RSS sources are supported.")
-        
     config = load_sources()
     
     found = False
-    for s in config.rss:
-        if s.name == input_data.name:
-            config.rss.remove(s)
-            found = True
-            break
+    if input_data.type == "rss":
+        for s in config.rss:
+            if s.name == input_data.name:
+                config.rss.remove(s)
+                found = True
+                break
+    elif input_data.type == "web":
+        for s in config.web:
+            if s.name == input_data.name:
+                config.web.remove(s)
+                found = True
+                break
                 
     if not found:
         raise HTTPException(status_code=404, detail=f"Source '{input_data.name}' not found.")
@@ -452,80 +465,27 @@ async def get_stats() -> dict[str, Any]:
                 "last_error": status_info.get("last_error", "")
             })
             
+        for w in sources_config.web:
+            status_info = db_sources.get(w.url, {})
+            combined_sources.append({
+                "name": w.name,
+                "url": w.url,
+                "type": "web",
+                "category": w.category,
+                "enabled": w.enabled,
+                "last_scraped_at": status_info.get("last_scraped_at"),
+                "last_duration_seconds": status_info.get("last_duration_seconds"),
+                "last_status": status_info.get("last_status", "never run"),
+                "last_items_scraped": status_info.get("last_items_scraped", 0),
+                "last_items_saved": status_info.get("last_items_saved", 0),
+                "last_error": status_info.get("last_error", "")
+            })
+            
         stats["sources"] = combined_sources
     except Exception as e:
         logger.error(f"Error merging sources details: {e}")
         
     return stats
-
-
-@app.get("/api/runs")
-async def get_runs_endpoint(page: int = 1, limit: int = 10) -> dict[str, Any]:
-    """Retrieve paginated scraper runs."""
-    from scraper.db import get_collection
-    import math
-    try:
-        coll_runs = get_collection("scraper_runs")
-        total = await asyncio.to_thread(coll_runs.count_documents, {})
-        skip = (page - 1) * limit
-        raw_runs = await asyncio.to_thread(lambda: list(coll_runs.find().sort("start_time", -1).skip(skip).limit(limit)))
-        runs = []
-        for run in raw_runs:
-            run["_id"] = str(run["_id"])
-            if "start_time" in run and isinstance(run["start_time"], datetime):
-                run["start_time"] = run["start_time"].isoformat()
-            if "end_time" in run and isinstance(run["end_time"], datetime):
-                run["end_time"] = run["end_time"].isoformat()
-            # Omit saved_articles as requested: "saved articles and error logs should have just the error logs if any"
-            if "saved_articles" in run:
-                run.pop("saved_articles", None)
-            runs.append(run)
-            
-        total_pages = math.ceil(total / limit) if limit > 0 else 0
-        return {
-            "runs": runs,
-            "total": total,
-            "page": page,
-            "limit": limit,
-            "total_pages": total_pages
-        }
-    except Exception as e:
-        logger.error(f"Error fetching runs: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/api/articles")
-async def get_articles_endpoint(page: int = 1, limit: int = 10) -> dict[str, Any]:
-    """Retrieve paginated ingested articles."""
-    from scraper.db import get_collection
-    import math
-    try:
-        coll_articles = get_collection("articles")
-        total = await asyncio.to_thread(coll_articles.count_documents, {})
-        skip = (page - 1) * limit
-        raw_articles = await asyncio.to_thread(lambda: list(coll_articles.find().sort("created_date", -1).skip(skip).limit(limit)))
-        articles = []
-        for art in raw_articles:
-            articles.append({
-                "id": str(art["_id"]),
-                "title": art.get("headlines", {}).get("basic", "Untitled"),
-                "category": art.get("category", "unknown"),
-                "publisher": art.get("publisher") or art.get("_scraper_meta", {}).get("publisher") or "unknown",
-                "url": art.get("canonical_url", ""),
-                "created_date": art.get("created_date", datetime.utcnow()).isoformat() if isinstance(art.get("created_date"), datetime) else str(art.get("created_date")),
-            })
-            
-        total_pages = math.ceil(total / limit) if limit > 0 else 0
-        return {
-            "articles": articles,
-            "total": total,
-            "page": page,
-            "limit": limit,
-            "total_pages": total_pages
-        }
-    except Exception as e:
-        logger.error(f"Error fetching articles: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/articles/{article_id}")
@@ -535,15 +495,11 @@ async def get_article_json(article_id: str) -> dict[str, Any]:
     from scraper.db import get_collection
     try:
         coll = get_collection("articles")
-        
-        # Wrap blocking MongoDB queries in asyncio.to_thread
-        def find_doc():
-            doc = coll.find_one({"_id": article_id})
-            if not doc and ObjectId.is_valid(article_id):
-                doc = coll.find_one({"_id": ObjectId(article_id)})
-            return doc
-
-        doc = await asyncio.to_thread(find_doc)
+        # Try finding by string ID first, since article IDs are stored as strings
+        doc = coll.find_one({"_id": article_id})
+        if not doc and ObjectId.is_valid(article_id):
+            # Fallback to ObjectId query if valid format
+            doc = coll.find_one({"_id": ObjectId(article_id)})
             
         if not doc:
             raise HTTPException(status_code=404, detail="Article not found")

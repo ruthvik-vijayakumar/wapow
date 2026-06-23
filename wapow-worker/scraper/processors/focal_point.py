@@ -10,13 +10,15 @@ import json
 import logging
 import os
 import struct
+import urllib.request
+import urllib.error
 from typing import Any, Optional
 
 import aiohttp
 
-from scraper.config import settings
-
 logger = logging.getLogger(__name__)
+
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 
 # Minimum aspect ratio (width/height) before we bother detecting focal point.
 # Images that are already close to vertical don't need focal point adjustment.
@@ -129,8 +131,7 @@ async def detect_focal_point(image_url: str) -> Optional[dict[str, Any]]:
     
     Returns None if detection fails or image doesn't need focal point (already vertical).
     """
-    api_key = settings.gemini_api_key or os.getenv("GEMINI_API_KEY", "").strip()
-    if not api_key:
+    if not GEMINI_API_KEY:
         logger.debug("No GEMINI_API_KEY set, skipping focal point detection")
         return None
 
@@ -252,21 +253,19 @@ async def _gemini_detect_focal(image_url: str) -> Optional[dict[str, float]]:
         },
     }
 
-    api_key = settings.gemini_api_key or os.getenv("GEMINI_API_KEY", "").strip()
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
 
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                url,
-                json=payload,
-                headers={"Content-Type": "application/json"},
-                timeout=aiohttp.ClientTimeout(total=20)
-            ) as resp:
-                if resp.status != 200:
-                    logger.warning(f"Gemini API returned status {resp.status} for focal point detection")
-                    return None
-                raw = await resp.json()
+        req_data = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(
+            url,
+            data=req_data,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            raw = json.loads(resp.read().decode("utf-8"))
 
         candidates = raw.get("candidates") or []
         if not candidates:

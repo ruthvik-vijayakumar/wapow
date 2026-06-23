@@ -4,24 +4,20 @@ from __future__ import annotations
 
 from .analyzer import AnalyzedArticle
 
-# Target few, substantial content slides. A typical article should become a lead
-# slide (with image) + one consolidated body slide, not a string of thin cards.
-_MIN_CONTENT_SLIDES = 1
-_MAX_CONTENT_SLIDES = 5
+# Target 3–4 content slides by default; expand with length; cap total story depth.
+_MIN_CONTENT_SLIDES = 3
+_MAX_CONTENT_SLIDES = 9
 _TITLE_MAX = 100
 _BODY_MAX = 2000
 
 
 def _content_slide_count(word_count: int) -> int:
-    # ~1 content slide per ~450 words; bias low so short/medium articles stay tight.
-    if word_count < 220:
-        return 1
-    if word_count < 650:
-        return 2
-    if word_count < 1100:
-        return 3
-    extra = max(0, (word_count - 1100) // 500)
-    return min(_MAX_CONTENT_SLIDES, 3 + extra)
+    if word_count < 250:
+        return _MIN_CONTENT_SLIDES
+    if word_count < 550:
+        return 4
+    extra = max(0, (word_count - 550) // 220)
+    return min(_MAX_CONTENT_SLIDES, 4 + extra)
 
 
 def _split_into_chunks(text: str, n_chunks: int) -> list[str]:
@@ -86,9 +82,7 @@ def _get_first_sentences(text: str, max_chars: int = 220) -> str:
 
 
 def _make_content_page(body: str, image_url: str | None) -> dict:
-    # Pass the full text through; the frontend scales it to fit and only
-    # ellipsizes when content exceeds the container height.
-    text_body = (body or "").strip()
+    text_body = _get_first_sentences(body, 220)
     content = [{"type": "text", "content": text_body}]
     if image_url:
         content.append({"type": "image", "content_url": image_url})
@@ -107,28 +101,20 @@ def _takeaways_from_chunks(title: str, chunks: list[str]) -> str:
 
 def build_pages(analyzed: AnalyzedArticle) -> list[dict]:
     """Produce pages array (content + overview) for ai_summary."""
-    # Determine the number of content pages based on number of unique images
-    num_images = len(analyzed.image_urls)
-    if num_images <= 1:
-        n = 1
-    else:
-        n = min(num_images, 5)
-
+    n = _content_slide_count(analyzed.word_count)
     chunks = _split_into_chunks(analyzed.body_text, n)
     pages: list[dict] = []
     for i, chunk in enumerate(chunks):
         img = analyzed.image_urls[i] if i < len(analyzed.image_urls) else None
         pages.append(_make_content_page(chunk, img))
 
-    # Takeaways slide only when there are multiple content slides to summarize.
-    if len(pages) >= 2:
-        takeaways = _takeaways_from_chunks(analyzed.title, chunks)
-        pages.append(
-            {
-                "page_type": "overview",
-                "content": [
-                    {"type": "text", "content": takeaways},
-                ],
-            }
-        )
+    takeaways = _takeaways_from_chunks(analyzed.title, chunks)
+    pages.append(
+        {
+            "page_type": "overview",
+            "content": [
+                {"type": "text", "content": takeaways},
+            ],
+        }
+    )
     return pages
