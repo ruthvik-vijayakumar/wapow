@@ -22,7 +22,7 @@ rss:
 - name: Bleacher Report
   url: https://bleacherreport.com/articles/feed
   category: sports
-  enabled: true
+  enabled: false
 - name: Sky Sports
   url: https://www.skysports.com/rss/12040
   category: sports
@@ -82,7 +82,7 @@ rss:
 - name: Healthline
   url: https://www.healthline.com/rss/nutrition
   category: wellbeing
-  enabled: true
+  enabled: false
 - name: Psychology Today
   url: https://www.psychologytoday.com/us/front/feed
   category: wellbeing

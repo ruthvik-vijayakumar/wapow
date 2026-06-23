@@ -7,6 +7,7 @@ services:
   mongo:
     image: mongo:7
     container_name: wapow-mongo
+    restart: unless-stopped
     # No published ports; only other services on the Docker network can reach it
     volumes:
       - mongo_data:/data/db
@@ -28,6 +29,7 @@ services:
   clickhouse:
     image: clickhouse/clickhouse-server:24-alpine
     container_name: wapow-clickhouse
+    restart: unless-stopped
     # Do not publish ports externally; expose only inside Docker network
     environment:
       - CLICKHOUSE_USER=default
@@ -41,6 +43,7 @@ services:
   app:
     image: ${REGISTRY_PREFIX}/wapow-app:latest
     container_name: wapow-api
+    restart: unless-stopped
     environment:
       - PORT=3001
       - MONGODB_URI=${MONGODB_URI:-mongodb://mongo:27017/wapow-data}
@@ -63,6 +66,7 @@ services:
   collector:
     image: ${REGISTRY_PREFIX}/wapow-collector:latest
     container_name: wapow-collector
+    restart: unless-stopped
     environment:
       - PORT=3002
       - CORS_ORIGINS=${CORS_ORIGINS}
@@ -92,6 +96,7 @@ services:
   nginx:
     image: nginx:stable
     container_name: wapow-nginx
+    restart: unless-stopped
     depends_on:
       - app
       - collector

@@ -49,18 +49,57 @@ class RSSScraper(BaseScraper):
 
         try:
             # Fetch feed content
-            async with aiohttp.ClientSession() as session:
-                async with session.get(
-                    self.url,
-                    timeout=aiohttp.ClientTimeout(total=30),
-                    headers={"User-Agent": "WAPOWBot/1.0"},
-                ) as response:
-                    if response.status != 200:
-                        logger.error(
-                            f"Failed to fetch RSS feed {self.url}: {response.status}"
-                        )
-                        return []
-                    content = await response.text()
+            content = None
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "application/rss+xml, application/rdf+xml, application/atom+xml, application/xml, text/xml, */*",
+                "Accept-Language": "en-US,en;q=0.9",
+            }
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(
+                        self.url,
+                        timeout=aiohttp.ClientTimeout(total=15),
+                        headers=headers,
+                    ) as response:
+                        if response.status == 200:
+                            content = await response.text()
+                        else:
+                            logger.warning(
+                                f"aiohttp failed to fetch RSS feed {self.url} (status={response.status}). Trying Playwright fallback..."
+                            )
+            except Exception as e:
+                logger.warning(f"aiohttp error fetching RSS feed {self.url}: {e}. Trying Playwright fallback...")
+
+            if not content:
+                # Fallback to fetching feed via Playwright Chromium browser
+                logger.info(f"Falling back to Playwright to fetch RSS feed: {self.url}")
+                from playwright.async_api import async_playwright
+                async with async_playwright() as p:
+                    browser = await p.chromium.launch(headless=True)
+                    try:
+                        page = await browser.new_page()
+                        await page.set_extra_http_headers({
+                            "Accept-Language": "en-US,en;q=0.9"
+                        })
+                        response = await page.goto(self.url, wait_until="domcontentloaded", timeout=30000)
+                        if response:
+                            # Let it settle for a couple seconds in case of challenges
+                            await asyncio.sleep(2)
+                            # Evaluate document.body.textContent to extract raw XML out of tree viewers
+                            raw_text = await page.evaluate("document.body.textContent")
+                            if raw_text and ("<rss" in raw_text or "<feed" in raw_text or "<xml" in raw_text or "<rdf" in raw_text):
+                                content = raw_text
+                            else:
+                                content = await page.content()
+                    except Exception as playwright_err:
+                        logger.error(f"Playwright fallback failed for RSS feed {self.url}: {playwright_err}")
+                    finally:
+                        await browser.close()
+
+            if not content:
+                logger.error(f"Could not retrieve feed content for {self.url}")
+                return []
 
             # Parse feed in a thread executor to prevent event loop CPU-blocking
             feed = await asyncio.to_thread(feedparser.parse, content)
