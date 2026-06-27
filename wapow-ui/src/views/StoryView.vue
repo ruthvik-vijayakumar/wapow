@@ -295,6 +295,14 @@ const mixedCategoryContent = computed(() => {
     component: 'Game',
   }
   mixed.push(gameContent)
+
+  const unblockGameContent = {
+    _id: 'unblock-game',
+    type: 'game',
+    title: 'Unblock Casual',
+    component: 'UnblockGame',
+  }
+  mixed.push(unblockGameContent)
   return mixed
 })
 

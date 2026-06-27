@@ -14,26 +14,14 @@ scheduler = AsyncIOScheduler()
 
 def start_scheduler() -> None:
     """Start the scheduler with configured jobs."""
-    from scraper.tasks.jobs import (
-        run_rss_scrape,
-        run_web_scrape,
-    )
+    from scraper.tasks.jobs import run_rss_scrape_task
 
     # RSS feeds - every hour
     scheduler.add_job(
-        run_rss_scrape,
+        lambda: run_rss_scrape_task.delay(),
         trigger=IntervalTrigger(minutes=settings.scrape_interval_rss),
         id="rss_feeds",
         name="RSS Feeds Scraper",
-        replace_existing=True,
-    )
-
-    # Web scraping - every 2 hours
-    scheduler.add_job(
-        run_web_scrape,
-        trigger=IntervalTrigger(minutes=settings.scrape_interval_web),
-        id="web_scrape",
-        name="Web Scraper",
         replace_existing=True,
     )
 

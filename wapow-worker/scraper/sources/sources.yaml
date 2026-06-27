@@ -107,17 +107,4 @@ rss:
   url: https://testrss.com/feed/
   category: tech
   enabled: true
-web:
-- name: The Washington Post
-  url: https://www.washingtonpost.com/
-  category: politics
-  enabled: true
-  use_playwright: true
-  selectors:
-    articles: article
-    title: a h3
-    description: p
-    image: img
-    link: a
-    author: .author
-    date: time
+

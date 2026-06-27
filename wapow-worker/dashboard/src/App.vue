@@ -77,8 +77,9 @@ const totalSaved = ref<number>(0)
 
 // Scheduler and Worker State
 const schedulerActive = ref<boolean>(false)
-const workerPaused = ref<boolean>(false)
 const jobs = ref<Job[]>([])
+const celeryWorkers = ref<any[]>([])
+const celeryStatus = ref<string>('offline')
 
 // Runs History
 const recentRuns = ref<ScraperRun[]>([])
@@ -191,41 +192,12 @@ async function fetchRuns(page: number) {
   }
 }
 
-const visibleRunsPages = computed(() => {
-  const current = runsPage.value
-  const total = totalRunsPages.value
-  if (total <= 7) {
-    return Array.from({ length: total }, (_, i) => i + 1)
-  }
-  const pages: (number | string)[] = []
-  pages.push(1)
-  
-  if (current > 3) {
-    pages.push('...')
-  }
-  
-  const start = Math.max(2, current - 1)
-  const end = Math.min(total - 1, current + 1)
-  
-  for (let i = start; i <= end; i++) {
-    pages.push(i)
-  }
-  
-  if (current < total - 2) {
-    pages.push('...')
-  }
-  
-  pages.push(total)
-  return pages
-})
-
 async function fetchJobs() {
   try {
     const res = await fetch('/jobs')
     if (!res.ok) throw new Error('Failed to fetch jobs')
     const data = await res.json()
     jobs.value = data.jobs || []
-    workerPaused.value = data.worker_paused ?? false
 
     const healthRes = await fetch('/health')
     if (healthRes.ok) {
@@ -277,20 +249,17 @@ async function handleToggleJob(jobId: string, isPaused: boolean) {
   }
 }
 
-// Conversion Worker Controls
-async function handleToggleWorker(isCurrentlyPaused: boolean) {
-  const endpoint = `/worker/${isCurrentlyPaused ? 'resume' : 'pause'}`
+// Celery Status Monitor
+async function fetchCeleryStatus() {
   try {
-    const res = await fetch(endpoint, { method: 'POST' })
-    if (res.ok) {
-      showToast(`Background conversion worker successfully ${isCurrentlyPaused ? 'resumed' : 'paused'}.`)
-      await fetchJobs()
-    } else {
-      const err = await res.json()
-      showToast(`Action failed: ${err.detail || 'Unknown error'}`, true)
-    }
-  } catch (err: any) {
-    showToast(`Connection failed: ${err.message}`, true)
+    const res = await fetch('/worker/celery/status')
+    if (!res.ok) throw new Error('Failed to fetch celery status')
+    const data = await res.json()
+    celeryWorkers.value = data.workers || []
+    celeryStatus.value = data.status || 'offline'
+  } catch (err) {
+    console.error('Error fetching Celery status:', err)
+    celeryStatus.value = 'error'
   }
 }
 
@@ -511,9 +480,6 @@ const filteredSources = computed(() => {
   })
 })
 
-const activeSourcesCount = computed(() => {
-  return sources.value.length
-})
 
 // Periodic auto-sync statistics
 let syncInterval: ReturnType<typeof setInterval> | null = null
@@ -521,12 +487,14 @@ let syncInterval: ReturnType<typeof setInterval> | null = null
 onMounted(async () => {
   await fetchStats()
   await fetchJobs()
+  await fetchCeleryStatus()
   await fetchRuns(1)
   connectLogsStream()
 
   syncInterval = setInterval(async () => {
     await fetchStats()
     await fetchJobs()
+    await fetchCeleryStatus()
     await fetchRuns(runsPage.value)
   }, 6000)
 })
@@ -538,367 +506,193 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="h-full flex flex-col antialiased selection:bg-[#333333] selection:text-white">
-    <!-- Top Navbar -->
-    <header class="flex-shrink-0 bg-black border-b border-[#1f1f1f] px-8 py-3 flex items-center justify-between">
+  <div class="h-full flex flex-col antialiased bg-[#1c1c1c] text-[#ededed] font-sans selection:bg-[#3ecf8e]/30 selection:text-white">
+    <!-- Supabase-like Top Navbar -->
+    <header class="flex-shrink-0 bg-[#161616] border-b border-[#2e2e2e] px-6 py-3 flex items-center justify-between">
       <div class="flex items-center gap-6">
-        <!-- Vercel logo style triangle -->
-        <svg class="h-5 w-5 text-white" fill="currentColor" viewBox="0 0 100 100">
-          <polygon points="50,15 90,85 10,85" />
-        </svg>
-        <div class="flex items-center gap-2 text-sm">
-          <span class="text-[#a1a1a1]">ruthvik-vijayakumar</span>
-          <span class="text-[#333333]">/</span>
-          <span class="font-medium text-white">wapow-worker</span>
-          <span class="ml-2 bg-[#1f1f1f] text-xs font-mono text-[#a1a1a1] px-2 py-0.5 rounded border border-[#333333]">production</span>
+        <!-- Supabase logo green triangle or icon -->
+        <div class="flex items-center gap-2.5">
+          <svg class="h-6 w-6 text-[#3ecf8e]" fill="currentColor" viewBox="0 0 100 100">
+            <polygon points="50,15 90,85 10,85" />
+          </svg>
+          <span class="text-sm font-semibold tracking-tight text-white font-mono">WAPOW! Ops Control</span>
+        </div>
+        <div class="hidden sm:flex items-center gap-2 text-xs">
+          <span class="text-[#888]">ruthvik-vijayakumar</span>
+          <span class="text-[#333]">/</span>
+          <span class="font-medium text-[#c0c0c0]">wapow-worker</span>
+          <span class="ml-2 bg-[#1c1c1c] text-[10px] font-mono text-[#3ecf8e] px-2 py-0.5 rounded border border-[#3ecf8e]/20">production</span>
         </div>
       </div>
       <div class="flex items-center gap-4">
-        <span class="text-xs text-[#666666]">{{ lastUpdated }}</span>
+        <span class="text-[11px] text-[#666666] font-mono">{{ lastUpdated }}</span>
         <div :class="[
-          'flex items-center gap-2 px-3 py-1 rounded border text-xs font-medium bg-black',
+          'flex items-center gap-2 px-3 py-1 rounded border text-xs font-medium bg-[#111]',
           schedulerActive 
-            ? 'border-emerald-900/30 text-emerald-400' 
-            : 'border-rose-900/30 text-rose-400'
+            ? 'border-[#3ecf8e]/20 text-[#3ecf8e] bg-[#3ecf8e]/5' 
+            : 'border-rose-900/30 text-rose-400 bg-rose-500/5'
         ]">
           <span :class="[
             'h-1.5 w-1.5 rounded-full',
-            schedulerActive ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'
+            schedulerActive ? 'bg-[#3ecf8e] animate-pulse' : 'bg-rose-500'
           ]"></span>
-          <span>Scheduler: {{ schedulerActive ? 'active' : 'inactive' }}</span>
+          <span class="font-mono text-[11px]">Scheduler: {{ schedulerActive ? 'active' : 'inactive' }}</span>
         </div>
       </div>
     </header>
 
-    <!-- Sub-navigation Tabs -->
-    <div class="bg-black border-b border-[#1f1f1f] px-8 flex-shrink-0">
-      <div class="flex gap-6 text-sm">
-        <button 
-          @click="activeTab = 'overview'" 
-          :class="[
-            'py-3 border-b-2 font-medium focus:outline-none transition cursor-pointer flex items-center gap-2',
-            activeTab === 'overview' ? 'border-white text-white' : 'border-transparent text-[#a1a1a1] hover:text-white'
-          ]"
-        >
-          Overview
-        </button>
-        <button 
-          @click="activeTab = 'sources'" 
-          :class="[
-            'py-3 border-b-2 focus:outline-none transition cursor-pointer flex items-center gap-2',
-            activeTab === 'sources' ? 'border-white text-white' : 'border-transparent text-[#a1a1a1] hover:text-white'
-          ]"
-        >
-          Sources Telemetry
-          <span class="bg-[#1f1f1f] text-xs text-[#a1a1a1] px-1.5 py-0.2 rounded font-mono font-medium border border-[#333333]">{{ activeSourcesCount }}</span>
-        </button>
-        <button 
-          @click="activeTab = 'logs'" 
-          :class="[
-            'py-3 border-b-2 focus:outline-none transition cursor-pointer flex items-center gap-2',
-            activeTab === 'logs' ? 'border-white text-white' : 'border-transparent text-[#a1a1a1] hover:text-white'
-          ]"
-        >
-          <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          Live Console
-        </button>
-        <button 
-          @click="activeTab = 'articles'" 
-          :class="[
-            'py-3 border-b-2 focus:outline-none transition cursor-pointer flex items-center gap-2',
-            activeTab === 'articles' ? 'border-white text-white' : 'border-transparent text-[#a1a1a1] hover:text-white'
-          ]"
-        >
-          Ingested Stories
-        </button>
-      </div>
-    </div>
-
-    <!-- Main Container Area -->
-    <main class="flex-grow p-8 overflow-y-auto custom-scroll flex flex-col space-y-8 max-w-7xl w-full mx-auto">
+    <!-- Main Split-Screen Workspace -->
+    <main class="flex-grow p-6 overflow-hidden flex flex-col lg:flex-row gap-6 max-w-[1600px] w-full mx-auto">
       
-      <!-- TAB 1: OVERVIEW -->
-      <div v-if="activeTab === 'overview'" class="space-y-8">
-        <!-- Vercel Grid KPI counters -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div class="bg-[#0a0a0a] border border-[#1f1f1f] p-6 rounded-lg flex flex-col">
-            <span class="text-xs font-semibold tracking-wider text-[#666666] uppercase">Total Ingested Articles</span>
-            <span class="text-3xl font-bold font-mono mt-3 text-white tracking-tight">{{ totalArticles.toLocaleString() }}</span>
+      <!-- Left Pane: Control Panel (lg:w-7/12) -->
+      <div class="lg:w-7/12 flex flex-col space-y-6 overflow-y-auto custom-scroll pr-0 lg:pr-2">
+        
+        <!-- Supabase Styled KPI Grid -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="bg-[#161616] border border-[#2e2e2e] hover:border-[#3ecf8e]/40 p-4 rounded-lg flex flex-col transition duration-200">
+            <span class="text-[10px] font-bold tracking-wider text-[#888] uppercase">Total Stories</span>
+            <span class="text-2xl font-bold font-mono mt-2 text-white tracking-tight">{{ totalArticles.toLocaleString() }}</span>
           </div>
-          <div class="bg-[#0a0a0a] border border-[#1f1f1f] p-6 rounded-lg flex flex-col">
-            <span class="text-xs font-semibold tracking-wider text-[#666666] uppercase">Runs Recorded (100)</span>
-            <span class="text-3xl font-bold font-mono mt-3 text-white tracking-tight">{{ totalRuns }}</span>
+          <div class="bg-[#161616] border border-[#2e2e2e] hover:border-[#3ecf8e]/40 p-4 rounded-lg flex flex-col transition duration-200">
+            <span class="text-[10px] font-bold tracking-wider text-[#888] uppercase">Scrape Runs</span>
+            <span class="text-2xl font-bold font-mono mt-2 text-white tracking-tight">{{ totalRuns }}</span>
           </div>
-          <div class="bg-[#0a0a0a] border border-[#1f1f1f] p-6 rounded-lg flex flex-col">
-            <span class="text-xs font-semibold tracking-wider text-[#666666] uppercase">Scrape Success Rate</span>
-            <span class="text-3xl font-bold font-mono mt-3 text-white tracking-tight">{{ successRatePercent }}%</span>
+          <div class="bg-[#161616] border border-[#2e2e2e] hover:border-[#3ecf8e]/40 p-4 rounded-lg flex flex-col transition duration-200">
+            <span class="text-[10px] font-bold tracking-wider text-[#888] uppercase">Success Rate</span>
+            <span class="text-2xl font-bold font-mono mt-2 text-[#3ecf8e] tracking-tight">{{ successRatePercent }}%</span>
           </div>
-          <div class="bg-[#0a0a0a] border border-[#1f1f1f] p-6 rounded-lg flex flex-col">
-            <span class="text-xs font-semibold tracking-wider text-[#666666] uppercase">Scraped / Saved Items</span>
-            <span class="text-3xl font-bold font-mono mt-3 text-white tracking-tight">{{ totalScraped }} / {{ totalSaved }}</span>
-          </div>
-        </div>
-
-        <!-- Manual Scrape Actions -->
-        <div class="bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg p-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div class="space-y-1">
-            <h2 class="text-base font-bold text-white">Manual Deployment & Crawl Control</h2>
-            <p class="text-xs text-[#a1a1a1]">Instantly trigger and sync the WAPOW worker crawler instances for any enabled sources</p>
-          </div>
-          <div class="flex flex-wrap gap-3">
-            <button 
-              @click="triggerJob('rss_feeds')" 
-              :disabled="triggeringJob" 
-              class="bg-white text-black hover:bg-[#e0e0e0] font-medium text-xs py-2 px-4 rounded transition duration-200 cursor-pointer disabled:bg-neutral-800 disabled:text-neutral-500"
-            >
-              Run RSS Feeds
-            </button>
-            <button 
-              @click="triggerJob('web_scrape')" 
-              :disabled="triggeringJob" 
-              class="bg-transparent text-white hover:bg-neutral-900 font-medium text-xs py-2 px-4 rounded border border-[#333333] transition duration-200 cursor-pointer disabled:bg-neutral-800 disabled:text-neutral-500"
-            >
-              Run Web Page Scraper
-            </button>
-            <button 
-              @click="triggerJob('all')" 
-              :disabled="triggeringJob" 
-              class="bg-transparent text-[#e5e5e5] hover:bg-neutral-900 font-medium text-xs py-2 px-4 rounded border border-[#1f1f1f] transition duration-200 cursor-pointer disabled:bg-neutral-800 disabled:text-neutral-500"
-            >
-              Run All Scrapers
-            </button>
-            <button 
-              @click="fetchStats" 
-              class="bg-[#1f1f1f] text-[#a1a1a1] hover:text-white px-3 py-2 rounded border border-[#333333] transition flex items-center justify-center cursor-pointer"
-            >
-              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H18.2M7 9a4 4 0 110-8h1.5" />
-              </svg>
-            </button>
+          <div class="bg-[#161616] border border-[#2e2e2e] hover:border-[#3ecf8e]/40 p-4 rounded-lg flex flex-col transition duration-200">
+            <span class="text-[10px] font-bold tracking-wider text-[#888] uppercase">Scraped / Saved</span>
+            <span class="text-2xl font-bold font-mono mt-2 text-white tracking-tight">{{ totalScraped }} / {{ totalSaved }}</span>
           </div>
         </div>
 
-        <!-- Scheduler & Worker Control -->
-        <div class="bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg overflow-hidden">
-          <div class="p-6 border-b border-[#1f1f1f]">
-            <h2 class="text-base font-bold text-white">Scheduler & Worker Control</h2>
-            <p class="text-xs text-[#666666] mt-0.5">Pause/resume scheduled crawling jobs and background slide conversion tasks</p>
+        <!-- Scheduler & Crawl Triggers -->
+        <div class="bg-[#161616] border border-[#2e2e2e] rounded-lg overflow-hidden">
+          <div class="p-4 border-b border-[#2e2e2e] bg-[#111] flex items-center justify-between">
+            <div>
+              <h2 class="text-xs font-bold text-white uppercase tracking-wider">Scheduled Crawlers & Triggers</h2>
+              <p class="text-[10px] text-[#888] mt-0.5">Manage scheduled scraping tasks and execute crawls instantly</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button 
+                @click="triggerJob('all')" 
+                :disabled="triggeringJob" 
+                class="bg-[#3ecf8e] text-black hover:bg-[#3ac084] font-semibold text-[10px] py-1 px-3 rounded transition duration-200 cursor-pointer disabled:bg-neutral-800 disabled:text-neutral-500 font-mono"
+              >
+                Crawl All
+              </button>
+              <button 
+                @click="fetchStats" 
+                class="bg-[#1c1c1c] text-[#888] hover:text-white px-2 py-1 rounded border border-[#333] transition flex items-center justify-center cursor-pointer"
+                title="Refresh Stats"
+              >
+                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H18.2M7 9a4 4 0 110-8h1.5" />
+                </svg>
+              </button>
+            </div>
           </div>
-          <div class="divide-y divide-[#1f1f1f]">
-            <!-- Dynamic scheduler jobs list -->
-            <div v-for="job in jobs" :key="job.id" class="p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div class="divide-y divide-[#2e2e2e]">
+            <div v-for="job in jobs" :key="job.id" class="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div class="space-y-1">
                 <div class="flex items-center gap-2">
-                  <h3 class="text-sm font-semibold text-white font-mono">{{ job.name }}</h3>
+                  <h3 class="text-xs font-bold text-white font-mono uppercase tracking-wider">{{ job.name }}</h3>
                   <span :class="[
-                    'inline-flex border px-2 py-0.5 rounded text-[10px] font-medium tracking-wider lowercase',
+                    'inline-flex border px-2 py-0.5 rounded text-[9px] font-mono tracking-wider lowercase',
                     job.status === 'paused' 
-                      ? 'border-rose-500/20 bg-rose-500/10 text-rose-400' 
-                      : 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400'
+                      ? 'border-rose-900/30 bg-rose-500/10 text-rose-400' 
+                      : 'border-[#3ecf8e]/20 bg-[#3ecf8e]/10 text-[#3ecf8e]'
                   ]">{{ job.status }}</span>
                 </div>
-                <p class="text-xs text-[#a1a1a1]">Trigger interval: <span class="font-mono text-white">{{ job.trigger }}</span></p>
-                <p class="text-[11px] text-[#666666]">Next Run: <span class="font-mono text-[#888]">{{ job.next_run_time || 'Paused' }}</span></p>
+                <p class="text-xs text-[#888]">Frequency: <span class="font-mono text-white">{{ job.trigger }}</span> | Next: <span class="font-mono text-[#aaa]">{{ job.next_run_time || 'Paused' }}</span></p>
               </div>
               <div class="flex items-center gap-2">
                 <button 
                   @click="handleToggleJob(job.id, job.status === 'paused')"
                   :class="[
-                    'text-xs font-semibold px-3 py-1.5 rounded transition cursor-pointer',
+                    'text-xs font-semibold px-3 py-1.5 rounded transition cursor-pointer font-mono',
                     job.status === 'paused'
-                      ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20'
-                      : 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20'
+                      ? 'bg-[#3ecf8e]/15 hover:bg-[#3ecf8e]/25 text-[#3ecf8e] border border-[#3ecf8e]/30'
+                      : 'bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30'
                   ]"
                 >
                   {{ job.status === 'paused' ? 'Resume' : 'Pause' }}
                 </button>
                 <button 
                   @click="triggerJob(job.id)"
-                  class="bg-transparent hover:bg-neutral-900 border border-[#333333] text-white text-xs font-semibold px-3 py-1.5 rounded transition cursor-pointer"
+                  class="bg-transparent hover:bg-neutral-900 border border-[#444] text-white text-xs font-semibold px-3 py-1.5 rounded transition cursor-pointer font-mono"
                 >
-                  Run Now
+                  Run
                 </button>
               </div>
             </div>
+          </div>
+        </div>
 
-            <!-- Background AI conversion worker control -->
-            <div class="p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div class="space-y-1">
-                <div class="flex items-center gap-2">
-                  <h3 class="text-sm font-semibold text-white">Background Conversion Worker</h3>
-                  <span :class="[
-                    'inline-flex border px-2 py-0.5 rounded text-[10px] font-medium tracking-wider lowercase',
-                    workerPaused 
-                      ? 'border-rose-500/20 bg-rose-500/10 text-rose-400' 
-                      : 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400'
-                  ]">{{ workerPaused ? 'paused' : 'running' }}</span>
+        <!-- Celery Task Workers Monitor -->
+        <div class="bg-[#161616] border border-[#2e2e2e] rounded-lg overflow-hidden">
+          <div class="p-4 border-b border-[#2e2e2e] bg-[#111] flex items-center justify-between">
+            <h2 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+              Celery Worker Pools
+              <span :class="[
+                'inline-flex border px-2 py-0.5 rounded text-[9px] font-mono tracking-wider lowercase',
+                celeryStatus === 'online' 
+                  ? 'border-[#3ecf8e]/20 bg-[#3ecf8e]/10 text-[#3ecf8e]' 
+                  : 'border-rose-900/30 bg-rose-500/10 text-rose-400'
+              ]">{{ celeryStatus }}</span>
+            </h2>
+            <button 
+              @click="fetchCeleryStatus" 
+              class="bg-[#1c1c1c] text-[10px] text-[#888] hover:text-white px-2 py-1 rounded border border-[#333] transition cursor-pointer font-mono"
+            >
+              Inspect
+            </button>
+          </div>
+          <div class="divide-y divide-[#2e2e2e]">
+            <div v-if="celeryWorkers.length === 0" class="p-4 text-center text-[#666] text-xs font-mono">
+              No task workers online. Connecting to Redis broker...
+            </div>
+            <div v-for="worker in celeryWorkers" :key="worker.name" class="p-4 space-y-3">
+              <div class="flex items-center justify-between gap-4">
+                <div class="flex items-center gap-2 truncate">
+                  <span class="h-2 w-2 rounded-full bg-[#3ecf8e] animate-pulse"></span>
+                  <span class="text-xs font-bold text-white font-mono truncate">{{ worker.name }}</span>
                 </div>
-                <p class="text-xs text-[#a1a1a1]">Processes raw scraped documents in MongoDB and triggers the Gemini AI slide deck generation pipeline</p>
+                <div class="flex items-center gap-2 flex-shrink-0">
+                  <span class="bg-[#111] border border-[#222] text-[10px] text-[#aaa] px-2 py-0.5 rounded font-mono">
+                    Active: {{ worker.active_tasks_count }}
+                  </span>
+                  <span class="bg-[#111] border border-[#222] text-[10px] text-[#aaa] px-2 py-0.5 rounded font-mono">
+                    Reserved: {{ worker.reserved_tasks_count }}
+                  </span>
+                </div>
               </div>
-              <div class="flex items-center gap-2">
-                <button 
-                  @click="handleToggleWorker(workerPaused)"
-                  :class="[
-                    'text-xs font-semibold px-3 py-1.5 rounded transition cursor-pointer',
-                    workerPaused
-                      ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20'
-                      : 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20'
-                  ]"
-                >
-                  {{ workerPaused ? 'Resume Worker' : 'Pause Worker' }}
-                </button>
+              
+              <!-- Active Tasks list -->
+              <div v-if="worker.active_tasks && worker.active_tasks.length > 0" class="bg-black/60 border border-[#2e2e2e] rounded p-2.5 text-xs space-y-1.5">
+                <div class="text-[9px] font-bold uppercase tracking-wider text-[#555] font-mono">Executing Tasks:</div>
+                <ul class="space-y-1 divide-y divide-[#111] font-mono text-[#aaa] text-[10px]">
+                  <li v-for="task in worker.active_tasks" :key="task.id" class="pt-1 first:pt-0 flex items-center justify-between gap-4">
+                    <span class="text-[#3ecf8e] truncate">{{ task.name }}</span>
+                    <span class="text-[#555] text-[9px]">id: {{ task.id.substring(0,8) }}</span>
+                  </li>
+                </ul>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Job Executions Log -->
-        <div class="bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg overflow-hidden">
-          <div class="p-6 border-b border-[#1f1f1f]">
-            <h2 class="text-base font-bold text-white">Worker Execution Runs</h2>
-            <p class="text-xs text-[#666666] mt-0.5">Historical logs and runtime traces for worker triggers</p>
-          </div>
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-sm text-[#e5e5e5]">
-              <thead class="text-xs uppercase bg-[#000] text-[#888888] border-b border-[#1f1f1f]">
-                <tr>
-                  <th class="py-3.5 px-6 font-semibold">Job Name</th>
-                  <th class="py-3.5 px-6 font-semibold">Start Time</th>
-                  <th class="py-3.5 px-6 font-semibold">Duration</th>
-                  <th class="py-3.5 px-6 font-semibold">Status</th>
-                  <th class="py-3.5 px-6 font-semibold">Scraped</th>
-                  <th class="py-3.5 px-6 font-semibold">Saved</th>
-                  <th class="py-3.5 px-6 font-semibold">Saved Articles & Error Logs</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-[#1f1f1f]">
-                <tr v-if="recentRuns.length === 0">
-                  <td colspan="7" class="py-8 text-center text-[#666666]">No runs recorded yet.</td>
-                </tr>
-                <tr v-for="run in recentRuns" :key="run._id || run.start_time" class="align-top hover:bg-[#0a0a0a] transition duration-150">
-                  <td class="py-4 px-6 font-semibold font-mono text-xs text-white">{{ run.job_id }}</td>
-                  <td class="py-4 px-6 text-xs text-[#888888]">{{ new Date(run.start_time).toLocaleString() }}</td>
-                  <td class="py-4 px-6 text-xs font-mono text-[#888888]">{{ run.duration_seconds ? `${run.duration_seconds.toFixed(1)}s` : '-' }}</td>
-                  <td class="py-4 px-6">
-                    <span v-if="run.status === 'success'" class="inline-flex border border-emerald-500/20 bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded text-[10px] font-medium lowercase">success</span>
-                    <span v-else-if="run.status === 'failed'" class="inline-flex border border-rose-500/20 bg-rose-500/10 text-rose-400 px-2 py-0.5 rounded text-[10px] font-medium lowercase">failed</span>
-                    <span v-else class="inline-flex border border-amber-500/20 bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded text-[10px] font-medium lowercase animate-pulse">running</span>
-                  </td>
-                  <td class="py-4 px-6 text-xs font-mono text-[#888888]">{{ run.items_scraped }}</td>
-                  <td class="py-4 px-6 text-xs font-mono text-white font-medium">{{ run.items_saved }}</td>
-                  <td class="py-4 px-6">
-                    <!-- Articles Ingested in this run -->
-                    <div v-if="run.saved_articles && run.saved_articles.length > 0" class="text-[11px] bg-black p-3 rounded border border-[#1f1f1f] mt-2 space-y-1 max-w-[450px]">
-                      <strong class="text-[#666666] font-semibold uppercase text-[9px] tracking-wider block mb-1">Ingested ({{ run.saved_articles.length }}):</strong>
-                      <ul class="space-y-1 max-h-[200px] overflow-y-auto custom-scroll font-mono text-[10px] text-[#888888] divide-y divide-[#111]">
-                        <li v-for="art in run.saved_articles" :key="art.id" class="py-1.5 first:pt-0 last:pb-0 text-left">
-                          <div 
-                            @click="toggleArticleJSON(art.id, `run-${run._id || run.start_time}-${art.id}`)" 
-                            class="flex items-center justify-between gap-3 cursor-pointer group py-1.5 px-2 -mx-2 rounded hover:bg-neutral-900/40 transition duration-150"
-                          >
-                            <div class="text-left truncate flex items-center gap-1.5 text-[#a1a1a1] group-hover:text-blue-400 transition-colors">
-                              <svg 
-                                :class="[
-                                  'w-3 h-3 text-[#555] group-hover:text-blue-400 transition-transform duration-200 flex-shrink-0',
-                                  expandedArticles.has(`run-${run._id || run.start_time}-${art.id}`) ? 'rotate-90' : ''
-                                ]"
-                                fill="none" 
-                                viewBox="0 0 24 24" 
-                                stroke="currentColor"
-                              >
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                              </svg>
-                              <span class="truncate">{{ art.title }}</span>
-                            </div>
-                            <span class="text-[9px] text-[#444444] group-hover:text-white flex-shrink-0 transition-colors">{{ art.id }}</span>
-                          </div>
-                          <!-- Expandable MongoDB json -->
-                          <div v-if="expandedArticles.has(`run-${run._id || run.start_time}-${art.id}`)" class="mt-2">
-                            <div class="relative bg-black border border-[#1f1f1f] rounded overflow-hidden">
-                              <div class="flex items-center justify-between px-2.5 py-1 border-b border-[#1f1f1f] bg-[#050505]">
-                                <span class="text-[9px] font-mono text-[#555]">database record json</span>
-                                <button @click="copyArticleJSON(art.id)" class="text-[9px] bg-[#111] border border-[#333333] hover:bg-neutral-900 text-white px-1.5 py-0.5 rounded transition cursor-pointer">
-                                  Copy
-                                </button>
-                              </div>
-                              <pre class="p-2.5 overflow-x-auto text-[10px] font-mono text-[#888] bg-black max-h-[180px] custom-scroll whitespace-pre-wrap select-text font-mono">
-                                {{ loadedArticleJSONs[art.id] }}
-                              </pre>
-                            </div>
-                          </div>
-                        </li>
-                      </ul>
-                    </div>
-
-                    <!-- Errors during this run -->
-                    <div v-if="run.errors && run.errors.length > 0" class="text-[11px] border border-rose-950/40 bg-rose-950/5 text-rose-400 p-3 rounded mt-2">
-                      <strong class="text-[9px] uppercase font-semibold tracking-wider block mb-1">Errors:</strong>
-                      <ul class="space-y-1 list-disc pl-4 max-h-[100px] overflow-y-auto custom-scroll font-mono text-[10px]">
-                        <li v-for="(err, idx) in run.errors" :key="idx">{{ err }}</li>
-                      </ul>
-                    </div>
-
-                    <span v-if="(!run.saved_articles || run.saved_articles.length === 0) && (!run.errors || run.errors.length === 0)" class="text-[#444444] italic text-xs">None</span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <!-- Runs Pagination Footer -->
-          <div class="flex items-center justify-between border-t border-[#1f1f1f] bg-[#050505] px-6 py-4 flex-shrink-0">
-            <div class="flex items-center text-xs text-[#666666]">
-              Showing page <span class="text-white font-mono mx-1 font-semibold">{{ runsPage }}</span> of <span class="text-white font-mono mx-1 font-semibold">{{ totalRunsPages }}</span> (<span class="text-white font-mono mx-1 font-semibold">{{ totalRuns }}</span> total runs)
-            </div>
+        <!-- Sources Management Section -->
+        <div class="bg-[#161616] border border-[#2e2e2e] rounded-lg overflow-hidden">
+          <div class="p-4 border-b border-[#2e2e2e] bg-[#111] flex items-center justify-between">
+            <h2 class="text-xs font-bold text-white uppercase tracking-wider">Crawl Sources Registry</h2>
             <div class="flex items-center gap-2">
-              <button 
-                @click="fetchRuns(runsPage - 1)" 
-                :disabled="runsPage <= 1"
-                class="bg-[#111] hover:bg-neutral-900 border border-[#1f1f1f] text-[#a1a1a1] hover:text-white text-xs px-3 py-1.5 rounded disabled:opacity-30 disabled:hover:bg-[#111] disabled:text-[#444] transition cursor-pointer disabled:cursor-not-allowed"
-              >
-                Previous
+              <button @click="openAddSourceModal" class="bg-[#3ecf8e] text-black hover:bg-[#3ac084] font-bold text-[10px] py-1 px-2.5 rounded transition cursor-pointer font-mono">
+                + Register Source
               </button>
-              <template v-for="(p, idx) in visibleRunsPages" :key="idx">
-                <span v-if="p === '...'" class="text-[#444] px-1 text-xs select-none">...</span>
-                <button 
-                  v-else
-                  @click="fetchRuns(p as number)"
-                  :class="[
-                    'text-xs font-mono px-3 py-1.5 rounded border transition cursor-pointer',
-                    p === runsPage 
-                      ? 'bg-white text-black border-white font-bold' 
-                      : 'bg-[#111] hover:bg-neutral-900 border-[#1f1f1f] text-[#a1a1a1] hover:text-white'
-                  ]"
-                >
-                  {{ p }}
-                </button>
-              </template>
-              <button 
-                @click="fetchRuns(runsPage + 1)" 
-                :disabled="runsPage >= totalRunsPages"
-                class="bg-[#111] hover:bg-neutral-900 border border-[#1f1f1f] text-[#a1a1a1] hover:text-white text-xs px-3 py-1.5 rounded disabled:opacity-30 disabled:hover:bg-[#111] disabled:text-[#444] transition cursor-pointer disabled:cursor-not-allowed"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- TAB 2: SOURCES TELEMETRY -->
-      <div v-if="activeTab === 'sources'" class="space-y-8">
-        <div class="bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg overflow-hidden">
-          <div class="p-6 border-b border-[#1f1f1f] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h2 class="text-base font-bold text-white">Sources Configuration Status</h2>
-              <p class="text-xs text-[#a1a1a1] mt-0.5">Crawler statistics and statuses per RSS feed and Web Page mapping</p>
-            </div>
-            <div class="flex items-center gap-3">
-              <button @click="openAddSourceModal" class="bg-white text-black hover:bg-[#e0e0e0] font-medium text-xs py-1.5 px-3 rounded transition duration-200 cursor-pointer">
-                + Add Source
-              </button>
-              <span class="text-xs text-[#666666]">Filter:</span>
-              <select v-model="sourceFilter" class="bg-black border border-[#333333] text-xs text-[#fafafa] rounded px-3 py-1.5 focus:outline-none focus:border-[#444] cursor-pointer">
-                <option value="all">All Sources</option>
+              <select v-model="sourceFilter" class="bg-[#111] border border-[#333] text-[10px] text-white rounded px-2 py-1 focus:outline-none cursor-pointer">
+                <option value="all">All</option>
                 <option value="success">Success</option>
                 <option value="failed">Failed</option>
                 <option value="never run">Never Run</option>
@@ -907,131 +701,63 @@ onUnmounted(() => {
             </div>
           </div>
           <div class="overflow-x-auto">
-            <table class="w-full text-left text-sm text-[#e5e5e5]">
-              <thead class="text-xs uppercase bg-[#000] text-[#888888] border-b border-[#1f1f1f]">
+            <table class="w-full text-left text-xs text-[#ccc]">
+              <thead class="text-[10px] uppercase bg-black/40 text-[#888] border-b border-[#2e2e2e] font-mono">
                 <tr>
-                  <th class="py-3.5 px-6 font-semibold">Source Name</th>
-                  <th class="py-3.5 px-6 font-semibold">Type</th>
-                  <th class="py-3.5 px-6 font-semibold">Category</th>
-                  <th class="py-3.5 px-6 font-semibold">Last Crawl Time</th>
-                  <th class="py-3.5 px-6 font-semibold">Duration</th>
-                  <th class="py-3.5 px-6 font-semibold">Scraped / Saved</th>
-                  <th class="py-3.5 px-6 font-semibold">Status</th>
-                  <th class="py-3.5 px-6 font-semibold">Crawl URL / Errors</th>
-                  <th class="py-3.5 px-6 font-semibold">Actions</th>
+                  <th class="py-2.5 px-4 font-semibold">Name</th>
+                  <th class="py-2.5 px-4 font-semibold">Category</th>
+                  <th class="py-2.5 px-4 font-semibold">Crawl URL</th>
+                  <th class="py-2.5 px-4 font-semibold">Last crawl</th>
+                  <th class="py-2.5 px-4 font-semibold">Status</th>
+                  <th class="py-2.5 px-4 font-semibold">Actions</th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-[#1f1f1f]">
+              <tbody class="divide-y divide-[#2e2e2e] font-mono text-[11px]">
                 <tr v-if="filteredSources.length === 0">
-                  <td colspan="9" class="py-8 text-center text-[#666666]">No sources match criteria.</td>
+                  <td colspan="6" class="py-6 text-center text-[#666]">No sources found</td>
                 </tr>
-                <tr v-for="src in filteredSources" :key="src.name" class="hover:bg-[#0a0a0a] transition duration-150">
-                  <td class="py-3.5 px-6 font-medium text-white max-w-[180px] truncate" :title="src.name">{{ src.name }}</td>
-                  <td class="py-3.5 px-6 text-xs font-mono text-[#888888] uppercase">{{ src.type }}</td>
-                  <td class="py-3.5 px-6 text-xs text-[#888888] capitalize">{{ src.category }}</td>
-                  <td class="py-3.5 px-6 text-xs text-[#888888]">{{ src.last_scraped_at ? new Date(src.last_scraped_at).toLocaleString() : 'Never' }}</td>
-                  <td class="py-3.5 px-6 text-xs font-mono text-[#888888]">{{ src.last_duration_seconds ? `${src.last_duration_seconds.toFixed(2)}s` : '-' }}</td>
-                  <td class="py-3.5 px-6 text-xs font-mono text-white">
-                    {{ src.last_items_scraped ?? 0 }} / <span class="text-blue-500">{{ src.last_items_saved ?? 0 }}</span>
+                <tr v-for="src in filteredSources" :key="src.name" class="hover:bg-black/20 transition duration-150">
+                  <td class="py-2.5 px-4 font-semibold text-white truncate max-w-[120px]">{{ src.name }}</td>
+                  <td class="py-2.5 px-4 text-[#888]">{{ src.category }}</td>
+                  <td class="py-2.5 px-4 max-w-[160px] truncate">
+                    <a :href="src.url" target="_blank" class="text-blue-400 hover:underline">{{ src.url }}</a>
                   </td>
-                  <td class="py-3.5 px-6">
-                    <span v-if="!src.enabled" class="inline-flex border px-2 py-0.5 rounded text-[10px] font-medium tracking-wider lowercase bg-[#111] text-[#666666] border-[#1f1f1f]">
-                      disabled
-                    </span>
-                    <span v-else-if="src.last_status === 'success'" class="inline-flex border px-2 py-0.5 rounded text-[10px] font-medium tracking-wider lowercase bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
-                      success
-                    </span>
-                    <span v-else-if="src.last_status === 'failed'" class="inline-flex border px-2 py-0.5 rounded text-[10px] font-medium tracking-wider lowercase bg-rose-500/10 text-rose-400 border-rose-500/20">
-                      failed
-                    </span>
-                    <span v-else class="inline-flex border px-2 py-0.5 rounded text-[10px] font-medium tracking-wider lowercase bg-[#111] text-[#888888] border-[#333333]">
-                      never run
-                    </span>
+                  <td class="py-2.5 px-4 text-[#666] text-[10px]">{{ src.last_scraped_at ? new Date(src.last_scraped_at).toLocaleTimeString() : 'Never' }}</td>
+                  <td class="py-2.5 px-4">
+                    <span v-if="!src.enabled" class="text-[#666]">disabled</span>
+                    <span v-else-if="src.last_status === 'success'" class="text-[#3ecf8e]">success</span>
+                    <span v-else-if="src.last_status === 'failed'" class="text-rose-500">failed</span>
+                    <span v-else class="text-[#888]">never</span>
                   </td>
-                  <td class="py-3.5 px-6 text-xs max-w-[240px]">
-                    <a :href="src.url" target="_blank" class="text-blue-500 hover:underline block truncate font-mono text-[11px]" :title="src.url">{{ src.url }}</a>
-                    <div v-if="src.last_error" class="text-[10px] text-rose-500 max-w-[200px] truncate cursor-help mt-1 font-mono" :title="src.last_error">
-                      {{ src.last_error }}
-                    </div>
-                  </td>
-                  <td class="py-3.5 px-6 text-xs flex gap-2">
-                    <button @click="toggleSource(src.type, src.name)" class="text-[#a1a1a1] hover:text-white transition cursor-pointer font-medium">
-                      {{ src.enabled ? 'Disable' : 'Enable' }}
-                    </button>
-                    <span class="text-[#333333]">|</span>
-                    <button @click="openEditSourceModal(src.type, src.name)" class="text-blue-500 hover:text-blue-400 transition cursor-pointer font-medium">
-                      Edit
-                    </button>
-                    <span class="text-[#333333]">|</span>
-                    <button @click="deleteSource(src.type, src.name)" class="text-rose-500 hover:text-rose-400 transition cursor-pointer font-medium">
-                      Delete
-                    </button>
+                  <td class="py-2.5 px-4 space-x-2 text-[10px]">
+                    <button @click="toggleSource(src.type, src.name)" class="text-[#888] hover:text-white transition">{{ src.enabled ? 'Disable' : 'Enable' }}</button>
+                    <button @click="openEditSourceModal(src.type, src.name)" class="text-[#3ecf8e] hover:underline">Edit</button>
+                    <button @click="deleteSource(src.type, src.name)" class="text-rose-500 hover:underline">Delete</button>
                   </td>
                 </tr>
               </tbody>
             </table>
           </div>
         </div>
-      </div>
 
-      <!-- TAB 3: LIVE PROCESS LOGGER -->
-      <div v-show="activeTab === 'logs'" class="flex flex-col space-y-6 flex-grow">
-        <div class="bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg p-6 flex flex-col flex-grow">
-          <div class="flex items-center justify-between border-b border-[#1f1f1f] pb-4 mb-4">
-            <div>
-              <h2 class="text-base font-bold text-white flex items-center gap-2">
-                Worker Live Output Stream
-                <span :class="[
-                  'text-[10px] px-2 py-0.5 rounded font-normal uppercase tracking-wider border',
-                  loggerConnStatus === 'Live Stream Active' 
-                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
-                    : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
-                ]">{{ loggerConnStatus }}</span>
-              </h2>
-              <p class="text-xs text-[#666666] mt-0.5">Live standard logging trace events streamed straight from the worker container</p>
-            </div>
-            <div>
-              <button @click="clearConsole" class="text-xs bg-transparent text-white border border-[#333333] hover:bg-neutral-900 px-3 py-1.5 rounded transition cursor-pointer">
-                Clear Terminal
-              </button>
-            </div>
+        <!-- Ingested Stories collapsible feed -->
+        <div class="bg-[#161616] border border-[#2e2e2e] rounded-lg overflow-hidden">
+          <div class="p-4 border-b border-[#2e2e2e] bg-[#111]">
+            <h2 class="text-xs font-bold text-white uppercase tracking-wider">Ingested Stories Log</h2>
           </div>
-          <!-- Real-time code panel -->
-          <div ref="logsConsole" class="font-mono text-xs bg-black border border-[#1f1f1f] p-5 rounded overflow-y-auto h-[550px] leading-relaxed custom-scroll space-y-1 text-[#a1a1a1]">
-            <div v-if="logLines.length === 0" class="text-[#888888]">[READY] Live logs stream connected. Ready to crawl...</div>
-            <div 
-              v-for="(line, idx) in logLines" 
-              :key="idx"
-              :class="[
-                'font-mono whitespace-pre-wrap break-all',
-                line.type === 'error' ? 'text-rose-500 font-semibold' : '',
-                line.type === 'warn' ? 'text-amber-500' : '',
-                line.type === 'system' ? 'text-white font-semibold' : '',
-                line.type === 'success' ? 'text-emerald-400' : '',
-                line.type === 'info' ? 'text-[#888888]' : ''
-              ]"
-            >{{ line.text }}</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- TAB 4: RECENTLY SCRAPED STORIES -->
-      <div v-if="activeTab === 'articles'" class="space-y-6">
-        <div class="bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg p-6">
-          <h2 class="text-base font-bold text-white mb-4 border-b border-[#1f1f1f] pb-3">Recently Ingested Stories</h2>
-          <div class="divide-y divide-[#1f1f1f]">
-            <div v-if="recentArticles.length === 0" class="py-6 text-center text-[#666666]">No articles ingested yet.</div>
-            <div v-for="art in recentArticles" :key="art.id" class="py-4 border-b border-[#1f1f1f] last:border-0 text-left">
+          <div class="divide-y divide-[#2e2e2e] max-h-[350px] overflow-y-auto custom-scroll">
+            <div v-if="recentArticles.length === 0" class="p-6 text-center text-[#666] text-xs">No articles ingested.</div>
+            <div v-for="art in recentArticles" :key="art.id" class="p-3.5 hover:bg-black/10">
               <div 
-                @click="toggleArticleJSON(art.id, `articles-tab-${art.id}`)" 
-                class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer hover:bg-neutral-900/40 p-2 -m-2 rounded transition duration-200 group"
+                @click="toggleArticleJSON(art.id, `left-pane-${art.id}`)" 
+                class="flex items-center justify-between gap-4 cursor-pointer group"
               >
-                <div class="space-y-1 bg-transparent">
-                  <div class="text-sm font-semibold text-white group-hover:text-blue-400 transition text-left flex items-center gap-2 leading-snug">
+                <div class="truncate space-y-1">
+                  <div class="text-xs font-semibold text-white group-hover:text-[#3ecf8e] transition truncate flex items-center gap-1.5">
                     <svg 
                       :class="[
-                        'w-4 h-4 text-[#666] group-hover:text-blue-400 transition-transform duration-200 flex-shrink-0',
-                        expandedArticles.has(`articles-tab-${art.id}`) ? 'rotate-90' : ''
+                        'w-3 h-3 text-[#555] group-hover:text-[#3ecf8e] transition-transform duration-200 flex-shrink-0',
+                        expandedArticles.has(`left-pane-${art.id}`) ? 'rotate-90' : ''
                       ]"
                       fill="none" 
                       viewBox="0 0 24 24" 
@@ -1041,146 +767,197 @@ onUnmounted(() => {
                     </svg>
                     <span>{{ art.title }}</span>
                   </div>
-                  <div class="flex flex-wrap gap-2 items-center text-xs pl-6">
-                    <span class="px-2 py-0.5 bg-[#111] border border-[#333333] text-white rounded font-mono text-[10px]">{{ art.publisher }}</span>
-                    <span class="px-2 py-0.5 bg-[#111] border border-[#1f1f1f] text-[#888888] rounded font-normal text-[10px] capitalize">{{ art.category }}</span>
-                    <span class="text-[#666666] text-[11px]">Ingested: {{ new Date(art.created_date).toLocaleString() }}</span>
+                  <div class="flex items-center gap-2 text-[10px] text-[#666] font-mono">
+                    <span class="text-[#3ecf8e]">{{ art.publisher }}</span>
+                    <span>•</span>
+                    <span class="capitalize">{{ art.category }}</span>
                   </div>
                 </div>
-                <div class="flex-shrink-0 flex items-center gap-3 pl-6 sm:pl-0">
-                  <span class="text-[10px] font-mono text-[#666666] bg-black border border-[#1f1f1f] group-hover:border-[#333] group-hover:text-white px-2 py-1 rounded transition">ID: {{ art.id }}</span>
-                  <a :href="art.url" target="_blank" @click.stop class="bg-black hover:bg-neutral-900 text-white px-3 py-1.5 rounded text-xs border border-[#333333] font-medium transition cursor-pointer">
-                    Source
-                  </a>
-                </div>
+                <span class="text-[10px] bg-[#111] px-1.5 py-0.5 rounded font-mono text-[#888] border border-[#222] flex-shrink-0">{{ art.id.substring(0,8) }}</span>
               </div>
               
-              <!-- Collapsible JSON Document view -->
-              <div v-if="expandedArticles.has(`articles-tab-${art.id}`)" class="mt-4 pl-6">
-                <div class="relative bg-[#050505] border border-[#1f1f1f] rounded-lg overflow-hidden">
-                  <div class="flex items-center justify-between px-4 py-2 border-b border-[#1f1f1f] bg-black">
-                    <span class="text-[10px] font-mono text-[#555]">database record json</span>
-                    <button @click="copyArticleJSON(art.id)" class="text-[10px] bg-[#111] border border-[#333333] hover:bg-neutral-900 text-white px-2.5 py-1 rounded transition cursor-pointer">
-                      Copy JSON
-                    </button>
+              <!-- Collapsible JSON view -->
+              <div v-if="expandedArticles.has(`left-pane-${art.id}`)" class="mt-3">
+                <div class="relative bg-black border border-[#2e2e2e] rounded overflow-hidden">
+                  <div class="flex items-center justify-between px-3 py-1 bg-[#111] border-b border-[#2e2e2e]">
+                    <span class="text-[9px] font-mono text-[#555]">database record json</span>
+                    <button @click="copyArticleJSON(art.id)" class="text-[9px] bg-[#1c1c1c] text-[#3ecf8e] px-2 py-0.5 rounded font-mono border border-[#3ecf8e]/20 hover:bg-[#3ecf8e]/10">Copy</button>
                   </div>
-                  <pre class="p-4 overflow-x-auto text-xs font-mono text-[#a1a1a1] bg-black max-h-[450px] custom-scroll whitespace-pre-wrap select-text font-mono">
-                    {{ loadedArticleJSONs[art.id] }}
-                  </pre>
+                  <pre class="p-3 text-[10px] font-mono text-[#888] overflow-x-auto max-h-[160px] custom-scroll select-text">{{ loadedArticleJSONs[art.id] }}</pre>
                 </div>
               </div>
             </div>
           </div>
         </div>
+
+      </div>
+
+      <!-- Right Pane: Real-Time Logger & Runs (lg:w-5/12) -->
+      <div class="lg:w-5/12 flex flex-col space-y-6 overflow-y-auto custom-scroll">
+        
+        <!-- Live Console Stream -->
+        <div class="bg-[#161616] border border-[#2e2e2e] rounded-lg p-5 flex flex-col flex-shrink-0 h-[480px]">
+          <div class="flex items-center justify-between border-b border-[#2e2e2e] pb-3 mb-3">
+            <div>
+              <h2 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                Worker Live Terminal
+                <span :class="[
+                  'text-[9px] px-1.5 py-0.5 rounded font-mono uppercase tracking-wider border font-semibold',
+                  loggerConnStatus === 'Live Stream Active' 
+                    ? 'bg-[#3ecf8e]/10 text-[#3ecf8e] border-[#3ecf8e]/20' 
+                    : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                ]">{{ loggerConnStatus === 'Live Stream Active' ? 'active' : 'offline' }}</span>
+              </h2>
+            </div>
+            <button @click="clearConsole" class="text-[10px] bg-transparent text-[#aaa] border border-[#444] hover:text-white px-2 py-1 rounded transition cursor-pointer font-mono">
+              Clear
+            </button>
+          </div>
+          <!-- Terminal logs container -->
+          <div ref="logsConsole" class="font-mono text-[11px] bg-black border border-[#2e2e2e] p-4 rounded overflow-y-auto flex-grow custom-scroll space-y-1 text-[#888] select-text">
+            <div v-if="logLines.length === 0" class="text-[#555] font-mono">[READY] Live logs stream connected. Waiting for tasks...</div>
+            <div 
+              v-for="(line, idx) in logLines" 
+              :key="idx"
+              :class="[
+                'font-mono whitespace-pre-wrap break-all',
+                line.type === 'error' ? 'text-rose-500 font-semibold' : '',
+                line.type === 'warn' ? 'text-amber-500' : '',
+                line.type === 'system' ? 'text-white font-semibold' : '',
+                line.type === 'success' ? 'text-[#3ecf8e]' : '',
+                line.type === 'info' ? 'text-[#888]' : ''
+              ]"
+            >{{ line.text }}</div>
+          </div>
+        </div>
+
+        <!-- Recent Runs History -->
+        <div class="bg-[#161616] border border-[#2e2e2e] rounded-lg overflow-hidden flex flex-col flex-grow">
+          <div class="p-4 border-b border-[#2e2e2e] bg-[#111]">
+            <h2 class="text-xs font-bold text-white uppercase tracking-wider">Crawl Executions Log</h2>
+          </div>
+          <div class="overflow-x-auto flex-grow">
+            <table class="w-full text-left text-xs text-[#ccc]">
+              <thead class="text-[10px] uppercase bg-black/40 text-[#888] border-b border-[#2e2e2e] font-mono">
+                <tr>
+                  <th class="py-2.5 px-4 font-semibold">Job</th>
+                  <th class="py-2.5 px-4 font-semibold">Duration</th>
+                  <th class="py-2.5 px-4 font-semibold">Status</th>
+                  <th class="py-2.5 px-4 font-semibold">Saved</th>
+                  <th class="py-2.5 px-4 font-semibold">Trace details</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-[#2e2e2e] font-mono text-[11px]">
+                <tr v-if="recentRuns.length === 0">
+                  <td colspan="5" class="py-6 text-center text-[#666]">No executions recorded.</td>
+                </tr>
+                <tr v-for="run in recentRuns" :key="run._id || run.start_time" class="hover:bg-black/10 align-top">
+                  <td class="py-2.5 px-4 text-white truncate max-w-[80px]">{{ run.job_id }}</td>
+                  <td class="py-2.5 px-4 text-[#888]">{{ run.duration_seconds ? `${run.duration_seconds.toFixed(1)}s` : '-' }}</td>
+                  <td class="py-2.5 px-4">
+                    <span v-if="run.status === 'success'" class="text-[#3ecf8e]">success</span>
+                    <span v-else-if="run.status === 'failed'" class="text-rose-500">failed</span>
+                    <span v-else class="text-amber-500 animate-pulse">running</span>
+                  </td>
+                  <td class="py-2.5 px-4 text-white">{{ run.items_saved }}</td>
+                  <td class="py-2.5 px-4 max-w-[180px]">
+                    <div v-if="run.saved_articles && run.saved_articles.length > 0" class="text-[10px] text-[#888] truncate">
+                      Ingested: {{ run.saved_articles.map(a => a.title).join(', ') }}
+                    </div>
+                    <div v-if="run.errors && run.errors.length > 0" class="text-[10px] text-rose-500 truncate font-semibold">
+                      Errors: {{ run.errors.join(', ') }}
+                    </div>
+                    <span v-if="(!run.saved_articles || run.saved_articles.length === 0) && (!run.errors || run.errors.length === 0)" class="text-[#555]">-</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <!-- Pagination -->
+          <div class="flex items-center justify-between border-t border-[#2e2e2e] bg-[#111] px-4 py-3 flex-shrink-0 font-mono text-[10px]">
+            <div class="text-[#666]">
+              Pg {{ runsPage }}/{{ totalRunsPages }}
+            </div>
+            <div class="flex items-center gap-1.5">
+              <button 
+                @click="fetchRuns(runsPage - 1)" 
+                :disabled="runsPage <= 1"
+                class="bg-[#1c1c1c] hover:bg-neutral-900 border border-[#2e2e2e] text-[#aaa] hover:text-white px-2 py-1 rounded disabled:opacity-30 disabled:hover:bg-[#111] transition cursor-pointer disabled:cursor-not-allowed"
+              >
+                &lt;
+              </button>
+              <button 
+                @click="fetchRuns(runsPage + 1)" 
+                :disabled="runsPage >= totalRunsPages"
+                class="bg-[#1c1c1c] hover:bg-neutral-900 border border-[#2e2e2e] text-[#aaa] hover:text-white px-2 py-1 rounded disabled:opacity-30 disabled:hover:bg-[#111] transition cursor-pointer disabled:cursor-not-allowed"
+              >
+                &gt;
+              </button>
+            </div>
+          </div>
+        </div>
+
       </div>
     </main>
 
     <!-- Source Modal (Add/Edit) -->
     <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
-      <div class="bg-[#0a0a0a] border border-[#1f1f1f] w-full max-w-2xl rounded-lg overflow-hidden shadow-2xl flex flex-col">
-        <div class="p-6 border-b border-[#1f1f1f] flex items-center justify-between">
-          <h2 class="text-base font-bold text-white">{{ modalMode === 'add' ? 'Add New Scraping Source' : 'Edit Scraping Source' }}</h2>
-          <button @click="showModal = false" class="text-[#666] hover:text-white transition cursor-pointer">
-            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+      <div class="bg-[#161616] border border-[#2e2e2e] w-full max-w-lg rounded-lg overflow-hidden shadow-2xl flex flex-col font-sans">
+        <div class="p-5 border-b border-[#2e2e2e] flex items-center justify-between bg-[#111]">
+          <h2 class="text-xs font-bold text-white uppercase tracking-wider font-mono">{{ modalMode === 'add' ? 'Register New Source' : 'Edit Source Settings' }}</h2>
+          <button @click="showModal = false" class="text-[#666] hover:text-white transition cursor-pointer text-lg font-bold">&times;</button>
         </div>
 
-        <div class="p-6 overflow-y-auto max-h-[60vh] space-y-4 custom-scroll">
+        <div class="p-5 space-y-4 text-xs">
           <div class="grid grid-cols-2 gap-4">
-            <div class="flex flex-col space-y-1.5">
-              <label class="text-xs font-semibold text-[#888]">Source Type</label>
-              <select v-model="sourceForm.type" :disabled="modalMode === 'edit'" class="bg-black border border-[#333] text-sm text-white rounded px-3 py-2 focus:outline-none focus:border-white transition cursor-pointer">
-                <option value="rss">RSS Feed</option>
-                <option value="web">Web Scraper</option>
-              </select>
+            <div class="flex flex-col space-y-1">
+              <label class="text-[10px] font-bold text-[#888] uppercase font-mono">Source Type</label>
+              <input type="text" value="RSS Feed" disabled class="bg-[#111] border border-[#2e2e2e] text-[#888] rounded px-3 py-2 focus:outline-none cursor-not-allowed font-mono" />
             </div>
-            <div class="flex flex-col space-y-1.5">
-              <label class="text-xs font-semibold text-[#888]">Category</label>
-              <input v-model="sourceForm.category" type="text" placeholder="e.g. tech, news, business" class="bg-black border border-[#333] text-sm text-white rounded px-3 py-2 focus:outline-none focus:border-white transition" />
+            <div class="flex flex-col space-y-1">
+              <label class="text-[10px] font-bold text-[#888] uppercase font-mono">Category</label>
+              <input v-model="sourceForm.category" type="text" placeholder="e.g. tech, sports" class="bg-black border border-[#2e2e2e] text-white rounded px-3 py-2 focus:outline-none focus:border-[#3ecf8e] transition" />
             </div>
           </div>
 
-          <div class="flex flex-col space-y-1.5">
-            <label class="text-xs font-semibold text-[#888]">Source Name</label>
-            <input v-model="sourceForm.name" type="text" placeholder="e.g. TechCrunch" class="bg-black border border-[#333] text-sm text-white rounded px-3 py-2 focus:outline-none focus:border-white transition" />
+          <div class="flex flex-col space-y-1">
+            <label class="text-[10px] font-bold text-[#888] uppercase font-mono">Source Name</label>
+            <input v-model="sourceForm.name" type="text" placeholder="e.g. TechCrunch" class="bg-black border border-[#2e2e2e] text-white rounded px-3 py-2 focus:outline-none focus:border-[#3ecf8e] transition" />
           </div>
 
-          <div class="flex flex-col space-y-1.5">
-            <label class="text-xs font-semibold text-[#888]">Target Crawl URL</label>
-            <input v-model="sourceForm.url" type="text" placeholder="e.g. https://techcrunch.com/feed/" class="bg-black border border-[#333] text-sm text-white rounded px-3 py-2 focus:outline-none focus:border-white transition" />
+          <div class="flex flex-col space-y-1">
+            <label class="text-[10px] font-bold text-[#888] uppercase font-mono">Crawl / Feed URL</label>
+            <input v-model="sourceForm.url" type="text" placeholder="e.g. https://techcrunch.com/feed/" class="bg-black border border-[#2e2e2e] text-white rounded px-3 py-2 focus:outline-none focus:border-[#3ecf8e] transition" />
           </div>
 
-          <div class="flex items-center gap-2 pt-2">
-            <input v-model="sourceForm.enabled" id="source-enabled" type="checkbox" class="h-4 w-4 rounded bg-black border-[#333] text-white accent-white cursor-pointer" />
-            <label for="source-enabled" class="text-xs text-white font-medium cursor-pointer">Enable immediately for scheduled crawlers</label>
-          </div>
-
-          <!-- Web Specific configuration fields -->
-          <div v-if="sourceForm.type === 'web'" class="border-t border-[#1f1f1f] pt-4 mt-2 space-y-4">
-            <h3 class="text-xs font-bold uppercase tracking-wider text-[#666666]">Web CSS Scraper Specific Configs</h3>
-            
-            <div class="flex items-center gap-2">
-              <input v-model="sourceForm.use_playwright" id="source-playwright" type="checkbox" class="h-4 w-4 rounded bg-black border-[#333] text-white accent-white cursor-pointer" />
-              <label for="source-playwright" class="text-xs text-white font-medium cursor-pointer">Use Playwright (Headless Browser execution for JavaScript-heavy targets)</label>
-            </div>
-
-            <div class="grid grid-cols-2 gap-4 bg-black/40 p-4 rounded border border-[#1f1f1f]">
-              <div class="flex flex-col space-y-1.5 col-span-2">
-                <label class="text-xs font-semibold text-[#888]">Parent Articles Container CSS Selector</label>
-                <input v-model="sourceForm.selectors.articles" type="text" placeholder="article, .post-item" class="bg-black border border-[#333] text-xs text-white rounded px-3 py-1.5 focus:outline-none focus:border-white transition" />
-              </div>
-              <div class="flex flex-col space-y-1.5">
-                <label class="text-xs font-semibold text-[#888]">Title Selector</label>
-                <input v-model="sourceForm.selectors.title" type="text" placeholder="h2, .title" class="bg-black border border-[#333] text-xs text-white rounded px-3 py-1.5 focus:outline-none focus:border-white transition" />
-              </div>
-              <div class="flex flex-col space-y-1.5">
-                <label class="text-xs font-semibold text-[#888]">Description Selector</label>
-                <input v-model="sourceForm.selectors.description" type="text" placeholder="p, .excerpt" class="bg-black border border-[#333] text-xs text-white rounded px-3 py-1.5 focus:outline-none focus:border-white transition" />
-              </div>
-              <div class="flex flex-col space-y-1.5">
-                <label class="text-xs font-semibold text-[#888]">Link/Anchor Selector</label>
-                <input v-model="sourceForm.selectors.link" type="text" placeholder="a" class="bg-black border border-[#333] text-xs text-white rounded px-3 py-1.5 focus:outline-none focus:border-white transition" />
-              </div>
-              <div class="flex flex-col space-y-1.5">
-                <label class="text-xs font-semibold text-[#888]">Image Selector</label>
-                <input v-model="sourceForm.selectors.image" type="text" placeholder="img" class="bg-black border border-[#333] text-xs text-white rounded px-3 py-1.5 focus:outline-none focus:border-white transition" />
-              </div>
-              <div class="flex flex-col space-y-1.5">
-                <label class="text-xs font-semibold text-[#888]">Author Selector</label>
-                <input v-model="sourceForm.selectors.author" type="text" placeholder=".author" class="bg-black border border-[#333] text-xs text-white rounded px-3 py-1.5 focus:outline-none focus:border-white transition" />
-              </div>
-              <div class="flex flex-col space-y-1.5">
-                <label class="text-xs font-semibold text-[#888]">Published Date Selector</label>
-                <input v-model="sourceForm.selectors.date" type="text" placeholder="time, .date" class="bg-black border border-[#333] text-xs text-white rounded px-3 py-1.5 focus:outline-none focus:border-white transition" />
-              </div>
-            </div>
+          <div class="flex items-center gap-2 pt-1.5">
+            <input v-model="sourceForm.enabled" id="source-enabled" type="checkbox" class="h-4 w-4 rounded bg-black border-[#2e2e2e] text-[#3ecf8e] accent-[#3ecf8e] cursor-pointer" />
+            <label for="source-enabled" class="text-xs text-white font-medium cursor-pointer selection:bg-transparent">Enable immediately for scheduled triggers</label>
           </div>
         </div>
 
-        <div class="p-6 border-t border-[#1f1f1f] flex items-center justify-end gap-3 bg-[#050505]">
-          <button @click="showModal = false" class="bg-transparent hover:bg-neutral-900 border border-[#333333] text-white text-xs font-semibold px-4 py-2 rounded transition cursor-pointer">
+        <div class="p-5 border-t border-[#2e2e2e] flex items-center justify-end gap-3 bg-[#111]">
+          <button @click="showModal = false" class="bg-transparent hover:bg-neutral-900 border border-[#333] text-white text-xs font-semibold px-4 py-2 rounded transition cursor-pointer font-mono">
             Cancel
           </button>
-          <button @click="handleSaveSource" class="bg-white hover:bg-[#e0e0e0] text-black text-xs font-semibold px-4 py-2 rounded transition cursor-pointer">
+          <button @click="handleSaveSource" class="bg-[#3ecf8e] hover:bg-[#3ac084] text-black text-xs font-bold px-4 py-2 rounded transition cursor-pointer font-mono">
             Save Source
           </button>
         </div>
       </div>
     </div>
 
-    <!-- Vercel Toast Notification style -->
+    <!-- Supabase Toast style banner -->
     <div :class="[
-      'fixed bottom-6 right-6 px-5 py-3.5 rounded shadow-2xl flex items-center gap-3 z-50 transition-all duration-300 bg-black',
-      toastIsError ? 'border border-rose-800/60' : 'border border-neutral-800',
+      'fixed bottom-6 right-6 px-5 py-3.5 rounded shadow-2xl flex items-center gap-3 z-50 transition-all duration-300 bg-[#161616]',
+      toastIsError ? 'border border-rose-800/60' : 'border border-[#3ecf8e]/30',
       toastVisible ? 'translate-y-0 opacity-100' : 'translate-y-36 opacity-0 pointer-events-none'
     ]">
       <div :class="[
         'h-2 w-2 rounded-full',
-        toastIsError ? 'bg-rose-500 animate-pulse' : 'bg-white'
+        toastIsError ? 'bg-rose-500 animate-pulse' : 'bg-[#3ecf8e] animate-pulse'
       ]"></div>
-      <p class="text-xs font-medium text-[#fafafa]">{{ toastMsg }}</p>
+      <p class="text-xs font-medium text-white font-mono">{{ toastMsg }}</p>
     </div>
   </div>
 </template>

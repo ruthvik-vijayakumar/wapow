@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     # MongoDB
     mongodb_uri: str = "mongodb://localhost:27017/wapow-data"
     mongodb_db_name: str = "wapow-data"
+    redis_url: str = "redis://localhost:6379/0"
 
     # Server
     port: int = 3003
@@ -24,7 +25,6 @@ class Settings(BaseSettings):
 
     # Scraping settings
     scrape_interval_rss: int = 60  # minutes
-    scrape_interval_web: int = 120  # minutes
 
     # Rate limiting
     default_rate_limit_delay: float = 1.0  # seconds between requests per domain

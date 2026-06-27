@@ -27,7 +27,7 @@ from scraper.tasks.jobs import (
     load_sources,
     save_sources,
     run_rss_scrape,
-    run_web_scrape,
+    run_rss_scrape_task,
     run_all_scrapers,
 )
 from scraper.services.conversion_jobs import (
@@ -35,7 +35,7 @@ from scraper.services.conversion_jobs import (
     pause_worker,
     resume_worker,
 )
-from scraper.models.source import RSSSource, WebSource
+from scraper.models.source import RSSSource
 from scraper.utils.metrics import get_scraper_stats
 
 # Configure logging memory queue for real-time dashboard streaming
@@ -79,18 +79,12 @@ async def lifespan(app: FastAPI):
     logger.info("Starting WAPOW Scraper service")
     start_scheduler()
     
-    from scraper.services.conversion_jobs import (
-        ensure_conversion_jobs_indexes,
-        start_conversion_worker,
-        stop_conversion_worker,
-    )
+    from scraper.services.conversion_jobs import ensure_conversion_jobs_indexes
     ensure_conversion_jobs_indexes()
-    asyncio.create_task(start_conversion_worker())
     
     yield
     logger.info("Shutting down WAPOW Scraper service")
     shutdown_scheduler()
-    await stop_conversion_worker()
     close_client()
 
 
@@ -176,6 +170,46 @@ async def resume_worker_endpoint() -> dict[str, Any]:
     return {"success": True, "message": "Background conversion worker resumed successfully"}
 
 
+@app.get("/worker/celery/status")
+async def celery_worker_status_endpoint() -> dict[str, Any]:
+    """Check the status of the Celery workers."""
+    try:
+        from scraper.celery_client import celery_app
+        inspector = celery_app.control.inspect(timeout=1.0)
+        
+        pings = inspector.ping()
+        active = inspector.active()
+        reserved = inspector.reserved()
+        
+        workers = []
+        if pings:
+            for w_name in pings.keys():
+                active_tasks = active.get(w_name, []) if active else []
+                reserved_tasks = reserved.get(w_name, []) if reserved else []
+                
+                workers.append({
+                    "name": w_name,
+                    "status": "online",
+                    "active_tasks_count": len(active_tasks),
+                    "reserved_tasks_count": len(reserved_tasks),
+                    "active_tasks": active_tasks,
+                })
+        
+        return {
+            "status": "online" if workers else "offline",
+            "workers": workers,
+            "count": len(workers)
+        }
+    except Exception as e:
+        logger.error(f"Error checking Celery worker status: {e}")
+        return {
+            "status": "error",
+            "message": str(e),
+            "workers": [],
+            "count": 0
+        }
+
+
 @app.post("/jobs/{job_id}/trigger")
 async def trigger_job_endpoint(job_id: str) -> dict[str, Any]:
     """
@@ -183,13 +217,11 @@ async def trigger_job_endpoint(job_id: str) -> dict[str, Any]:
 
     Valid job IDs:
     - rss_feeds: RSS feed scraping
-    - web_scrape: Web scraping
-    - all: Run all scrapers
+    - all: Run all RSS feeds
     """
     job_map = {
-        "rss_feeds": run_rss_scrape,
-        "web_scrape": run_web_scrape,
-        "all": run_all_scrapers,
+        "rss_feeds": run_rss_scrape_task,
+        "all": run_rss_scrape_task,
     }
 
     if job_id not in job_map:
@@ -201,12 +233,29 @@ async def trigger_job_endpoint(job_id: str) -> dict[str, Any]:
     logger.info(f"Manually triggering job: {job_id}")
 
     try:
-        result = await job_map[job_id]()
-        return {
-            "status": "completed",
-            "job_id": job_id,
-            "result": result,
-        }
+        task = job_map[job_id].delay()
+        
+        # Asynchronously wait for the task to complete
+        from celery.result import AsyncResult
+        res = AsyncResult(task.id)
+        for _ in range(600):
+            if res.ready():
+                break
+            await asyncio.sleep(0.5)
+
+        if res.ready():
+            return {
+                "status": "completed",
+                "job_id": job_id,
+                "result": res.result,
+            }
+        else:
+            return {
+                "status": "queued",
+                "job_id": job_id,
+                "task_id": task.id,
+                "message": "Scraper job is running in the background."
+            }
     except Exception as e:
         logger.error(f"Error running job {job_id}: {e}")
         raise HTTPException(
@@ -230,73 +279,50 @@ async def list_sources() -> dict[str, Any]:
             }
             for s in sources.rss
         ],
-        "web": [
-            {
-                "name": s.name,
-                "url": s.url,
-                "category": s.category,
-                "enabled": s.enabled,
-                "use_playwright": s.use_playwright,
-                "selectors": s.selectors,
-            }
-            for s in sources.web
-        ],
+        "web": [],
         "totals": {
             "rss": len([s for s in sources.rss if s.enabled]),
-            "web": len([s for s in sources.web if s.enabled]),
+            "web": 0,
         },
     }
 
 
 from pydantic import BaseModel
-from typing import Optional
 
 class SourceInput(BaseModel):
-    type: str  # "rss" or "web"
+    type: str  # "rss"
     name: str
     url: str
     category: str
     enabled: bool = True
-    use_playwright: bool = False
-    selectors: dict[str, str] = {
-        "articles": "article",
-        "title": "h1, h2, .title",
-        "description": "p, .description, .excerpt",
-        "image": "img",
-        "link": "a",
-        "author": ".author, .byline",
-        "date": "time, .date, .published",
-    }
 
 
 class SourceEditInput(BaseModel):
-    type: str  # "rss" or "web"
+    type: str  # "rss"
     old_name: str
     name: str
     url: str
     category: str
     enabled: bool = True
-    use_playwright: bool = False
-    selectors: Optional[dict[str, str]] = None
 
 
 class SourceToggleInput(BaseModel):
-    type: str  # "rss" or "web"
+    type: str  # "rss"
     name: str
 
 
 class SourceDeleteInput(BaseModel):
-    type: str  # "rss" or "web"
+    type: str  # "rss"
     name: str
 
 
 @app.post("/api/sources/add")
 async def add_source_endpoint(input_data: SourceInput) -> dict[str, Any]:
-    """Add a new RSS or Web source to sources.yaml."""
+    """Add a new RSS source to sources.yaml."""
     config = load_sources()
     
     # Check for duplicate name
-    all_names = [s.name for s in config.rss + config.web]
+    all_names = [s.name for s in config.rss]
     if input_data.name in all_names:
         raise HTTPException(status_code=400, detail=f"Source with name '{input_data.name}' already exists.")
         
@@ -308,18 +334,8 @@ async def add_source_endpoint(input_data: SourceInput) -> dict[str, Any]:
             enabled=input_data.enabled
         )
         config.rss.append(new_src)
-    elif input_data.type == "web":
-        new_src = WebSource(
-            name=input_data.name,
-            url=input_data.url,
-            category=input_data.category,
-            enabled=input_data.enabled,
-            use_playwright=input_data.use_playwright,
-            selectors=input_data.selectors
-        )
-        config.web.append(new_src)
     else:
-        raise HTTPException(status_code=400, detail="Invalid source type. Must be 'rss' or 'web'.")
+        raise HTTPException(status_code=400, detail="Invalid source type. Must be 'rss'.")
         
     save_sources(config)
     return {"success": True, "message": f"Successfully added source '{input_data.name}'"}
@@ -343,19 +359,6 @@ async def edit_source_endpoint(input_data: SourceEditInput) -> dict[str, Any]:
                 )
                 found = True
                 break
-    elif input_data.type == "web":
-        for i, s in enumerate(config.web):
-            if s.name == input_data.old_name:
-                config.web[i] = WebSource(
-                    name=input_data.name,
-                    url=input_data.url,
-                    category=input_data.category,
-                    enabled=input_data.enabled,
-                    use_playwright=input_data.use_playwright,
-                    selectors=input_data.selectors or s.selectors
-                )
-                found = True
-                break
                 
     if not found:
         raise HTTPException(status_code=404, detail=f"Source '{input_data.old_name}' not found.")
@@ -373,13 +376,6 @@ async def toggle_source_endpoint(input_data: SourceToggleInput) -> dict[str, Any
     new_state = False
     if input_data.type == "rss":
         for s in config.rss:
-            if s.name == input_data.name:
-                s.enabled = not s.enabled
-                new_state = s.enabled
-                found = True
-                break
-    elif input_data.type == "web":
-        for s in config.web:
             if s.name == input_data.name:
                 s.enabled = not s.enabled
                 new_state = s.enabled
@@ -406,12 +402,6 @@ async def delete_source_endpoint(input_data: SourceDeleteInput) -> dict[str, Any
                 config.rss.remove(s)
                 found = True
                 break
-    elif input_data.type == "web":
-        for s in config.web:
-            if s.name == input_data.name:
-                config.web.remove(s)
-                found = True
-                break
                 
     if not found:
         raise HTTPException(status_code=404, detail=f"Source '{input_data.name}' not found.")
@@ -426,7 +416,6 @@ async def get_config() -> dict[str, Any]:
     return {
         "intervals": {
             "rss_minutes": settings.scrape_interval_rss,
-            "web_minutes": settings.scrape_interval_web,
         },
         "limits": {
             "max_items_per_source": settings.max_items_per_source,
@@ -465,27 +454,48 @@ async def get_stats() -> dict[str, Any]:
                 "last_error": status_info.get("last_error", "")
             })
             
-        for w in sources_config.web:
-            status_info = db_sources.get(w.url, {})
-            combined_sources.append({
-                "name": w.name,
-                "url": w.url,
-                "type": "web",
-                "category": w.category,
-                "enabled": w.enabled,
-                "last_scraped_at": status_info.get("last_scraped_at"),
-                "last_duration_seconds": status_info.get("last_duration_seconds"),
-                "last_status": status_info.get("last_status", "never run"),
-                "last_items_scraped": status_info.get("last_items_scraped", 0),
-                "last_items_saved": status_info.get("last_items_saved", 0),
-                "last_error": status_info.get("last_error", "")
-            })
-            
         stats["sources"] = combined_sources
     except Exception as e:
         logger.error(f"Error merging sources details: {e}")
         
     return stats
+
+
+@app.get("/api/runs")
+async def get_runs(page: int = 1, limit: int = 10) -> dict[str, Any]:
+    """Get paginated list of scraper runs."""
+    from datetime import datetime
+    from scraper.db import get_collection
+    try:
+        coll_runs = get_collection("scraper_runs")
+        total = coll_runs.count_documents({})
+        skip = (page - 1) * limit
+        raw_runs = list(coll_runs.find().sort("start_time", -1).skip(skip).limit(limit))
+        
+        runs = []
+        for run in raw_runs:
+            run["_id"] = str(run["_id"])
+            if "start_time" in run and isinstance(run["start_time"], datetime):
+                run["start_time"] = run["start_time"].isoformat()
+            if "end_time" in run and isinstance(run["end_time"], datetime):
+                run["end_time"] = run["end_time"].isoformat()
+            runs.append(run)
+            
+        total_pages = max(1, (total + limit - 1) // limit)
+        return {
+            "runs": runs,
+            "page": page,
+            "total": total,
+            "total_pages": total_pages
+        }
+    except Exception as e:
+        logger.error(f"Error fetching runs: {e}")
+        return {
+            "runs": [],
+            "page": page,
+            "total": 0,
+            "total_pages": 1
+        }
 
 
 @app.get("/api/articles/{article_id}")

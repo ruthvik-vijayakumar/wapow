@@ -71,4 +71,11 @@ def serialize_job(doc: dict) -> dict:
     return out
 
 
+def is_worker_paused() -> bool:
+    """Check if the slide conversion worker is currently paused."""
+    coll = get_db()["system_settings"]
+    doc = coll.find_one({"_id": "worker_status"})
+    return doc.get("paused", False) if doc else False
+
+
 

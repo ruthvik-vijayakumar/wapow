@@ -30,6 +30,9 @@ services:
     image: clickhouse/clickhouse-server:24-alpine
     container_name: wapow-clickhouse
     restart: unless-stopped
+    cap_add:
+      - SYS_NICE
+      - IPC_LOCK
     # Do not publish ports externally; expose only inside Docker network
     environment:
       - CLICKHOUSE_USER=default
@@ -39,6 +42,11 @@ services:
       - clickhouse_data:/var/lib/clickhouse
       - ./wapow-app/migrations:/docker-entrypoint-initdb.d
       - ./wapow-app/config/users.xml:/etc/clickhouse-server/users.d/override-users.xml:ro
+
+  redis:
+    image: redis:7-alpine
+    container_name: wapow-redis
+    restart: unless-stopped
 
   app:
     image: ${REGISTRY_PREFIX}/wapow-app:latest
@@ -58,10 +66,12 @@ services:
       - CLICKHOUSE_HOST=clickhouse
       - CLICKHOUSE_PORT=8123
       - CLICKHOUSE_DB=wapow_analytics
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
     depends_on:
       - mongo
       - neo4j
       - clickhouse
+      - redis
 
   collector:
     image: ${REGISTRY_PREFIX}/wapow-collector:latest
@@ -83,6 +93,7 @@ services:
       - "127.0.0.1:3003:3003"
     environment:
       - MONGODB_URI=${MONGODB_URI:-mongodb://mongo:27017/wapow-data}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - YOUTUBE_API_KEY=${YOUTUBE_API_KEY:-}
       - SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID:-}
       - SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET:-}
@@ -91,6 +102,25 @@ services:
       - OPENAI_MODEL=${OPENAI_MODEL:-}
     depends_on:
       - mongo
+      - redis
+    restart: unless-stopped
+
+  celery-worker:
+    image: ${REGISTRY_PREFIX}/wapow-worker:latest
+    container_name: wapow-celery-worker
+    command: celery -A scraper.celery_client worker --loglevel=info -E
+    environment:
+      - MONGODB_URI=${MONGODB_URI:-mongodb://mongo:27017/wapow-data}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - YOUTUBE_API_KEY=${YOUTUBE_API_KEY:-}
+      - SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID:-}
+      - SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-}
+    depends_on:
+      - mongo
+      - redis
     restart: unless-stopped
 
   nginx:

@@ -71,98 +71,20 @@ def serialize_job(doc: dict) -> dict:
     return out
 
 
-_worker_should_stop = False
-_worker_paused = False
-
-
 def is_worker_paused() -> bool:
     """Check if the slide conversion worker is currently paused."""
-    return _worker_paused
+    coll = get_db()["system_settings"]
+    doc = coll.find_one({"_id": "worker_status"})
+    return doc.get("paused", False) if doc else False
 
 
 def pause_worker() -> None:
     """Pause the background slide conversion worker."""
-    global _worker_paused
-    _worker_paused = True
+    coll = get_db()["system_settings"]
+    coll.update_one({"_id": "worker_status"}, {"$set": {"paused": True}}, upsert=True)
 
 
 def resume_worker() -> None:
     """Resume the background slide conversion worker."""
-    global _worker_paused
-    _worker_paused = False
-
-
-async def start_conversion_worker() -> None:
-    global _worker_should_stop
-    _worker_should_stop = False
-    
-    import asyncio
-    from datetime import datetime, timezone, timedelta
-    from pymongo import ReturnDocument
-    from scraper.services.story_pipeline.service import convert_article_to_story
-    import logging
-    
-    logger = logging.getLogger(__name__)
-    logger.info("Starting worker conversion polling loop...")
-    
-    db = get_db()
-    coll = db[JOBS_COLLECTION]
-    
-    while not _worker_should_stop:
-        if _worker_paused:
-            await asyncio.sleep(5)
-            continue
-        try:
-            now = datetime.now(timezone.utc)
-            # Atomic find and modify to acquire lease on pending or expired processing jobs
-            job = coll.find_one_and_update(
-                {
-                    "$or": [
-                        {"status": "pending"},
-                        {
-                            "status": "processing",
-                            "lease_expires_at": {"$lt": now}
-                        }
-                    ]
-                },
-                {
-                    "$set": {
-                        "status": "processing",
-                        "lease_expires_at": now + timedelta(minutes=5),
-                        "updated_at": now
-                    }
-                },
-                sort=[("created_at", 1)],
-                return_document=ReturnDocument.AFTER
-            )
-            
-            if job:
-                logger.info(f"Worker acquired job {job['job_id']} for article {job['article_id']}")
-                try:
-                    loop = asyncio.get_running_loop()
-                    # Execute blocking pipeline conversion in worker thread
-                    result = await loop.run_in_executor(
-                        None,
-                        lambda: convert_article_to_story(str(job["article_id"]), force=job.get("force", False))
-                    )
-                    update_job(job["job_id"], "completed", ai_summary=result.get("ai_summary"))
-                    logger.info(f"Worker completed job {job['job_id']}")
-                except Exception as err:
-                    logger.exception(f"Worker job {job['job_id']} failed with error:")
-                    update_job(job["job_id"], "failed", error=str(err))
-            else:
-                # No jobs, wait 5 seconds
-                await asyncio.sleep(5)
-        except asyncio.CancelledError:
-            logger.info("Conversion worker loop cancelled.")
-            break
-        except Exception as ex:
-            logger.error(f"Error in conversion worker loop: {ex}")
-            await asyncio.sleep(5)
-
-
-async def stop_conversion_worker() -> None:
-    global _worker_should_stop
-    _worker_should_stop = True
-    import logging
-    logging.getLogger(__name__).info("Signalled conversion worker loop to stop.")
+    coll = get_db()["system_settings"]
+    coll.update_one({"_id": "worker_status"}, {"$set": {"paused": False}}, upsert=True)

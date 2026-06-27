@@ -15,6 +15,7 @@ from api.services.story_pipeline.service import (
     find_article_doc,
     preview_story_for_article,
 )
+from api.tasks import convert_article_to_story_task
 from bson import ObjectId
 
 router = APIRouter(prefix="/articles", tags=["articles"])
@@ -126,6 +127,7 @@ async def batch_convert_to_story(body: BatchConvertToStoryBody):
     for aid in body.ids:
         job = create_job(str(aid), force=body.force)
         job_ids.append(job["job_id"])
+        convert_article_to_story_task.delay(str(aid), force=body.force, job_id=job["job_id"])
     return JSONResponse(
         status_code=202,
         content={"success": True, "job_ids": job_ids},

@@ -16,6 +16,9 @@ MONGODB_URI = os.getenv(
 )
 MONGODB_DB_NAME = "wapow-data"
 
+# Redis
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+
 # Neo4j (default: local/Docker; set NEO4J_URI in .env for Aura or remote)
 NEO4J_URI = os.getenv("NEO4J_URI", "neo4j://localhost:7687")
 NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")

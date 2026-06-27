@@ -16,17 +16,15 @@ from scraper.db import get_collection
 from scraper.models import (
     SourceConfig,
     RSSSource,
-    WebSource,
     RawArticle,
 )
 from scraper.scrapers.base import ScrapedItem
 from scraper.scrapers.rss_scraper import RSSScraper
-from scraper.scrapers.web_scraper import WebScraper
-from scraper.scrapers.playwright_scraper import PlaywrightScraper
 from scraper.processors.normalizer import ContentNormalizer
 from scraper.processors.deduplicator import deduplicator
 from scraper.processors.focal_point import enrich_document_with_focal_points
 from scraper.utils.metrics import ScraperRunTracker, update_source_status
+from scraper.celery_client import celery_app
 
 logger = logging.getLogger(__name__)
 
@@ -44,10 +42,9 @@ def load_sources() -> SourceConfig:
         with open(SOURCES_PATH) as f:
             data = yaml.safe_load(f) or {}
 
-        # Parse into typed models (rss and web only)
+        # Parse into typed models (rss only)
         config = SourceConfig(
             rss=[RSSSource(**s) for s in data.get("rss", [])],
-            web=[WebSource(**s) for s in data.get("web", [])],
         )
         return config
 
@@ -69,17 +66,6 @@ def save_sources(config: SourceConfig) -> None:
                 }
                 for s in config.rss
             ],
-            "web": [
-                {
-                    "name": s.name,
-                    "url": s.url,
-                    "category": s.category,
-                    "enabled": s.enabled,
-                    "use_playwright": s.use_playwright,
-                    "selectors": s.selectors,
-                }
-                for s in config.web
-            ]
         }
         with open(SOURCES_PATH, "w") as f:
             yaml.safe_dump(data, f, sort_keys=False, default_flow_style=False)
@@ -126,15 +112,16 @@ async def _save_items(items: list[tuple[str, dict[str, Any]]]) -> list[tuple[str
         except Exception as e:
             logger.error(f"Error saving to {collection_name}: {e}")
 
-    # Trigger batch conversion directly via DB queue if enabled and we have valid articles
+    # Trigger batch conversion directly via Celery if enabled and we have valid articles
     if convert_ids and settings.story_convert_on_ingest:
         from scraper.services.conversion_jobs import create_job
         for aid in convert_ids:
             try:
-                create_job(str(aid), force=False)
-                logger.info(f"Queued background conversion job for article: {aid}")
+                job = create_job(str(aid), force=False)
+                convert_article_to_story_task.delay(str(aid), force=False, job_id=job["job_id"])
+                logger.info(f"Queued Celery conversion job for article: {aid}")
             except Exception as e:
-                logger.error(f"Error queuing background conversion job for article {aid}: {e}")
+                logger.error(f"Error queuing Celery conversion job for article {aid}: {e}")
 
     return saved
 
@@ -274,103 +261,16 @@ async def run_rss_scrape() -> dict[str, Any]:
     return {"scraped": total_scraped, "saved": total_saved}
 
 
-async def run_web_scrape() -> dict[str, Any]:
-    """Run web scraping job with observability tracking."""
-    logger.info("Starting web scrape job")
-    tracker = ScraperRunTracker("web_scrape")
-    tracker.start()
-
-    sources = load_sources()
-    normalizer = ContentNormalizer()
-
-    total_scraped = 0
-    total_saved = 0
-
-    try:
-        for source in sources.web:
-            if not source.enabled:
-                continue
-
-            start_src_time = time.time()
-            src_status = "success"
-            src_items_scraped = 0
-            src_items_saved = 0
-            src_error = ""
-            try:
-                # Use Playwright for JS-heavy sites
-                if source.use_playwright:
-                    scraper = PlaywrightScraper(source)
-                else:
-                    scraper = WebScraper(source)
-
-                items = await scraper.scrape()
-                src_items_scraped = len(items)
-                total_scraped += src_items_scraped
-
-                # Save raw articles before normalization
-                await _save_raw_articles(items)
-
-                # Normalize items
-                normalized = [(normalizer.normalize(item)) for item in items]
-
-                # Filter duplicates
-                unique = deduplicator.filter_duplicates(normalized)
-
-                # Save to MongoDB
-                saved_info = await _save_items(unique)
-                src_items_saved = len(saved_info)
-                total_saved += src_items_saved
-                for item_id, item_title in saved_info:
-                    tracker.add_saved_article(item_id, item_title)
-
-                logger.info(
-                    f"Web {source.name}: scraped={len(items)}, unique={len(unique)}, saved={len(saved_info)}"
-                )
-
-            except Exception as e:
-                src_status = "failed"
-                src_error = str(e)
-                err_msg = f"Error in web scrape for {source.name}: {e}"
-                logger.error(err_msg)
-                tracker.add_error(err_msg)
-            finally:
-                src_duration = time.time() - start_src_time
-                update_source_status(
-                    source_name=source.name,
-                    source_type="web",
-                    url=source.url,
-                    category=source.category,
-                    enabled=source.enabled,
-                    status=src_status,
-                    items_scraped=src_items_scraped,
-                    items_saved=src_items_saved,
-                    duration=src_duration,
-                    error_msg=src_error
-                )
-
-        tracker.items_scraped = total_scraped
-        tracker.finish("success")
-    except Exception as e:
-        err_msg = f"Fatal error in web scrape: {e}"
-        logger.error(err_msg)
-        tracker.add_error(err_msg)
-        tracker.finish("failed")
-
-    logger.info(f"Web scrape complete: total_scraped={total_scraped}, total_saved={total_saved}")
-    return {"scraped": total_scraped, "saved": total_saved}
-
-
 async def run_all_scrapers() -> dict[str, Any]:
-    """Run all scrapers sequentially."""
+    """Run all scrapers sequentially (RSS only)."""
     logger.info("Starting full scrape of all sources")
 
     results = {
         "rss": await run_rss_scrape(),
-        "web": await run_web_scrape(),
     }
 
-    total_scraped = sum(r.get("scraped", 0) for r in results.values())
-    total_saved = sum(r.get("saved", 0) for r in results.values())
+    total_scraped = results["rss"].get("scraped", 0)
+    total_saved = results["rss"].get("saved", 0)
 
     logger.info(f"Full scrape complete: total_scraped={total_scraped}, total_saved={total_saved}")
 
@@ -379,3 +279,48 @@ async def run_all_scrapers() -> dict[str, Any]:
         "total_scraped": total_scraped,
         "total_saved": total_saved,
     }
+
+
+@celery_app.task(name="tasks.run_rss_scrape")
+def run_rss_scrape_task():
+    """Celery task wrapper for run_rss_scrape."""
+    logger.info("Celery executing run_rss_scrape_task")
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    
+    result = loop.run_until_complete(run_rss_scrape())
+    logger.info(f"Celery run_rss_scrape_task completed with result: {result}")
+    return result
+
+
+@celery_app.task(name="tasks.convert_article_to_story")
+def convert_article_to_story_task(article_id: str, force: bool = False, job_id: str | None = None):
+    """Celery task to convert raw article to a slide deck story."""
+    from scraper.services.conversion_jobs import is_worker_paused, update_job
+    from scraper.services.story_pipeline.service import convert_article_to_story
+
+    logger.info(f"Celery executing convert_article_to_story_task for article {article_id}")
+    
+    if is_worker_paused():
+        logger.info("Conversion worker is paused. Reverting job to pending.")
+        if job_id:
+            update_job(job_id, "pending")
+        return {"success": False, "message": "Worker is paused"}
+
+    if job_id:
+        update_job(job_id, "processing")
+
+    try:
+        result = convert_article_to_story(article_id, force=force)
+        if job_id:
+            update_job(job_id, "completed", ai_summary=result.get("ai_summary"))
+        logger.info(f"Celery convert_article_to_story_task completed for article {article_id}")
+        return {"success": True, "article_id": article_id}
+    except Exception as e:
+        logger.exception(f"Celery convert_article_to_story_task failed for article {article_id}")
+        if job_id:
+            update_job(job_id, "failed", error=str(e))
+        raise e

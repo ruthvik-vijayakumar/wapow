@@ -62,7 +62,16 @@
               v-else-if="story.mediaType === 'game' && story.content?.type === 'game'"
               class="game-wrapper"
             >
+              <UnblockGame
+                v-if="story.content?._id === 'unblock-game'"
+                :story-index="index"
+                :total-stories="stories.length"
+                @back="handleStoryBack"
+                @next-story="nextStory"
+                @prev-story="prevStory"
+              />
               <Game
+                v-else
                 :story-index="index"
                 :total-stories="stories.length"
                 @back="handleStoryBack"
@@ -93,6 +102,7 @@ import StoryView from './StoryView.vue'
 import VerticalVideoView from './VerticalVideoView.vue'
 import PodcastView from './PodcastView.vue'
 import Game from '@/views/wordle/Game.vue'
+import UnblockGame from '@/views/unblock/UnblockGame.vue'
 import CommentSheet from './CommentSheet.vue'
 import ErrorBoundary from './ErrorBoundary.vue'
 import { apiFetch } from '@/lib/api'

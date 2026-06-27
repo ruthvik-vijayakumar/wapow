@@ -80,6 +80,24 @@
 
         <button
           class="group flex items-center gap-2.5 py-2 px-2.5 rounded-md bg-transparent border-none cursor-pointer w-full text-left transition-all duration-150"
+          :class="currentPath === '/games' ? 'bg-[var(--bg-hover)]' : 'hover:bg-[var(--bg-hover)]'"
+          @click="navigate('/games')"
+        >
+          <svg
+            class="w-[18px] h-[18px] transition-colors duration-150 flex items-center justify-center shrink-0"
+            :class="currentPath === '/games' ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]'"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+            viewBox="0 0 24 24"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.59 14.37a6 6 0 01-7.18 0M3 12a9 9 0 1118 0 9 9 0 01-18 0z" />
+          </svg>
+          <span class="text-[var(--text-primary)] text-sm font-medium">Games</span>
+        </button>
+
+        <button
+          class="group flex items-center gap-2.5 py-2 px-2.5 rounded-md bg-transparent border-none cursor-pointer w-full text-left transition-all duration-150"
           :class="currentPath === '/pin-board' ? 'bg-[var(--bg-hover)]' : 'hover:bg-[var(--bg-hover)]'"
           @click="navigate('/pin-board')"
         >
