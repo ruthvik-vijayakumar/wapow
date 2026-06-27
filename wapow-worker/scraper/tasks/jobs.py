@@ -114,11 +114,10 @@ async def _save_items(items: list[tuple[str, dict[str, Any]]]) -> list[tuple[str
 
     # Trigger batch conversion directly via Celery if enabled and we have valid articles
     if convert_ids and settings.story_convert_on_ingest:
-        from scraper.services.conversion_jobs import create_job
+        from scraper.services.conversion_jobs import create_conversion_job
         for aid in convert_ids:
             try:
-                job = create_job(str(aid), force=False)
-                convert_article_to_story_task.delay(str(aid), force=False, job_id=job["job_id"])
+                job = create_conversion_job(str(aid), force=False)
                 logger.info(f"Queued Celery conversion job for article: {aid}")
             except Exception as e:
                 logger.error(f"Error queuing Celery conversion job for article {aid}: {e}")
@@ -180,10 +179,10 @@ async def _save_raw_articles(items: list[ScrapedItem]) -> None:
             logger.error(f"Error bulk saving raw articles to MongoDB: {e}")
 
 
-async def run_rss_scrape() -> dict[str, Any]:
+async def run_rss_scrape(task_id: str | None = None) -> dict[str, Any]:
     """Run RSS feed scraping job with observability tracking."""
     logger.info("Starting RSS scrape job")
-    tracker = ScraperRunTracker("rss_feeds")
+    tracker = ScraperRunTracker("rss_feeds", task_id=task_id)
     tracker.start()
 
     sources = load_sources()
@@ -197,6 +196,7 @@ async def run_rss_scrape() -> dict[str, Any]:
             if not source.enabled:
                 continue
 
+            tracker.heartbeat()
             start_src_time = time.time()
             src_status = "success"
             src_items_scraped = 0
@@ -205,11 +205,13 @@ async def run_rss_scrape() -> dict[str, Any]:
             try:
                 scraper = RSSScraper(source)
                 items = await scraper.scrape()
+                tracker.heartbeat()
                 src_items_scraped = len(items)
                 total_scraped += src_items_scraped
 
                 # Save raw articles before normalization
                 await _save_raw_articles(items)
+                tracker.heartbeat()
 
                 # Normalize items
                 normalized = [(normalizer.normalize(item)) for item in items]
@@ -219,6 +221,7 @@ async def run_rss_scrape() -> dict[str, Any]:
 
                 # Save to MongoDB
                 saved_info = await _save_items(unique)
+                tracker.heartbeat()
                 src_items_saved = len(saved_info)
                 total_saved += src_items_saved
                 for item_id, item_title in saved_info:
@@ -251,6 +254,12 @@ async def run_rss_scrape() -> dict[str, Any]:
 
         tracker.items_scraped = total_scraped
         tracker.finish("success")
+    except asyncio.CancelledError:
+        err_msg = "RSS scrape cancelled"
+        logger.warning(err_msg)
+        tracker.add_error(err_msg)
+        tracker.finish("cancelled")
+        raise
     except Exception as e:
         err_msg = f"Fatal error in RSS scrape: {e}"
         logger.error(err_msg)
@@ -281,17 +290,18 @@ async def run_all_scrapers() -> dict[str, Any]:
     }
 
 
-@celery_app.task(name="tasks.run_rss_scrape")
-def run_rss_scrape_task():
+@celery_app.task(bind=True, name="tasks.run_rss_scrape")
+def run_rss_scrape_task(self):
     """Celery task wrapper for run_rss_scrape."""
-    logger.info("Celery executing run_rss_scrape_task")
+    task_id = self.request.id
+    logger.info(f"Celery executing run_rss_scrape_task id={task_id}")
     try:
         loop = asyncio.get_event_loop()
     except RuntimeError:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
     
-    result = loop.run_until_complete(run_rss_scrape())
+    result = loop.run_until_complete(run_rss_scrape(task_id=task_id))
     logger.info(f"Celery run_rss_scrape_task completed with result: {result}")
     return result
 

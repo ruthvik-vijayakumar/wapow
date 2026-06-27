@@ -33,9 +33,10 @@ class Settings(BaseSettings):
     # Content settings
     max_items_per_source: int = 50  # Max items to fetch per source per run
 
-    # After ingesting an article, call wapow-app to generate ai_summary (story slides)
-    wapow_api_base_url: str = "http://localhost:3001"  # e.g. http://localhost:3001 (no trailing slash)
+    # After ingesting an article, create a worker-owned story conversion job.
+    wapow_api_base_url: str = "http://localhost:3001"  # legacy; retained for compatibility
     story_convert_on_ingest: bool = True
+    worker_internal_token: str = ""
 
     class Config:
         env_prefix = ""

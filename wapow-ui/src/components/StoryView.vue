@@ -48,8 +48,8 @@
         </button> -->
 
         <a
-          v-if="props.content?.originalArticle?.canonical_url || props.content?.canonical_url"
-          :href="props.content?.originalArticle?.canonical_url || props.content?.canonical_url"
+          v-if="canonicalUrl"
+          :href="canonicalUrl"
           target="_blank"
           rel="noopener noreferrer"
           class="action-button"
@@ -359,7 +359,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import type { StoryContent } from '@/stores/content'
+import type { StoryContent, StoryDeck } from '@/stores/content'
 import BottomControls from './BottomControls.vue'
 import { apiFetch } from '@/lib/api'
 import { useAnalytics } from '@/composables/useAnalytics'
@@ -390,42 +390,55 @@ const emit = defineEmits<{
 }>()
 
 const isSaved = computed(() => props.isSaved)
-
-const handleSave = async () => {
-  const id =
+const storyDeck = computed<StoryDeck | null>(() => props.content?.storyDeck ?? props.content?.story ?? null)
+const storyMetadata = computed(() => storyDeck.value?.metadata ?? {})
+const canonicalUrl = computed(
+  () =>
+    storyMetadata.value?.canonical_url ||
+    props.content?.originalArticle?.canonical_url ||
+    props.content?.canonical_url ||
+    '',
+)
+const articleId = computed(
+  () =>
+    storyDeck.value?.article_id ??
     props.content?.originalArticle?._id ??
     props.content?.originalArticle?.id ??
     props.content?._id ??
-    props.content?.id
+    props.content?.id,
+)
+
+const handleSave = async () => {
+  const id = articleId.value
   console.log('[handleSave] content keys:', props.content ? Object.keys(props.content) : 'null')
   console.log('[handleSave] resolved id:', id, 'isSaved:', props.isSaved)
   if (!id) {
     console.warn('[handleSave] No article ID found, skipping save')
     return
   }
-  const articleId = String(id)
-  const collection = props.content?.collection ?? props.category ?? 'articles'
+  const saveArticleId = String(id)
+  const collection = props.content?.collection ?? storyMetadata.value?.category ?? props.category ?? 'articles'
   const currentlySaved = props.isSaved
 
   try {
     if (currentlySaved) {
-      console.log('[handleSave] Unsaving article:', articleId)
-      const res = await apiFetch(`/api/saved-articles/${encodeURIComponent(articleId)}`, {
+      console.log('[handleSave] Unsaving article:', saveArticleId)
+      const res = await apiFetch(`/api/saved-articles/${encodeURIComponent(saveArticleId)}`, {
         method: 'DELETE',
       })
       console.log('[handleSave] Unsave response:', res.status)
       if (res.ok) {
-        emit('save', { id: articleId, collection, saved: false })
+        emit('save', { id: saveArticleId, collection, saved: false })
       }
     } else {
-      console.log('[handleSave] Saving article:', articleId, 'collection:', collection)
+      console.log('[handleSave] Saving article:', saveArticleId, 'collection:', collection)
       const res = await apiFetch('/api/saved-articles', {
         method: 'POST',
-        body: JSON.stringify({ article_id: articleId, collection }),
+        body: JSON.stringify({ article_id: saveArticleId, collection }),
       })
       console.log('[handleSave] Save response:', res.status)
       if (res.ok) {
-        emit('save', { id: articleId, collection, saved: true })
+        emit('save', { id: saveArticleId, collection, saved: true })
       }
     }
   } catch (err) {
@@ -478,15 +491,19 @@ const pages = computed(() => {
 
   // Create author info from content
   const author = {
-    name: props.content.author?.name || 'Unknown Author',
+    name: props.content.author?.name || storyMetadata.value?.author || 'Unknown Author',
     username: props.content.author?.username || '@unknown',
     avatar: props.content.author?.avatar || 'https://picsum.photos/50/50?random=author',
   }
 
   const createdAt =
-    props.content.createdAt || props.content.publish_date || new Date().toISOString()
+    props.content.createdAt ||
+    storyMetadata.value?.publish_date ||
+    storyMetadata.value?.created_date ||
+    props.content.publish_date ||
+    new Date().toISOString()
   const pages_data =
-    props.content.originalArticle?.ai_summary?.pages?.filter(
+    (storyDeck.value?.pages || props.content.originalArticle?.ai_summary?.pages || []).filter(
       (page: any) => page.page_type !== 'hero',
     ) || []
 
@@ -505,9 +522,10 @@ const pages = computed(() => {
           ...props.content,
           title: props.content.title,
           description: textItem?.content || props.content.description,
-          thumbnail: imageItem?.content_url || props.content.thumbnail,
+          thumbnail: imageItem?.content_url || props.content.thumbnail || storyMetadata.value?.image_url,
           focalPoint:
             imageItem?.focal_point ||
+            storyMetadata.value?.image_focal_point ||
             props.content.originalArticle?.promo_items?.basic?.focal_point ||
             props.content.originalArticle?.imageFocalPoint ||
             null,
@@ -524,8 +542,9 @@ const pages = computed(() => {
       ...props.content,
       title: props.content.title,
       description: props.content.description,
-      thumbnail: props.content.thumbnail,
+      thumbnail: props.content.thumbnail || storyMetadata.value?.image_url,
       focalPoint:
+        storyMetadata.value?.image_focal_point ||
         props.content.originalArticle?.promo_items?.basic?.focal_point ||
         props.content.originalArticle?.imageFocalPoint ||
         null,
@@ -614,7 +633,7 @@ watch(currentPageIndex, (newIdx) => {
   if (total <= 1) return
   const depthPercent = ((newIdx + 1) / total) * 100
   const contentId = String(
-    props.content?.originalArticle?._id ?? props.content?._id ?? props.content?.id ?? '',
+    articleId.value ?? '',
   )
   trackScrollDepth(contentId, depthPercent, 'article', props.category)
 })
@@ -630,7 +649,11 @@ const currentPage = computed(() => {
  * - If focal point exists with display_mode "focal_crop": use object-position to pan to subject
  * - Otherwise: default center crop (object-fit: cover, centered)
  */
-const imageDisplayStyle = computed(() => {
+const imageDisplayStyle = computed<{
+  objectFit: 'cover' | 'contain'
+  objectPosition: string
+  displayMode?: 'contain' | 'focal_crop'
+}>(() => {
   const fp = currentPage.value?.focalPoint
   if (!fp) {
     return { objectFit: 'cover', objectPosition: 'center center' }
@@ -713,9 +736,9 @@ const toggleComments = (articleContent?: any) => {
 
 const readFullArticle = () => {
   // Navigate to the article view with the canonical URL
-  if (props.content.originalArticle?.canonical_url) {
+  if (canonicalUrl.value) {
     const articleTitle = props.content.title || props.content.headlines?.basic || 'Article'
-    const encodedUrl = encodeURIComponent(props.content.originalArticle.canonical_url)
+    const encodedUrl = encodeURIComponent(canonicalUrl.value)
     const encodedTitle = encodeURIComponent(articleTitle)
     router.push(`/article/${encodedUrl}/${encodedTitle}`)
   } else {

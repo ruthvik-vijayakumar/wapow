@@ -1,16 +1,17 @@
 """FastAPI management API and Operations Dashboard for WAPOW Scraper."""
 
 import logging
-import queue
 import asyncio
+import hmac
 from datetime import datetime
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 import os
 
 from scraper.config import settings
@@ -31,31 +32,25 @@ from scraper.tasks.jobs import (
     run_all_scrapers,
 )
 from scraper.services.conversion_jobs import (
+    create_batch_conversion_jobs,
+    create_conversion_job,
+    get_job,
     is_worker_paused,
     pause_worker,
+    retry_job,
     resume_worker,
+    serialize_job,
 )
 from scraper.models.source import RSSSource
 from scraper.utils.metrics import get_scraper_stats
-
-# Configure logging memory queue for real-time dashboard streaming
-log_queue = queue.Queue(maxsize=1500)
-
-
-class LogQueueHandler(logging.Handler):
-    """Thread-safe logging handler that directs application log messages to an in-memory queue."""
-
-    def emit(self, record):
-        try:
-            msg = self.format(record)
-            if log_queue.full():
-                try:
-                    log_queue.get_nowait()
-                except Exception:
-                    pass
-            log_queue.put_nowait(msg)
-        except Exception:
-            pass
+from scraper.utils.metrics import finish_run_by_id, reconcile_stale_runs
+from scraper.utils.dashboard_logging import (
+    configure_dashboard_logging,
+    ensure_log_indexes,
+    get_logs_after,
+    get_recent_logs,
+    serialize_log_doc,
+)
 
 
 # Configure logging
@@ -64,14 +59,59 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+configure_dashboard_logging()
 
-# Attach Queue Logger Handler to root logger
-queue_handler = LogQueueHandler()
-queue_handler.setLevel(logging.INFO)
-formatter = logging.Formatter("%(asctime)s [%(levelname)s] (%(name)s) %(message)s", datefmt="%H:%M:%S")
-queue_handler.setFormatter(formatter)
-logging.getLogger().addHandler(queue_handler)
+RSS_TASK_NAME = "tasks.run_rss_scrape"
+RSS_QUEUE_NAME = "rss"
 
+
+class ConversionJobInput(BaseModel):
+    article_id: str
+    force: bool = False
+
+
+class BatchConversionJobInput(BaseModel):
+    ids: list[str]
+    force: bool = False
+
+
+class PurgeQueueInput(BaseModel):
+    queue: str = RSS_QUEUE_NAME
+
+
+def require_internal_token(x_internal_token: str | None = Header(default=None)) -> None:
+    """Protect worker admin controls when WORKER_INTERNAL_TOKEN is configured."""
+    expected = settings.worker_internal_token
+    if expected and not hmac.compare_digest(x_internal_token or "", expected):
+        raise HTTPException(status_code=401, detail="Invalid internal token")
+
+
+def _collect_celery_task_ids(task_name: str) -> set[str]:
+    from scraper.celery_client import celery_app
+
+    task_ids: set[str] = set()
+    inspector = celery_app.control.inspect(timeout=1.0)
+    for task_map in (inspector.active() or {}, inspector.reserved() or {}):
+        for tasks in task_map.values():
+            for task in tasks:
+                if task.get("name") == task_name and task.get("id"):
+                    task_ids.add(task["id"])
+
+    scheduled = inspector.scheduled() or {}
+    for tasks in scheduled.values():
+        for entry in tasks:
+            request = entry.get("request") or {}
+            if request.get("name") == task_name and request.get("id"):
+                task_ids.add(request["id"])
+    return task_ids
+
+
+def _purge_celery_queue(queue_name: str) -> int:
+    from scraper.celery_client import celery_app
+
+    with celery_app.connection_for_write() as connection:
+        channel = connection.default_channel
+        return int(channel.queue_purge(queue_name) or 0)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -81,6 +121,7 @@ async def lifespan(app: FastAPI):
     
     from scraper.services.conversion_jobs import ensure_conversion_jobs_indexes
     ensure_conversion_jobs_indexes()
+    ensure_log_indexes()
     
     yield
     logger.info("Shutting down WAPOW Scraper service")
@@ -123,7 +164,21 @@ async def health_check() -> dict[str, str]:
 @app.get("/jobs")
 async def list_jobs() -> dict[str, Any]:
     """List all scheduled jobs."""
+    reconcile_stale_runs()
     jobs = get_job_info()
+    from scraper.db import get_collection
+    active_runs = {
+        run.get("job_id"): {
+            "run_id": str(run.get("_id")),
+            "task_id": run.get("task_id"),
+            "start_time": run.get("start_time").isoformat() if isinstance(run.get("start_time"), datetime) else run.get("start_time"),
+        }
+        for run in get_collection("scraper_runs").find({"status": "running"})
+    }
+    for job in jobs:
+        active_run = active_runs.get(job["id"])
+        job["running"] = active_run is not None
+        job["active_run"] = active_run
     return {
         "jobs": jobs,
         "scheduler_running": scheduler.running,
@@ -147,8 +202,54 @@ async def resume_job_endpoint(job_id: str) -> dict[str, Any]:
     raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
 
 
+@app.post("/jobs/{job_id}/stop")
+async def stop_job_endpoint(job_id: str) -> dict[str, Any]:
+    """Stop an actively running scraping job."""
+    if job_id not in {"rss_feeds", "all"}:
+        raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
+
+    from scraper.celery_client import celery_app, forget_task_result
+    from scraper.db import get_collection
+
+    query_job_ids = ["rss_feeds"] if job_id == "all" else [job_id]
+    runs = list(
+        get_collection("scraper_runs").find(
+            {"job_id": {"$in": query_job_ids}, "status": "running"},
+            sort=[("start_time", -1)],
+        )
+    )
+    task_ids = _collect_celery_task_ids(RSS_TASK_NAME)
+    task_ids.update(str(run["task_id"]) for run in runs if run.get("task_id"))
+
+    for task_id in task_ids:
+        celery_app.control.revoke(task_id, terminate=True, signal="SIGTERM")
+        forget_task_result(task_id)
+
+    purged_messages = _purge_celery_queue(RSS_QUEUE_NAME)
+
+    stopped_runs = []
+    for run in runs:
+        finish_run_by_id(run["_id"], "cancelled", "Run stopped from worker dashboard.")
+        stopped_runs.append(str(run["_id"]))
+
+    stopped = bool(task_ids or purged_messages or stopped_runs)
+    if not stopped:
+        return {"success": True, "stopped": False, "message": "No active or queued RSS scrape was found."}
+
+    logger.warning(
+        f"Stopped RSS scrape job={job_id} runs={stopped_runs} tasks={sorted(task_ids)} purged={purged_messages}"
+    )
+    return {
+        "success": True,
+        "stopped": True,
+        "run_ids": stopped_runs,
+        "task_ids": sorted(task_ids),
+        "purged_messages": purged_messages,
+    }
+
+
 @app.get("/worker/status")
-async def worker_status_endpoint() -> dict[str, Any]:
+async def worker_status_endpoint(_: None = Depends(require_internal_token)) -> dict[str, Any]:
     """Retrieve background conversion worker pause status."""
     return {
         "paused": is_worker_paused(),
@@ -157,14 +258,14 @@ async def worker_status_endpoint() -> dict[str, Any]:
 
 
 @app.post("/worker/pause")
-async def pause_worker_endpoint() -> dict[str, Any]:
+async def pause_worker_endpoint(_: None = Depends(require_internal_token)) -> dict[str, Any]:
     """Pause the background slide conversion worker."""
     pause_worker()
     return {"success": True, "message": "Background conversion worker paused successfully"}
 
 
 @app.post("/worker/resume")
-async def resume_worker_endpoint() -> dict[str, Any]:
+async def resume_worker_endpoint(_: None = Depends(require_internal_token)) -> dict[str, Any]:
     """Resume the background slide conversion worker."""
     resume_worker()
     return {"success": True, "message": "Background conversion worker resumed successfully"}
@@ -180,19 +281,24 @@ async def celery_worker_status_endpoint() -> dict[str, Any]:
         pings = inspector.ping()
         active = inspector.active()
         reserved = inspector.reserved()
+        scheduled = inspector.scheduled()
         
         workers = []
         if pings:
             for w_name in pings.keys():
                 active_tasks = active.get(w_name, []) if active else []
                 reserved_tasks = reserved.get(w_name, []) if reserved else []
+                scheduled_tasks = scheduled.get(w_name, []) if scheduled else []
                 
                 workers.append({
                     "name": w_name,
                     "status": "online",
                     "active_tasks_count": len(active_tasks),
                     "reserved_tasks_count": len(reserved_tasks),
+                    "scheduled_tasks_count": len(scheduled_tasks),
                     "active_tasks": active_tasks,
+                    "reserved_tasks": reserved_tasks,
+                    "scheduled_tasks": scheduled_tasks,
                 })
         
         return {
@@ -208,6 +314,86 @@ async def celery_worker_status_endpoint() -> dict[str, Any]:
             "workers": [],
             "count": 0
         }
+
+
+@app.post("/worker/celery/purge")
+async def purge_celery_queue_endpoint(
+    input_data: PurgeQueueInput,
+    _: None = Depends(require_internal_token),
+) -> dict[str, Any]:
+    """Purge pending messages from a named Celery queue."""
+    allowed_queues = {"rss", "conversion", "celery"}
+    if input_data.queue not in allowed_queues:
+        raise HTTPException(status_code=400, detail=f"Queue must be one of: {sorted(allowed_queues)}")
+    purged_messages = _purge_celery_queue(input_data.queue)
+    logger.warning(f"Purged Celery queue={input_data.queue} messages={purged_messages}")
+    return {"success": True, "queue": input_data.queue, "purged_messages": purged_messages}
+
+
+@app.post("/worker/conversion-jobs")
+async def create_conversion_job_endpoint(
+    input_data: ConversionJobInput,
+    _: None = Depends(require_internal_token),
+) -> dict[str, Any]:
+    """Create and enqueue a slide conversion job for an existing article."""
+    try:
+        job = create_conversion_job(input_data.article_id, force=input_data.force)
+        return {"success": True, "data": serialize_job(job)}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        logger.error(f"Error creating conversion job: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@app.post("/worker/conversion-jobs/batch")
+async def create_batch_conversion_jobs_endpoint(
+    input_data: BatchConversionJobInput,
+    _: None = Depends(require_internal_token),
+) -> dict[str, Any]:
+    """Create and enqueue slide conversion jobs for existing articles."""
+    if len(input_data.ids) > 50:
+        raise HTTPException(status_code=400, detail="Maximum 50 article IDs per batch")
+    if not input_data.ids:
+        raise HTTPException(status_code=400, detail="ids must not be empty")
+    try:
+        jobs = create_batch_conversion_jobs(input_data.ids, force=input_data.force)
+        return {"success": True, "data": [serialize_job(job) for job in jobs]}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        logger.error(f"Error creating batch conversion jobs: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@app.get("/worker/conversion-jobs/{job_id}")
+async def get_conversion_job_endpoint(
+    job_id: str,
+    _: None = Depends(require_internal_token),
+) -> dict[str, Any]:
+    """Check the status of a worker-owned slide conversion job."""
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return {"success": True, "data": serialize_job(job)}
+
+
+@app.post("/worker/conversion-jobs/{job_id}/retry")
+async def retry_conversion_job_endpoint(
+    job_id: str,
+    _: None = Depends(require_internal_token),
+) -> dict[str, Any]:
+    """Retry a failed slide conversion job."""
+    try:
+        job = retry_job(job_id)
+        return {"success": True, "data": serialize_job(job)}
+    except ValueError as e:
+        detail = str(e)
+        status_code = 404 if detail == "Job not found" else 400
+        raise HTTPException(status_code=status_code, detail=detail) from e
+    except Exception as e:
+        logger.error(f"Error retrying conversion job {job_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/jobs/{job_id}/trigger")
@@ -233,29 +419,25 @@ async def trigger_job_endpoint(job_id: str) -> dict[str, Any]:
     logger.info(f"Manually triggering job: {job_id}")
 
     try:
-        task = job_map[job_id].delay()
-        
-        # Asynchronously wait for the task to complete
-        from celery.result import AsyncResult
-        res = AsyncResult(task.id)
-        for _ in range(600):
-            if res.ready():
-                break
-            await asyncio.sleep(0.5)
+        if job_id in {"rss_feeds", "all"}:
+            from scraper.db import get_collection
 
-        if res.ready():
-            return {
-                "status": "completed",
-                "job_id": job_id,
-                "result": res.result,
-            }
-        else:
-            return {
-                "status": "queued",
-                "job_id": job_id,
-                "task_id": task.id,
-                "message": "Scraper job is running in the background."
-            }
+            active_run = get_collection("scraper_runs").find_one(
+                {"job_id": "rss_feeds", "status": "running"},
+                {"_id": 1},
+            )
+            if active_run or _collect_celery_task_ids(RSS_TASK_NAME):
+                raise HTTPException(status_code=409, detail="RSS scrape is already running or queued.")
+
+        task = job_map[job_id].delay()
+        return {
+            "status": "queued",
+            "job_id": job_id,
+            "task_id": task.id,
+            "message": "Scraper job is running in the background."
+        }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error running job {job_id}: {e}")
         raise HTTPException(
@@ -286,8 +468,6 @@ async def list_sources() -> dict[str, Any]:
         },
     }
 
-
-from pydantic import BaseModel
 
 class SourceInput(BaseModel):
     type: str  # "rss"
@@ -430,6 +610,7 @@ async def get_config() -> dict[str, Any]:
 @app.get("/api/stats")
 async def get_stats() -> dict[str, Any]:
     """Get scraper runs metrics, sources crawl breakdown, and recent articles."""
+    reconcile_stale_runs()
     stats = get_scraper_stats()
     
     # Cross-reference with YAML configurations to show all sources (including disabled / never run ones)
@@ -467,6 +648,7 @@ async def get_runs(page: int = 1, limit: int = 10) -> dict[str, Any]:
     from datetime import datetime
     from scraper.db import get_collection
     try:
+        reconcile_stale_runs()
         coll_runs = get_collection("scraper_runs")
         total = coll_runs.count_documents({})
         skip = (page - 1) * limit
@@ -535,20 +717,27 @@ async def get_article_json(article_id: str) -> dict[str, Any]:
 
 @app.get("/api/logs/stream")
 async def stream_logs():
-    """Stream application log messages in real-time to the dashboard via SSE."""
+    """Stream worker/API log messages in real-time to the dashboard via SSE."""
     async def log_generator():
-        # Send a connection confirmation
         yield "data: [SYSTEM] Connected to live WAPOW scraper logs...\n\n"
+        last_seen = None
+        try:
+            recent_logs = get_recent_logs(limit=100)
+            if recent_logs:
+                last_seen = recent_logs[-1].get("_id")
+                yield "data: " + "\n".join(serialize_log_doc(doc) for doc in recent_logs) + "\n\n"
+        except Exception as e:
+            logger.error(f"Error loading recent worker logs: {e}")
+
         while True:
-            lines = []
-            while not log_queue.empty():
-                try:
-                    lines.append(log_queue.get_nowait())
-                except Exception:
-                    break
-            if lines:
-                data = "\n".join(lines)
-                yield f"data: {data}\n\n"
+            try:
+                docs = get_logs_after(last_seen, limit=200)
+                if docs:
+                    last_seen = docs[-1].get("_id")
+                    data = "\n".join(serialize_log_doc(doc) for doc in docs)
+                    yield f"data: {data}\n\n"
+            except Exception as e:
+                logger.error(f"Error streaming worker logs: {e}")
             await asyncio.sleep(0.5)
 
     return StreamingResponse(log_generator(), media_type="text/event-stream")

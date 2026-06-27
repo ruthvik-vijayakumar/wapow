@@ -6,6 +6,9 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
+from bson import ObjectId
+
+from scraper.config import ARTICLES_COLLECTION
 from scraper.db import get_db
 
 JOBS_COLLECTION = "conversion_jobs"
@@ -34,6 +37,61 @@ def create_job(article_id: str, force: bool = False) -> dict[str, Any]:
     }
     get_db()[JOBS_COLLECTION].insert_one(doc)
     return doc
+
+
+def find_article(article_id: str) -> dict | None:
+    coll = get_db()[ARTICLES_COLLECTION]
+    try:
+        oid = ObjectId(article_id)
+    except Exception:
+        oid = article_id
+    doc = coll.find_one({"_id": oid})
+    if doc is None and oid != article_id:
+        doc = coll.find_one({"_id": article_id})
+    return doc
+
+
+def create_conversion_job(article_id: str, force: bool = False) -> dict[str, Any]:
+    if not find_article(article_id):
+        raise ValueError("Article not found")
+    job = create_job(article_id, force=force)
+    from scraper.tasks.jobs import convert_article_to_story_task
+
+    task = convert_article_to_story_task.delay(article_id, force=force, job_id=job["job_id"])
+    job["task_id"] = task.id
+    return job
+
+
+def retry_job(job_id: str) -> dict[str, Any]:
+    job = get_job(job_id)
+    if not job:
+        raise ValueError("Job not found")
+    if job.get("status") != "failed":
+        raise ValueError("Only failed conversion jobs can be retried")
+    get_db()[JOBS_COLLECTION].update_one(
+        {"job_id": job_id},
+        {
+            "$set": {
+                "status": "pending",
+                "error": None,
+                "updated_at": datetime.now(timezone.utc),
+            }
+        },
+    )
+    from scraper.tasks.jobs import convert_article_to_story_task
+
+    task = convert_article_to_story_task.delay(
+        str(job["article_id"]),
+        force=bool(job.get("force", False)),
+        job_id=job_id,
+    )
+    job = get_job(job_id) or job
+    job["task_id"] = task.id
+    return job
+
+
+def create_batch_conversion_jobs(article_ids: list[str], force: bool = False) -> list[dict[str, Any]]:
+    return [create_conversion_job(str(article_id), force=force) for article_id in article_ids]
 
 
 def update_job(

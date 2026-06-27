@@ -8,6 +8,12 @@ interface Job {
   trigger: string
   next_run_time: string | null
   status: 'active' | 'paused'
+  running?: boolean
+  active_run?: {
+    run_id: string
+    task_id?: string
+    start_time?: string
+  } | null
 }
 
 interface RunArticle {
@@ -20,7 +26,7 @@ interface ScraperRun {
   job_id: string
   start_time: string
   duration_seconds: number | null
-  status: 'success' | 'failed' | 'running'
+  status: 'success' | 'failed' | 'running' | 'cancelled'
   items_scraped: number
   items_saved: number
   saved_articles?: RunArticle[]
@@ -134,6 +140,7 @@ let toastTimeout: ReturnType<typeof setTimeout> | null = null
 
 // Loading indicator
 const triggeringJob = ref<boolean>(false)
+const stoppingJobId = ref<string | null>(null)
 
 // ----------------------------------------------------
 // Utility Actions
@@ -219,8 +226,9 @@ async function triggerJob(jobId: string) {
     const response = await fetch(`/jobs/${jobId}/trigger`, { method: 'POST' })
     const result = await response.json()
     if (response.ok) {
-      const saved = result.result?.saved ?? result.result?.total_saved ?? 0
-      showToast(`Synced ${saved} new articles.`)
+      showToast(`Queued ${jobId} crawl task ${String(result.task_id || '').substring(0, 8)}.`)
+      await fetchJobs()
+      await fetchRuns(1)
     } else {
       showToast(`Error: ${result.detail || 'Scraper run failed'}`, true)
     }
@@ -229,6 +237,26 @@ async function triggerJob(jobId: string) {
   } finally {
     triggeringJob.value = false
     await fetchStats()
+  }
+}
+
+async function stopJob(jobId: string) {
+  stoppingJobId.value = jobId
+  try {
+    const response = await fetch(`/jobs/${jobId}/stop`, { method: 'POST' })
+    const result = await response.json()
+    if (response.ok) {
+      showToast(result.stopped ? `Stopped ${jobId} crawl.` : result.message)
+      await fetchJobs()
+      await fetchRuns(runsPage.value)
+      await fetchStats()
+    } else {
+      showToast(`Stop failed: ${result.detail || 'Unknown error'}`, true)
+    }
+  } catch (err: any) {
+    showToast(`Stop failed: ${err.message}`, true)
+  } finally {
+    stoppingJobId.value = null
   }
 }
 
@@ -600,18 +628,30 @@ onUnmounted(() => {
                   <h3 class="text-xs font-bold text-white font-mono uppercase tracking-wider">{{ job.name }}</h3>
                   <span :class="[
                     'inline-flex border px-2 py-0.5 rounded text-[9px] font-mono tracking-wider lowercase',
-                    job.status === 'paused' 
+                    job.running
+                      ? 'border-amber-500/20 bg-amber-500/10 text-amber-400'
+                      : job.status === 'paused' 
                       ? 'border-rose-900/30 bg-rose-500/10 text-rose-400' 
                       : 'border-[#3ecf8e]/20 bg-[#3ecf8e]/10 text-[#3ecf8e]'
-                  ]">{{ job.status }}</span>
+                  ]">{{ job.running ? 'running' : job.status }}</span>
                 </div>
-                <p class="text-xs text-[#888]">Frequency: <span class="font-mono text-white">{{ job.trigger }}</span> | Next: <span class="font-mono text-[#aaa]">{{ job.next_run_time || 'Paused' }}</span></p>
+                <p class="text-xs text-[#888]">
+                  Frequency: <span class="font-mono text-white">{{ job.trigger }}</span>
+                  | Next: <span class="font-mono text-[#aaa]">{{ job.next_run_time || 'Paused' }}</span>
+                  <span v-if="job.running && job.active_run?.task_id">
+                    | Task: <span class="font-mono text-amber-400">{{ job.active_run.task_id.substring(0, 8) }}</span>
+                  </span>
+                </p>
               </div>
               <div class="flex items-center gap-2">
                 <button 
                   @click="handleToggleJob(job.id, job.status === 'paused')"
+                  :disabled="job.running"
                   :class="[
                     'text-xs font-semibold px-3 py-1.5 rounded transition cursor-pointer font-mono',
+                    job.running
+                      ? 'bg-neutral-900 text-[#555] border border-[#333] cursor-not-allowed'
+                      :
                     job.status === 'paused'
                       ? 'bg-[#3ecf8e]/15 hover:bg-[#3ecf8e]/25 text-[#3ecf8e] border border-[#3ecf8e]/30'
                       : 'bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30'
@@ -621,9 +661,18 @@ onUnmounted(() => {
                 </button>
                 <button 
                   @click="triggerJob(job.id)"
-                  class="bg-transparent hover:bg-neutral-900 border border-[#444] text-white text-xs font-semibold px-3 py-1.5 rounded transition cursor-pointer font-mono"
+                  :disabled="triggeringJob || job.running"
+                  class="bg-transparent hover:bg-neutral-900 border border-[#444] text-white text-xs font-semibold px-3 py-1.5 rounded transition cursor-pointer font-mono disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Run
+                </button>
+                <button
+                  v-if="job.running"
+                  @click="stopJob(job.id)"
+                  :disabled="stoppingJobId === job.id"
+                  class="bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-400 text-xs font-semibold px-3 py-1.5 rounded transition cursor-pointer font-mono disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {{ stoppingJobId === job.id ? 'Stopping' : 'Stop' }}
                 </button>
               </div>
             </div>
@@ -857,6 +906,7 @@ onUnmounted(() => {
                   <td class="py-2.5 px-4">
                     <span v-if="run.status === 'success'" class="text-[#3ecf8e]">success</span>
                     <span v-else-if="run.status === 'failed'" class="text-rose-500">failed</span>
+                    <span v-else-if="run.status === 'cancelled'" class="text-[#888]">cancelled</span>
                     <span v-else class="text-amber-500 animate-pulse">running</span>
                   </td>
                   <td class="py-2.5 px-4 text-white">{{ run.items_saved }}</td>

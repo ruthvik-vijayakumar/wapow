@@ -280,21 +280,16 @@ ARTICLE_BODY:
             embed_code = seg.get("embed_code")
             focal_point = seg.get("focal_point")
             
-            # Select appropriate content based on layout constraints (with video vs with image vs text-only)
+            # Select appropriate content based on layout constraints (with video vs with image vs text-only).
+            # The frontend scales text to fit the slide and ellipsizes only when needed.
             if vid_url:
                 text_content = seg.get("short_summary") or ""
-                # Enforce safety limits
-                if len(text_content) > 120:
-                    text_content = text_content[:117] + "..."
                 page_content = [
                     {"type": "text", "content": text_content},
                     {"type": "video", "content_url": vid_url, "embed_code": embed_code or ""}
                 ]
             elif img_url:
                 text_content = seg.get("short_summary") or ""
-                # Enforce safety limits
-                if len(text_content) > 120:
-                    text_content = text_content[:117] + "..."
                 image_item: Dict[str, Any] = {"type": "image", "content_url": img_url}
                 if focal_point:
                     image_item["focal_point"] = focal_point
@@ -306,9 +301,6 @@ ARTICLE_BODY:
                 text_content = seg.get("long_summary") or ""
                 if not text_content:
                     text_content = seg.get("short_summary") or ""
-                # Enforce bounds
-                if len(text_content) > 500:
-                    text_content = text_content[:497] + "..."
                 page_content = [
                     {"type": "text", "content": text_content}
                 ]
@@ -318,18 +310,19 @@ ARTICLE_BODY:
                 "content": page_content
             })
 
-        # Format takeaways overview slide
-        if takeaways:
-            takeaways_text = "\n".join(f"• {t.strip()}" for t in takeaways)
-        else:
-            takeaways_text = f"• {tree.title}"
+        # Takeaways only add value when there are multiple content slides to summarize.
+        if len(pages) >= 2:
+            if takeaways:
+                takeaways_text = "\n".join(f"• {t.strip()}" for t in takeaways)
+            else:
+                takeaways_text = f"• {tree.title}"
 
-        pages.append({
-            "page_type": "overview",
-            "content": [
-                {"type": "text", "content": takeaways_text}
-            ]
-        })
+            pages.append({
+                "page_type": "overview",
+                "content": [
+                    {"type": "text", "content": takeaways_text}
+                ]
+            })
 
         return pages
 
@@ -337,12 +330,14 @@ ARTICLE_BODY:
         """Orchestrate the 3-stage visual slides generation flow."""
         # Determine number of content slides (beats) adaptively based on word count
         word_count = len(tree.get_plaintext().split())
-        if word_count < 150:
+        if word_count < 250:
             min_slides, max_slides = 1, 2
-        elif word_count < 600:
-            min_slides, max_slides = 2, 4
+        elif word_count < 750:
+            min_slides, max_slides = 2, 2
+        elif word_count < 1300:
+            min_slides, max_slides = 3, 3
         else:
-            min_slides, max_slides = 3, 5
+            min_slides, max_slides = 3, 4
 
         # Stage 1: Storyboard
         storyboard_data = self.storyboard(tree, min_slides, max_slides)
