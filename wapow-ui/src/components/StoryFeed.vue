@@ -19,7 +19,7 @@
             <StoryView
               v-if="story.mediaType === 'story' && story.content"
               :content="story.content"
-              :category="story.content.originalArticle.taxonomy?.primary_section?.name"
+              :category="story.category"
               :story-index="index"
               :total-stories="stories.length"
               :is-saved="savedArticleIds.has(getStoryArticleId(story))"
@@ -108,7 +108,7 @@ import ErrorBoundary from './ErrorBoundary.vue'
 import { apiFetch } from '@/lib/api'
 import { useContentStore } from '@/stores/content'
 import { useAnalytics } from '@/composables/useAnalytics'
-import type { Video, StoryContent, Article } from '@/stores/content'
+import type { Video, StoryContent, Article, StoryDeck } from '@/stores/content'
 
 const contentStore = useContentStore()
 const { trackView, trackSave, trackNavigate, startDwell, stopDwell } = useAnalytics()
@@ -119,12 +119,14 @@ interface Story {
   video?: Video
   podcast?: StoryContent
   content?: StoryContent | Video | any
+  storyDeck?: StoryDeck
   category: string
 }
 
 interface Props {
-  initialArticle: Article
-  articles: Article[]
+  initialArticle?: Article | null
+  initialStory?: StoryDeck | null
+  articles: Array<Article | StoryDeck>
   category: string
 }
 
@@ -142,7 +144,13 @@ const savedArticleIds = ref<Set<string>>(new Set())
 
 const getStoryArticleId = (story: Story): string => {
   if (story.mediaType === 'story' && story.content) {
-    return String(story.content?.originalArticle?._id ?? story.content?._id ?? story.id)
+    return String(
+      story.storyDeck?.article_id ??
+        story.content?.storyDeck?.article_id ??
+        story.content?.originalArticle?._id ??
+        story.content?._id ??
+        story.id,
+    )
   }
   if (story.mediaType === 'video' && story.video) {
     return String(story.video.content_id ?? story.id)
@@ -198,7 +206,15 @@ const stories = ref<Story[]>([])
 function buildStories(): Story[] {
   const baseStories: Story[] = []
 
-  if (props.initialArticle && (props.initialArticle as any)._videoRef) {
+  if (props.initialStory) {
+    baseStories.push({
+      id: `story-${props.initialStory.article_id}`,
+      mediaType: 'story',
+      content: convertStoryDeckToStoryContent(props.initialStory),
+      storyDeck: props.initialStory,
+      category: props.initialStory.metadata?.category || props.category,
+    })
+  } else if (props.initialArticle && (props.initialArticle as any)._videoRef) {
     const videoData = (props.initialArticle as any)._videoRef
     baseStories.push({
       id: `video-${props.initialArticle._id}`,
@@ -225,14 +241,27 @@ function buildStories(): Story[] {
 
   if (props.articles && props.articles.length > 0) {
     props.articles.forEach((article) => {
-      if (article && article.headlines?.basic && article._id !== props.initialArticle?._id) {
+      if (isStoryDeck(article) && article.article_id !== props.initialStory?.article_id) {
+        baseStories.push({
+          id: `story-related-${article.article_id}`,
+          mediaType: 'story',
+          content: convertStoryDeckToStoryContent(article),
+          storyDeck: article,
+          category: article.metadata?.category || props.category,
+        })
+      } else if (
+        !isStoryDeck(article) &&
+        article &&
+        article.headlines?.basic &&
+        article._id !== props.initialArticle?._id
+      ) {
         baseStories.push({
           id: `story-related-${article._id}`,
           mediaType: 'story',
           content: convertArticleToStoryContent(article),
           category: getCategoryFromArticle(article),
         })
-      } else if (article && (article as any).type === 'game') {
+      } else if (!isStoryDeck(article) && article && (article as any).type === 'game') {
         baseStories.push({
           id: `game-${article._id}`,
           mediaType: 'game',
@@ -384,23 +413,24 @@ async function loadMoreFeedItems() {
     const cat = props.category?.toLowerCase() || 'technology'
     const validCategories = ['sports', 'style', 'technology', 'travel', 'wellbeing']
     const catQuery = validCategories.includes(cat) ? `category=${cat}` : ''
-    const res = await apiFetch(`/api/articles?${catQuery}&page=${feedPage.value}&limit=10`)
+    const res = await apiFetch(`/api/stories?${catQuery}&page=${feedPage.value}&limit=10`)
     if (res.ok) {
       const json = await res.json()
-      const fetchedArticles = json.data ?? []
+      const fetchedStories = json.data ?? []
 
-      if (fetchedArticles.length > 0) {
+      if (fetchedStories.length > 0) {
         const newStories: Story[] = []
         const videos = contentStore.videos
         const podcasts = contentStore.podcastClips
 
-        fetchedArticles.forEach((article: any, i: number) => {
-          if (article && article.headlines?.basic && !stories.value.some(s => s.id.includes(article._id))) {
+        fetchedStories.forEach((storyDeck: StoryDeck, i: number) => {
+          if (storyDeck && storyDeck.pages?.length && !stories.value.some(s => s.id.includes(storyDeck.article_id))) {
             newStories.push({
-              id: `story-more-${article._id}`,
+              id: `story-more-${storyDeck.article_id}`,
               mediaType: 'story',
-              content: convertArticleToStoryContent(article),
-              category: getCategoryFromArticle(article),
+              content: convertStoryDeckToStoryContent(storyDeck),
+              storyDeck,
+              category: storyDeck.metadata?.category || props.category,
             })
             
             // Interleave a video or podcast (e.g. every 2 articles)
@@ -558,7 +588,9 @@ const toggleComments = (storyOrContent?: any) => {
 
   if (storyOrContent) {
     const story = storyOrContent as any
-    if (story.content?.originalArticle?._id) {
+    if (story.storyDeck?.article_id || story.content?.storyDeck?.article_id) {
+      articleId = story.storyDeck?.article_id ?? story.content?.storyDeck?.article_id
+    } else if (story.content?.originalArticle?._id) {
       articleId = story.content.originalArticle._id
     } else if (story.content?._id) {
       articleId = story.content._id
@@ -607,7 +639,39 @@ function convertArticleToStoryContent(article: Article): any {
   }
 }
 
+function isStoryDeck(item: Article | StoryDeck | any): item is StoryDeck {
+  return Boolean(item?.article_id && Array.isArray(item?.pages) && item?.metadata)
+}
+
+function convertStoryDeckToStoryContent(story: StoryDeck): any {
+  return {
+    id: story.article_id,
+    _id: story.article_id,
+    title: story.metadata?.title || 'Untitled Article',
+    description: story.metadata?.description || '',
+    thumbnail: story.metadata?.image_url || 'https://picsum.photos/400/600?random=article',
+    focalPoint: story.metadata?.image_focal_point || null,
+    author: {
+      name: story.metadata?.author || 'Unknown Author',
+      username: `@${(story.metadata?.author || 'unknown').toLowerCase().replace(/\s+/g, '')}`,
+      avatar: 'https://picsum.photos/50/50?random=author',
+    },
+    createdAt: story.metadata?.publish_date || story.metadata?.created_date || new Date().toISOString(),
+    storyDeck: story,
+    originalArticle: {
+      _id: story.article_id,
+      id: story.article_id,
+      canonical_url: story.metadata?.canonical_url,
+      imageFocalPoint: story.metadata?.image_focal_point,
+      ai_summary: { pages: story.pages },
+      taxonomy: { primary_section: { name: story.metadata?.category } },
+      content_elements: [],
+    },
+  }
+}
+
 function convertVideoToVerticalVideoFormat(video: Video): any {
+  const rawVideo = video as any
   const mp4Streams = video.streams?.filter((stream) => stream.stream_type === 'mp4') || []
   const bestStream =
     mp4Streams.find((stream) => stream.bitrate >= 1200) ||
@@ -615,8 +679,8 @@ function convertVideoToVerticalVideoFormat(video: Video): any {
     mp4Streams[0]
 
   return {
-    id: video._id || video.id,
-    _id: video._id || video.id,
+    id: rawVideo._id || rawVideo.id,
+    _id: rawVideo._id || rawVideo.id,
     content_id: video.content_id,
     title: video.tracking?.page_title || 'Video',
     description: `Watch this video from ${video.tracking?.video_source || 'The Washington Post'}`,

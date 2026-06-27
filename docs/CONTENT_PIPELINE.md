@@ -1,67 +1,81 @@
-# Content pipeline: DB articles → story slides (v1) + scraper hook (v2)
+# Content pipeline: worker-owned article story slides
 
 ## Overview
 
-- **v1:** Articles live in MongoDB (`articles` collection). The **wapow-app** API generates `ai_summary.pages` (StoryView-compatible slides) from each article’s text and images, then stores the result on the same document.
-- **v2:** **wapow-scraper** ingests RSS/web items, normalizes them into the same article shape, upserts into MongoDB, and can optionally call the API to run conversion immediately after each new insert.
+- Raw scrape payloads live in MongoDB (`raw_articles`) for internal provenance and debugging.
+- Normalized article metadata/content lives in MongoDB (`articles` collection).
+- Canonical generated story decks live in MongoDB (`story_slides` collection).
+- **wapow-worker** owns scraping, ingestion, conversion job records, Celery enqueueing, Celery task execution, story generation, and `story_slides` persistence.
+- **wapow-app** is a passive reader. It may include existing generated slides in article/feed responses, but it does not create conversion jobs, enqueue Celery tasks, or run story generation.
 
-## wapow-app: story generation
+## Canonical story output
 
 ### Data shape
 
-`ai_summary` on an article document:
+Worker-owned `story_slides` documents are the canonical frontend story payload:
 
+- `article_id`: article `_id`
 - `pages`: array of slides with `page_type` `content` or `overview`
-- Each `content` slide includes `content[]` with `type: "text"` and `type: "image"` (`content_url`) — matches [wapow-ui/src/components/StoryView.vue](wapow-ui/src/components/StoryView.vue)
+- Each `content` slide includes `content[]` items such as `type: "text"` and optionally `type: "image"` with `content_url`
 - `generation_timestamp`, `llm_model_used` (`heuristic-v1` or OpenAI model id), `slide_count`
 
-### Slide count (v1 heuristic)
+wapow-app exposes these decks through `/api/stories` and `/api/stories/{article_id}`. It also maps this into the legacy response field `ai_summary.pages` for frontend compatibility only.
 
-- Targets **3–4** content slides for short articles; adds slides as word count grows (cap **9** content slides), plus **one** `overview` (takeaways) slide.
-- If **`OPENAI_API_KEY`** is set, the overview text is refined via the Chat Completions API; otherwise bullets are derived from chunked text.
+### Slide count
 
-### HTTP endpoints
+- Short articles may produce a single text-only or image-supported slide.
+- Typical articles produce a few content slides plus an overview when useful.
+- Total stories should stay concise, generally **5-6 slides max**.
+- Images are optional. If usable article images are missing, redundant, low quality, or irrelevant, the worker generates text-only slides.
+
+## wapow-worker: conversion control plane
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/api/articles/{id}?ensure_story=true` | Return article; generate `ai_summary` if missing |
-| `POST` | `/api/articles/{id}/convert-to-story?force=false` | Generate and persist slides (skip if already present unless `force=true`) |
-| `POST` | `/api/articles/{id}/preview-story` | Same as convert but **does not** write to MongoDB |
-| `POST` | `/api/articles/batch-convert-to-story` | Body: `{ "ids": ["..."], "force": false }` — max **50** ids; returns **202** with `job_ids` |
-| `GET` | `/api/conversion-jobs/{job_id}` | Status: `pending` → `processing` → `completed` or `failed` |
+| `POST` | `/worker/conversion-jobs` | Body: `{ "article_id": "...", "force": false }`; validates the article, creates a job, and enqueues Celery |
+| `POST` | `/worker/conversion-jobs/batch` | Body: `{ "ids": ["..."], "force": false }`; max **50** ids |
+| `GET` | `/worker/conversion-jobs/{job_id}` | Status: `pending` → `processing` → `completed` or `failed` |
+| `POST` | `/worker/conversion-jobs/{job_id}/retry` | Requeue a failed conversion job |
+| `GET` | `/worker/status` | Read conversion worker pause state |
+| `POST` | `/worker/pause` | Pause conversion workers |
+| `POST` | `/worker/resume` | Resume conversion workers |
 
-### Environment variables (wapow-app)
+Manual/admin conversion controls should be exposed through this worker API and protected by deployment network policy or an internal token.
+Set `WORKER_INTERNAL_TOKEN` to require callers to send `X-Internal-Token`.
+
+## wapow-app: passive slide reader
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/stories` | Return canonical story deck payloads from `story_slides`, with normalized article metadata from `articles` |
+| `GET` | `/api/stories/{id}` | Return one canonical story deck by article id |
+| `POST` | `/api/stories/by-ids` | Return canonical story decks for a batch of article ids |
+| `GET` | `/api/articles/{id}` | Return article and include existing `story_slides` as `ai_summary` when present |
+| `GET` | `/api/articles` | Return articles and include existing `story_slides` in batch when present |
+
+wapow-app intentionally has no `/convert-to-story`, `/preview-story`, `/batch-convert-to-story`, or conversion job status endpoints.
+
+## Environment variables
 
 | Variable | Purpose |
 |----------|---------|
-| `MONGODB_URI` | MongoDB connection (existing) |
-| `OPENAI_API_KEY` | Optional; enables LLM takeaways |
+| `MONGODB_URI` | MongoDB connection |
+| `REDIS_URL` | Celery broker/backend for wapow-worker |
+| `GEMINI_API_KEY` | Optional; enables Gemini slide generation |
+| `OPENAI_API_KEY` | Optional; enables fallback LLM takeaways |
 | `OPENAI_MODEL` | Optional; default `gpt-4o-mini` |
+| `STORY_CONVERT_ON_INGEST` | `true` for worker ingestion to auto-create conversion jobs after new article inserts |
+| `WORKER_INTERNAL_TOKEN` | Optional; protects worker conversion/admin controls with `X-Internal-Token` |
 
 ### MongoDB
 
 - Collection **`conversion_jobs`**: job documents for batch conversion (index on `job_id` created at startup).
-
-## wapow-scraper: post-ingest story conversion
-
-After a successful **`insert_one`** into the articles collection, the scraper can fire an async HTTP `POST` to wapow-app.
-
-### Environment variables (wapow-scraper)
-
-| Variable | Purpose |
-|----------|---------|
-| `WAPOW_API_BASE_URL` | Base URL of wapow-app, e.g. `http://localhost:3001` or `http://api:3001` in Compose |
-| `STORY_CONVERT_ON_INGEST` | `true` to enable the POST after each new article insert |
-
-Requirements:
-
-- wapow-app must be reachable from the scraper container/process.
-- Same MongoDB database so the new article `_id` exists when the API runs.
+- Collection **`story_slides`**: canonical generated slide decks.
 
 ## Docker Compose notes
 
-- Point `WAPOW_API_BASE_URL` at the API service name and internal port (e.g. `http://wapow-app:3001` if that matches your service name).
-- Start API before or with scraper so conversion requests succeed.
+- Celery workers must run the worker app: `celery -A scraper.celery_client worker --loglevel=info -E`.
+- Only wapow-worker registers `tasks.convert_article_to_story`.
 
 ## Related docs
 

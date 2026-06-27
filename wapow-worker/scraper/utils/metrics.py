@@ -2,8 +2,9 @@
 
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
+from bson import ObjectId
 from scraper.db import get_collection
 
 logger = logging.getLogger(__name__)
@@ -12,8 +13,9 @@ logger = logging.getLogger(__name__)
 class ScraperRunTracker:
     """Tracks a single scraping job execution and updates metrics in MongoDB."""
 
-    def __init__(self, job_id: str):
+    def __init__(self, job_id: str, task_id: str | None = None):
         self.job_id = job_id
+        self.task_id = task_id
         self.start_time = None
         self.end_time = None
         self.items_scraped = 0
@@ -31,6 +33,8 @@ class ScraperRunTracker:
                 "job_id": self.job_id,
                 "start_time": self.start_time,
                 "status": "running",
+                "task_id": self.task_id,
+                "heartbeat_at": self.start_time,
                 "items_scraped": 0,
                 "items_saved": 0,
                 "saved_articles": [],
@@ -39,6 +43,18 @@ class ScraperRunTracker:
             self.run_id = result.inserted_id
         except Exception as e:
             logger.error(f"Error registering run start in DB: {e}")
+
+    def heartbeat(self):
+        """Update the active run heartbeat."""
+        if not self.run_id:
+            return
+        try:
+            get_collection("scraper_runs").update_one(
+                {"_id": self.run_id},
+                {"$set": {"heartbeat_at": datetime.utcnow()}},
+            )
+        except Exception as e:
+            logger.error(f"Error updating run heartbeat in DB: {e}")
 
     def add_saved_article(self, article_id: str, title: str):
         """Record a successfully saved article."""
@@ -56,6 +72,9 @@ class ScraperRunTracker:
         try:
             if self.run_id:
                 coll = get_collection("scraper_runs")
+                existing = coll.find_one({"_id": self.run_id}, {"status": 1})
+                if existing and existing.get("status") in {"cancelled", "failed"} and status == "success":
+                    return
                 coll.update_one(
                     {"_id": self.run_id},
                     {
@@ -63,6 +82,7 @@ class ScraperRunTracker:
                             "end_time": self.end_time,
                             "duration_seconds": duration,
                             "status": status,
+                            "heartbeat_at": self.end_time,
                             "items_scraped": self.items_scraped,
                             "items_saved": self.items_saved,
                             "saved_articles": self.saved_articles,
@@ -72,6 +92,60 @@ class ScraperRunTracker:
                 )
         except Exception as e:
             logger.error(f"Error updating run finish in DB: {e}")
+
+
+def finish_run_by_id(run_id: Any, status: str, error_msg: str | None = None) -> None:
+    """Force-finish a run, used when stopping or reconciling orphaned Celery tasks."""
+    try:
+        oid = ObjectId(run_id) if isinstance(run_id, str) and ObjectId.is_valid(run_id) else run_id
+        coll = get_collection("scraper_runs")
+        doc = coll.find_one({"_id": oid})
+        if not doc or doc.get("status") != "running":
+            return
+        end_time = datetime.utcnow()
+        start_time = doc.get("start_time")
+        duration = (end_time - start_time).total_seconds() if isinstance(start_time, datetime) else 0.0
+        errors = list(doc.get("errors") or [])
+        if error_msg:
+            errors.append(error_msg)
+        coll.update_one(
+            {"_id": oid},
+            {
+                "$set": {
+                    "end_time": end_time,
+                    "duration_seconds": duration,
+                    "status": status,
+                    "heartbeat_at": end_time,
+                    "errors": errors,
+                }
+            },
+        )
+    except Exception as e:
+        logger.error(f"Error force-finishing run {run_id}: {e}")
+
+
+def reconcile_stale_runs(max_age_minutes: int = 120) -> int:
+    """Mark orphaned running rows as failed so the dashboard reflects reality."""
+    try:
+        cutoff = datetime.utcnow() - timedelta(minutes=max_age_minutes)
+        coll = get_collection("scraper_runs")
+        stale_runs = list(
+            coll.find(
+                {
+                    "status": "running",
+                    "$or": [
+                        {"heartbeat_at": {"$lt": cutoff}},
+                        {"heartbeat_at": {"$exists": False}, "start_time": {"$lt": cutoff}},
+                    ],
+                }
+            )
+        )
+        for run in stale_runs:
+            finish_run_by_id(run["_id"], "failed", "Run marked failed after missing heartbeat.")
+        return len(stale_runs)
+    except Exception as e:
+        logger.error(f"Error reconciling stale scraper runs: {e}")
+        return 0
 
 
 def update_source_status(

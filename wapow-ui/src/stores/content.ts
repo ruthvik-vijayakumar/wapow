@@ -266,12 +266,46 @@ export interface StoryContent {
   audioUrl?: string
 }
 
+export interface StoryPageContent {
+  type: 'text' | 'image' | 'video' | string
+  content?: string
+  content_url?: string
+  embed_code?: string
+  focal_point?: Record<string, any> | null
+}
+
+export interface StoryPage {
+  page_type: 'content' | 'overview' | 'hero' | string
+  content?: StoryPageContent[]
+}
+
+export interface StoryDeck {
+  id: string
+  article_id: string
+  pages: StoryPage[]
+  metadata: {
+    title?: string
+    description?: string
+    author?: string
+    image_url?: string
+    image_focal_point?: Record<string, any> | null
+    category?: string
+    canonical_url?: string
+    publish_date?: string
+    created_date?: string
+  }
+  generation_timestamp?: string
+  llm_model_used?: string
+  slide_count?: number
+}
+
 export type MediaItem = Video | StoryContent
 
 export const useContentStore = defineStore('content', () => {
   const videos = ref<Video[]>([])
   const podcastClips = ref<StoryContent[]>([])
   const articles = ref<Article[]>([])
+  const stories = ref<StoryDeck[]>([])
   const isLoading = ref(false)
 
   // ── Infinite-scroll pagination state (articles) ──
@@ -379,6 +413,47 @@ export const useContentStore = defineStore('content', () => {
     return response.json()
   }
 
+  const getStories = async (
+    category_id: string,
+    opts: { page?: number; limit?: number; sortOrder?: 'asc' | 'desc' } = {},
+  ) => {
+    const baseUrl = import.meta.env.VITE_ARTICLES_API || 'http://localhost:3001'
+    const category = category_id.replace(/^\//, '')
+    const params = new URLSearchParams()
+    if (category) params.set('category', category)
+    if (opts.page) params.set('page', String(opts.page))
+    if (opts.limit) params.set('limit', String(opts.limit))
+    if (opts.sortOrder) params.set('sort_order', opts.sortOrder)
+    const qs = params.toString()
+    const response = await fetch(`${baseUrl}/api/stories/${qs ? `?${qs}` : ''}`, {
+      method: 'GET',
+    })
+    return response.json()
+  }
+
+  const getStoryById = async (articleId: string): Promise<StoryDeck | null> => {
+    const baseUrl = import.meta.env.VITE_ARTICLES_API || 'http://localhost:3001'
+    const response = await fetch(`${baseUrl}/api/stories/${encodeURIComponent(articleId)}`, {
+      method: 'GET',
+    })
+    if (!response.ok) return null
+    const json = await response.json()
+    return json?.data ?? null
+  }
+
+  const getStoriesByIds = async (ids: string[]): Promise<StoryDeck[]> => {
+    if (ids.length === 0) return []
+    const baseUrl = import.meta.env.VITE_ARTICLES_API || 'http://localhost:3001'
+    const response = await fetch(`${baseUrl}/api/stories/by-ids`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    })
+    if (!response.ok) return []
+    const json = await response.json()
+    return json?.data ?? []
+  }
+
   /** Map + filter raw API article docs into typed Article objects. */
   const _mapArticles = (data: any[]): Article[] =>
     (data ?? [])
@@ -402,6 +477,12 @@ export const useContentStore = defineStore('content', () => {
     const totalPages = Number(res?.pages) || 1
     articlesTotalPages.value = totalPages
     articlesHasMore.value = articlesPage.value < totalPages
+  }
+
+  const loadStories = async (apiCategoryId: string) => {
+    const res = await getStories(apiCategoryId, { page: 1, limit: ARTICLES_PAGE_SIZE })
+    stories.value = res?.data ?? []
+    return stories.value
   }
 
   /** Append the next page of the current category (infinite scroll). */
@@ -555,6 +636,7 @@ export const useContentStore = defineStore('content', () => {
     videos,
     podcastClips,
     articles,
+    stories,
     isLoading,
     // pagination / infinite scroll
     articlesLoadingMore,
@@ -563,6 +645,10 @@ export const useContentStore = defineStore('content', () => {
     getAllMediaItems,
     getMediaByType,
     loadArticles,
+    loadStories,
+    getStories,
+    getStoryById,
+    getStoriesByIds,
     getArticlesBySection,
     getArticlesByType,
     getTrendingArticles,

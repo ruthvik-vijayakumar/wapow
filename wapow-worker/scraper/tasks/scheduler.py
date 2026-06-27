@@ -48,6 +48,7 @@ def get_job_info() -> list[dict]:
             "id": job.id,
             "name": job.name,
             "next_run": next_run.isoformat() if next_run else None,
+            "next_run_time": next_run.isoformat() if next_run else None,
             "trigger": str(job.trigger),
             "status": "paused" if next_run is None else "active",
         })

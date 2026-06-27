@@ -33,7 +33,8 @@
     <!-- Actual content renders on top -->
     <ErrorBoundary fallback-message="Failed to load this story. Please go back and try again.">
       <StoryFeed
-        v-if="currentArticle"
+        v-if="currentStoryDeck || currentArticle"
+        :initial-story="currentStoryDeck"
         :initial-article="currentArticle"
         :articles="mixedCategoryContent"
         :category="currentCategory"
@@ -53,7 +54,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useContentStore } from '@/stores/content'
 import StoryFeed from '@/components/StoryFeed.vue'
 import ErrorBoundary from '@/components/ErrorBoundary.vue'
-import type { Article } from '@/stores/content'
+import type { Article, StoryDeck } from '@/stores/content'
 import Game from './wordle/Game.vue'
 
 const route = useRoute()
@@ -62,7 +63,8 @@ const contentStore = useContentStore()
 
 const isLoading = ref(true)
 const fetchedArticle = ref<any>(null)
-const contentNotFound = computed(() => !isLoading.value && !currentArticle.value)
+const fetchedStory = ref<StoryDeck | null>(null)
+const contentNotFound = computed(() => !isLoading.value && !currentStoryDeck.value && !currentArticle.value)
 
 // Retrieve item data passed via router state (from SavedView)
 const savedItem = (window.history.state?.savedItem as Record<string, any>) ?? null
@@ -99,7 +101,7 @@ const currentArticle = computed(() => {
       _id: id,
       type: 'video',
       headlines: {
-        basic: resolvedVideo.value.tracking?.page_title || resolvedVideo.value.title || 'Video',
+        basic: resolvedVideo.value.tracking?.page_title || (resolvedVideo.value as any).title || 'Video',
       },
       _videoRef: resolvedVideo.value,
     } as any
@@ -129,6 +131,8 @@ const currentArticle = computed(() => {
 })
 
 const reccomendations = ref([])
+const recommendationStories = ref<StoryDeck[]>([])
+const currentStoryDeck = computed(() => fetchedStory.value)
 
 onMounted(() => {
   window.addEventListener('resize', onResize)
@@ -165,6 +169,14 @@ async function fetchArticleById(id: string) {
   }
 }
 
+async function fetchStoryById(id: string) {
+  try {
+    fetchedStory.value = await contentStore.getStoryById(id)
+  } catch (e) {
+    console.error('Failed to fetch story by ID:', e)
+  }
+}
+
 onMounted(async () => {
   const id = articleId.value
 
@@ -174,6 +186,10 @@ onMounted(async () => {
   // Start all fetches in parallel
   const promises: Promise<any>[] = []
 
+  if (id) {
+    promises.push(fetchStoryById(id))
+  }
+
   // Always fetch recommendations
   promises.push(
     fetchRecommendations('user_001', currentCategory.value).then(async (recc) => {
@@ -182,6 +198,8 @@ onMounted(async () => {
       const gen_ids = (recc.general_recommendations ?? []).map((item: any) => item.article_id)
       const ids = [...cat_ids, ...gen_ids]
       if (ids.length === 0) return
+      recommendationStories.value = await contentStore.getStoriesByIds(ids)
+      if (recommendationStories.value.length > 0) return
       const response = await fetch(
         `${import.meta.env.VITE_ARTICLES_API || 'http://localhost:3001'}/api/articles/by-ids`,
         {
@@ -261,6 +279,10 @@ const fetchRecommendations = async (userId: string, category: string) => {
 // Create a healthy mix of articles, videos, podcast clips, and games for the current category
 const mixedCategoryContent = computed(() => {
   const mixed: any[] = []
+
+  if (recommendationStories.value.length > 0) {
+    mixed.push(...recommendationStories.value)
+  }
 
   // Filter articles by category
   const articles = reccomendations.value.filter((article: any) => {
