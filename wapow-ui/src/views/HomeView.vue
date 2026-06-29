@@ -42,6 +42,8 @@ const categories = [
   '/technology',
   '/wellbeing',
   '/travel',
+  '/arts-entertainment',
+  '/business',
   // '/podcasts'
 ]
 

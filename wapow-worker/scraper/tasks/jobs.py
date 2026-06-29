@@ -16,10 +16,12 @@ from scraper.db import get_collection
 from scraper.models import (
     SourceConfig,
     RSSSource,
+    WebSource,
     RawArticle,
 )
 from scraper.scrapers.base import ScrapedItem
 from scraper.scrapers.rss_scraper import RSSScraper
+from scraper.scrapers.web_scraper import WebScraper
 from scraper.processors.normalizer import ContentNormalizer
 from scraper.processors.deduplicator import deduplicator
 from scraper.processors.focal_point import enrich_document_with_focal_points
@@ -42,9 +44,9 @@ def load_sources() -> SourceConfig:
         with open(SOURCES_PATH) as f:
             data = yaml.safe_load(f) or {}
 
-        # Parse into typed models (rss only)
         config = SourceConfig(
             rss=[RSSSource(**s) for s in data.get("rss", [])],
+            web=[WebSource(**s) for s in data.get("web", [])],
         )
         return config
 
@@ -65,6 +67,16 @@ def save_sources(config: SourceConfig) -> None:
                     "enabled": s.enabled,
                 }
                 for s in config.rss
+            ],
+            "web": [
+                {
+                    "name": s.name,
+                    "url": s.url,
+                    "category": s.category,
+                    "enabled": s.enabled,
+                    "use_playwright": s.use_playwright,
+                }
+                for s in config.web
             ],
         }
         with open(SOURCES_PATH, "w") as f:
@@ -270,16 +282,103 @@ async def run_rss_scrape(task_id: str | None = None) -> dict[str, Any]:
     return {"scraped": total_scraped, "saved": total_saved}
 
 
+async def run_web_scrape(task_id: str | None = None) -> dict[str, Any]:
+    """Run configured single-page web scraping sources."""
+    logger.info("Starting web scrape job")
+    tracker = ScraperRunTracker("web_scrape", task_id=task_id)
+    tracker.start()
+
+    sources = load_sources()
+    normalizer = ContentNormalizer()
+
+    total_scraped = 0
+    total_saved = 0
+
+    try:
+        for source in sources.web:
+            if not source.enabled:
+                continue
+
+            tracker.heartbeat()
+            start_src_time = time.time()
+            src_status = "success"
+            src_items_scraped = 0
+            src_items_saved = 0
+            src_error = ""
+            try:
+                scraper = WebScraper(source)
+                items = await scraper.scrape()
+                tracker.heartbeat()
+                src_items_scraped = len(items)
+                total_scraped += src_items_scraped
+
+                await _save_raw_articles(items)
+                tracker.heartbeat()
+
+                normalized = [(normalizer.normalize(item)) for item in items]
+                unique = deduplicator.filter_duplicates(normalized)
+                saved_info = await _save_items(unique)
+                tracker.heartbeat()
+
+                src_items_saved = len(saved_info)
+                total_saved += src_items_saved
+                for item_id, item_title in saved_info:
+                    tracker.add_saved_article(item_id, item_title)
+
+                logger.info(
+                    f"WEB {source.name}: scraped={len(items)}, unique={len(unique)}, saved={len(saved_info)}"
+                )
+
+            except Exception as e:
+                src_status = "failed"
+                src_error = str(e)
+                err_msg = f"Error in web scrape for {source.name}: {e}"
+                logger.error(err_msg)
+                tracker.add_error(err_msg)
+            finally:
+                src_duration = time.time() - start_src_time
+                update_source_status(
+                    source_name=source.name,
+                    source_type="web",
+                    url=source.url,
+                    category=source.category,
+                    enabled=source.enabled,
+                    status=src_status,
+                    items_scraped=src_items_scraped,
+                    items_saved=src_items_saved,
+                    duration=src_duration,
+                    error_msg=src_error
+                )
+
+        tracker.items_scraped = total_scraped
+        tracker.finish("success")
+    except asyncio.CancelledError:
+        err_msg = "Web scrape cancelled"
+        logger.warning(err_msg)
+        tracker.add_error(err_msg)
+        tracker.finish("cancelled")
+        raise
+    except Exception as e:
+        err_msg = f"Fatal error in web scrape: {e}"
+        logger.error(err_msg)
+        tracker.add_error(err_msg)
+        tracker.finish("failed")
+
+    logger.info(f"Web scrape complete: total_scraped={total_scraped}, total_saved={total_saved}")
+    return {"scraped": total_scraped, "saved": total_saved}
+
+
 async def run_all_scrapers() -> dict[str, Any]:
-    """Run all scrapers sequentially (RSS only)."""
+    """Run all scrapers sequentially."""
     logger.info("Starting full scrape of all sources")
 
     results = {
         "rss": await run_rss_scrape(),
+        "web": await run_web_scrape(),
     }
 
-    total_scraped = results["rss"].get("scraped", 0)
-    total_saved = results["rss"].get("saved", 0)
+    total_scraped = sum(result.get("scraped", 0) for result in results.values())
+    total_saved = sum(result.get("saved", 0) for result in results.values())
 
     logger.info(f"Full scrape complete: total_scraped={total_scraped}, total_saved={total_saved}")
 
@@ -303,6 +402,38 @@ def run_rss_scrape_task(self):
     
     result = loop.run_until_complete(run_rss_scrape(task_id=task_id))
     logger.info(f"Celery run_rss_scrape_task completed with result: {result}")
+    return result
+
+
+@celery_app.task(bind=True, name="tasks.run_web_scrape")
+def run_web_scrape_task(self):
+    """Celery task wrapper for run_web_scrape."""
+    task_id = self.request.id
+    logger.info(f"Celery executing run_web_scrape_task id={task_id}")
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+    result = loop.run_until_complete(run_web_scrape(task_id=task_id))
+    logger.info(f"Celery run_web_scrape_task completed with result: {result}")
+    return result
+
+
+@celery_app.task(bind=True, name="tasks.run_all_scrapers")
+def run_all_scrapers_task(self):
+    """Celery task wrapper for run_all_scrapers."""
+    task_id = self.request.id
+    logger.info(f"Celery executing run_all_scrapers_task id={task_id}")
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+    result = loop.run_until_complete(run_all_scrapers())
+    logger.info(f"Celery run_all_scrapers_task completed with result: {result}")
     return result
 
 

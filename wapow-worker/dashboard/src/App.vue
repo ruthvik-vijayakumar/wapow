@@ -8,6 +8,7 @@ interface Job {
   trigger: string
   next_run_time: string | null
   status: 'active' | 'paused'
+  manual?: boolean
   running?: boolean
   active_run?: {
     run_id: string
@@ -182,6 +183,21 @@ async function fetchStats() {
     lastUpdated.value = `Last synced: ${new Date().toLocaleTimeString()}`
   } catch (err: any) {
     console.error('Error fetching stats:', err)
+    await fetchSources()
+  }
+}
+
+async function fetchSources() {
+  try {
+    const res = await fetch('/sources')
+    if (!res.ok) throw new Error('Failed to fetch sources')
+    const data = await res.json()
+    sources.value = [
+      ...(data.rss || []).map((s: Source) => ({ ...s, type: 'rss' as const, last_status: s.last_status || 'never run' })),
+      ...(data.web || []).map((s: Source) => ({ ...s, type: 'web' as const, last_status: s.last_status || 'never run' })),
+    ]
+  } catch (err) {
+    console.error('Error fetching sources:', err)
   }
 }
 
@@ -610,6 +626,13 @@ onUnmounted(() => {
               >
                 Crawl All
               </button>
+              <button
+                @click="triggerJob('web_scrape')"
+                :disabled="triggeringJob"
+                class="bg-[#1c1c1c] text-[#aaa] hover:text-white hover:bg-neutral-900 border border-[#333] font-semibold text-[10px] py-1 px-3 rounded transition duration-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed font-mono"
+              >
+                Crawl Web
+              </button>
               <button 
                 @click="fetchStats" 
                 class="bg-[#1c1c1c] text-[#888] hover:text-white px-2 py-1 rounded border border-[#333] transition flex items-center justify-center cursor-pointer"
@@ -637,7 +660,9 @@ onUnmounted(() => {
                 </div>
                 <p class="text-xs text-[#888]">
                   Frequency: <span class="font-mono text-white">{{ job.trigger }}</span>
-                  | Next: <span class="font-mono text-[#aaa]">{{ job.next_run_time || 'Paused' }}</span>
+                  <span v-if="!job.manual">
+                    | Next: <span class="font-mono text-[#aaa]">{{ job.next_run_time || 'Paused' }}</span>
+                  </span>
                   <span v-if="job.running && job.active_run?.task_id">
                     | Task: <span class="font-mono text-amber-400">{{ job.active_run.task_id.substring(0, 8) }}</span>
                   </span>
@@ -645,6 +670,7 @@ onUnmounted(() => {
               </div>
               <div class="flex items-center gap-2">
                 <button 
+                  v-if="!job.manual"
                   @click="handleToggleJob(job.id, job.status === 'paused')"
                   :disabled="job.running"
                   :class="[
@@ -754,6 +780,7 @@ onUnmounted(() => {
               <thead class="text-[10px] uppercase bg-black/40 text-[#888] border-b border-[#2e2e2e] font-mono">
                 <tr>
                   <th class="py-2.5 px-4 font-semibold">Name</th>
+                  <th class="py-2.5 px-4 font-semibold">Type</th>
                   <th class="py-2.5 px-4 font-semibold">Category</th>
                   <th class="py-2.5 px-4 font-semibold">Crawl URL</th>
                   <th class="py-2.5 px-4 font-semibold">Last crawl</th>
@@ -763,10 +790,18 @@ onUnmounted(() => {
               </thead>
               <tbody class="divide-y divide-[#2e2e2e] font-mono text-[11px]">
                 <tr v-if="filteredSources.length === 0">
-                  <td colspan="6" class="py-6 text-center text-[#666]">No sources found</td>
+                  <td colspan="7" class="py-6 text-center text-[#666]">No sources found</td>
                 </tr>
                 <tr v-for="src in filteredSources" :key="src.name" class="hover:bg-black/20 transition duration-150">
                   <td class="py-2.5 px-4 font-semibold text-white truncate max-w-[120px]">{{ src.name }}</td>
+                  <td class="py-2.5 px-4">
+                    <span :class="[
+                      'inline-flex border px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider',
+                      src.type === 'web'
+                        ? 'border-blue-500/20 bg-blue-500/10 text-blue-300'
+                        : 'border-[#3ecf8e]/20 bg-[#3ecf8e]/10 text-[#3ecf8e]'
+                    ]">{{ src.type }}</span>
+                  </td>
                   <td class="py-2.5 px-4 text-[#888]">{{ src.category }}</td>
                   <td class="py-2.5 px-4 max-w-[160px] truncate">
                     <a :href="src.url" target="_blank" class="text-blue-400 hover:underline">{{ src.url }}</a>
@@ -962,11 +997,14 @@ onUnmounted(() => {
           <div class="grid grid-cols-2 gap-4">
             <div class="flex flex-col space-y-1">
               <label class="text-[10px] font-bold text-[#888] uppercase font-mono">Source Type</label>
-              <input type="text" value="RSS Feed" disabled class="bg-[#111] border border-[#2e2e2e] text-[#888] rounded px-3 py-2 focus:outline-none cursor-not-allowed font-mono" />
+              <select v-model="sourceForm.type" class="bg-black border border-[#2e2e2e] text-white rounded px-3 py-2 focus:outline-none focus:border-[#3ecf8e] transition font-mono">
+                <option value="rss">RSS Feed</option>
+                <option value="web">Web Page</option>
+              </select>
             </div>
             <div class="flex flex-col space-y-1">
               <label class="text-[10px] font-bold text-[#888] uppercase font-mono">Category</label>
-              <input v-model="sourceForm.category" type="text" placeholder="e.g. tech, sports" class="bg-black border border-[#2e2e2e] text-white rounded px-3 py-2 focus:outline-none focus:border-[#3ecf8e] transition" />
+              <input v-model="sourceForm.category" type="text" placeholder="e.g. technology, sports" class="bg-black border border-[#2e2e2e] text-white rounded px-3 py-2 focus:outline-none focus:border-[#3ecf8e] transition" />
             </div>
           </div>
 
@@ -983,6 +1021,11 @@ onUnmounted(() => {
           <div class="flex items-center gap-2 pt-1.5">
             <input v-model="sourceForm.enabled" id="source-enabled" type="checkbox" class="h-4 w-4 rounded bg-black border-[#2e2e2e] text-[#3ecf8e] accent-[#3ecf8e] cursor-pointer" />
             <label for="source-enabled" class="text-xs text-white font-medium cursor-pointer selection:bg-transparent">Enable immediately for scheduled triggers</label>
+          </div>
+
+          <div v-if="sourceForm.type === 'web'" class="flex items-center gap-2 pt-1.5">
+            <input v-model="sourceForm.use_playwright" id="source-use-playwright" type="checkbox" class="h-4 w-4 rounded bg-black border-[#2e2e2e] text-[#3ecf8e] accent-[#3ecf8e] cursor-pointer" />
+            <label for="source-use-playwright" class="text-xs text-white font-medium cursor-pointer selection:bg-transparent">Render page with Playwright</label>
           </div>
         </div>
 

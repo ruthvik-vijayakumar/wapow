@@ -34,6 +34,16 @@
             <svg v-else-if="category.id === '/travel'" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L14 19v-5.5l8 2.5z" />
             </svg>
+            <svg v-else-if="category.id === '/arts-entertainment'" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 18V5l12-2v13" />
+              <circle cx="6" cy="18" r="3" />
+              <circle cx="18" cy="16" r="3" />
+            </svg>
+            <svg v-else-if="category.id === '/business'" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="7" width="18" height="13" rx="2" />
+              <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              <path d="M3 13h18" />
+            </svg>
           </span>
           <span class="category-name">{{ category.name }}</span>
         </button>
@@ -62,6 +72,8 @@ const categories: Category[] = [
   { id: '/technology', canonical_url: '/technology', name: 'Technology' },
   { id: '/wellbeing', canonical_url: '/wellbeing', name: 'Well Being' },
   { id: '/travel', canonical_url: '/travel', name: 'Travel' },
+  { id: '/arts-entertainment', canonical_url: '/arts-entertainment', name: 'Arts & Entertainment' },
+  { id: '/business', canonical_url: '/business', name: 'Business' },
 ]
 
 const selectedCategory = ref('/sports')

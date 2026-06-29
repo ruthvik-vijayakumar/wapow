@@ -56,6 +56,31 @@ async def fetch_html(url: str, timeout_seconds: int = 30) -> Optional[str]:
         return None
 
 
+async def fetch_static_html(url: str, timeout_seconds: int = 30) -> Optional[str]:
+    """Fetch raw HTML without browser rendering."""
+    import aiohttp
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                url,
+                timeout=aiohttp.ClientTimeout(total=timeout_seconds),
+                headers={
+                    "User-Agent": (
+                        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                    ),
+                },
+            ) as response:
+                if response.status != 200:
+                    logger.warning(f"Failed to fetch HTML for {url}: {response.status}")
+                    return None
+                return await response.text()
+    except Exception as e:
+        logger.warning(f"Error fetching static HTML for {url}: {e}")
+        return None
+
+
 def parse_date_string(date_str: str) -> Optional[datetime]:
     """Helper to parse a date string into a datetime object."""
     if not date_str:
@@ -496,7 +521,7 @@ def extract_body_elements(soup: BeautifulSoup, url: str) -> tuple[list[dict[str,
     return extract_elements_from_container(container, url)
 
 
-async def extract_article_content(url: str) -> dict[str, Any]:
+async def extract_article_content(url: str, use_playwright: bool = True) -> dict[str, Any]:
     """
     Fetch the article page, extract its full body content, media elements, and metadata.
     Attempts to use readability-lxml first, falling back to a custom scoring parser if it fails
@@ -508,7 +533,7 @@ async def extract_article_content(url: str) -> dict[str, Any]:
     Returns:
         A dict containing parsed metadata, content_elements list, and full body_text.
     """
-    html = await fetch_html(url)
+    html = await fetch_html(url) if use_playwright else await fetch_static_html(url)
     if not html:
         return {}
 

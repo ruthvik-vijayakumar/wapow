@@ -13,6 +13,7 @@ from api.routers.recommendations import router as recommendations_router
 from api.routers.saved_articles import router as saved_articles_router
 from api.routers.comments import router as comments_router
 from api.config import (
+    ARTICLE_CATEGORIES,
     AUTH_ENABLED,
     CORS_ALLOW_CREDENTIALS,
     CORS_ORIGINS,
@@ -68,13 +69,14 @@ app.include_router(comments_router, prefix="/api")
 
 @app.get("/")
 async def root():
+    categories = "|".join(ARTICLE_CATEGORIES)
     return {
         "message": "🚀 Welcome to WAPOW API",
         "version": "1.0.0",
         "endpoints": {
-            "articles": "GET /api/articles?category=sports|style|technology|travel|wellbeing",
+            "articles": f"GET /api/articles?category={categories}",
             "articles_by_ids": "POST /api/articles/by-ids",
-            "stories": "GET /api/stories?category=sports|style|technology|travel|wellbeing",
+            "stories": f"GET /api/stories?category={categories}",
             "story_get": "GET /api/stories/{article_id}",
             "stories_by_ids": "POST /api/stories/by-ids",
             "videos": "/api/videos",

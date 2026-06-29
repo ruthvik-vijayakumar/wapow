@@ -103,8 +103,35 @@ rss:
   url: https://www.self.com/feed/rss
   category: wellbeing
   enabled: true
+- name: Variety
+  url: https://variety.com/feed/
+  category: arts-entertainment
+  enabled: true
+- name: The Hollywood Reporter
+  url: https://www.hollywoodreporter.com/feed/
+  category: arts-entertainment
+  enabled: true
+- name: Deadline
+  url: https://deadline.com/feed/
+  category: arts-entertainment
+  enabled: true
+- name: MarketWatch
+  url: https://feeds.content.dowjones.io/public/rss/mw_topstories
+  category: business
+  enabled: true
+- name: Quartz
+  url: https://qz.com/rss
+  category: business
+  enabled: true
+- name: Business Insider
+  url: https://feeds.businessinsider.com/custom/all
+  category: business
+  enabled: true
+- name: Entrepreneur
+  url: https://www.entrepreneur.com/rss-feed/latest
+  category: business
+  enabled: true
 - name: Test RSS
   url: https://testrss.com/feed/
-  category: tech
+  category: technology
   enabled: true
-

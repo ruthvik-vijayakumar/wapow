@@ -57,6 +57,8 @@ class ContentNormalizer:
             "travel": "Travel",
             "style": "Style",
             "wellbeing": "Health",
+            "arts-entertainment": "Arts & Entertainment",
+            "business": "Business",
         }
         display_category = category_map.get(item.category.lower(), item.category.capitalize())
 

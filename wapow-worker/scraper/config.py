@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     # MongoDB
     mongodb_uri: str = "mongodb://localhost:27017/wapow-data"
     mongodb_db_name: str = "wapow-data"
+    mongodb_server_selection_timeout_ms: int = 3000
     redis_url: str = "redis://localhost:6379/0"
 
     # Server
@@ -52,5 +53,7 @@ ARTICLE_CATEGORIES = [
     "technology",
     "travel",
     "wellbeing",
+    "arts-entertainment",
+    "business",
 ]
 ARTICLES_COLLECTION = "articles"

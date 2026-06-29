@@ -3,6 +3,7 @@
 import logging
 import asyncio
 import hmac
+import uuid
 from datetime import datetime
 from contextlib import asynccontextmanager
 from typing import Any
@@ -29,7 +30,10 @@ from scraper.tasks.jobs import (
     save_sources,
     run_rss_scrape,
     run_rss_scrape_task,
+    run_web_scrape,
+    run_web_scrape_task,
     run_all_scrapers,
+    run_all_scrapers_task,
 )
 from scraper.services.conversion_jobs import (
     create_batch_conversion_jobs,
@@ -41,7 +45,7 @@ from scraper.services.conversion_jobs import (
     resume_worker,
     serialize_job,
 )
-from scraper.models.source import RSSSource
+from scraper.models.source import RSSSource, WebSource
 from scraper.utils.metrics import get_scraper_stats
 from scraper.utils.metrics import finish_run_by_id, reconcile_stale_runs
 from scraper.utils.dashboard_logging import (
@@ -51,6 +55,7 @@ from scraper.utils.dashboard_logging import (
     get_recent_logs,
     serialize_log_doc,
 )
+from scraper.tasks.running import active_tasks
 
 
 # Configure logging
@@ -62,7 +67,11 @@ logger = logging.getLogger(__name__)
 configure_dashboard_logging()
 
 RSS_TASK_NAME = "tasks.run_rss_scrape"
+WEB_TASK_NAME = "tasks.run_web_scrape"
+ALL_TASK_NAME = "tasks.run_all_scrapers"
 RSS_QUEUE_NAME = "rss"
+
+SCRAPE_JOB_NAMES = {"rss_feeds", "web_scrape", "all"}
 
 
 class ConversionJobInput(BaseModel):
@@ -112,6 +121,31 @@ def _purge_celery_queue(queue_name: str) -> int:
     with celery_app.connection_for_write() as connection:
         channel = connection.default_channel
         return int(channel.queue_purge(queue_name) or 0)
+
+
+def _start_local_scrape_task(job_id: str) -> str:
+    """Start a manual scrape in the API process so dashboard triggers execute without Celery."""
+    if job_id in active_tasks and not active_tasks[job_id].done():
+        raise HTTPException(status_code=409, detail="Scrape is already running.")
+
+    task_id = f"local-{uuid.uuid4()}"
+
+    async def runner() -> None:
+        try:
+            if job_id == "rss_feeds":
+                await run_rss_scrape(task_id=task_id)
+            elif job_id == "web_scrape":
+                await run_web_scrape(task_id=task_id)
+            elif job_id == "all":
+                await run_all_scrapers()
+            else:
+                raise ValueError(f"Unsupported scrape job: {job_id}")
+        finally:
+            active_tasks.pop(job_id, None)
+
+    task = asyncio.create_task(runner(), name=f"{job_id}:{task_id}")
+    active_tasks[job_id] = task
+    return task_id
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -164,17 +198,48 @@ async def health_check() -> dict[str, str]:
 @app.get("/jobs")
 async def list_jobs() -> dict[str, Any]:
     """List all scheduled jobs."""
-    reconcile_stale_runs()
+    try:
+        reconcile_stale_runs()
+    except Exception as e:
+        logger.warning(f"Unable to reconcile stale runs for jobs dashboard: {e}")
     jobs = get_job_info()
     from scraper.db import get_collection
-    active_runs = {
-        run.get("job_id"): {
-            "run_id": str(run.get("_id")),
-            "task_id": run.get("task_id"),
-            "start_time": run.get("start_time").isoformat() if isinstance(run.get("start_time"), datetime) else run.get("start_time"),
+    try:
+        active_runs = {
+            run.get("job_id"): {
+                "run_id": str(run.get("_id")),
+                "task_id": run.get("task_id"),
+                "start_time": run.get("start_time").isoformat() if isinstance(run.get("start_time"), datetime) else run.get("start_time"),
+            }
+            for run in get_collection("scraper_runs").find({"status": "running"})
         }
-        for run in get_collection("scraper_runs").find({"status": "running"})
-    }
+    except Exception as e:
+        logger.warning(f"Unable to load active scrape runs for jobs dashboard: {e}")
+        active_runs = {}
+
+    for local_job_id, task in list(active_tasks.items()):
+        if task.done():
+            active_tasks.pop(local_job_id, None)
+            continue
+        task_name = task.get_name()
+        _, _, local_task_id = task_name.partition(":")
+        active_runs[local_job_id] = {
+            "run_id": local_task_id or local_job_id,
+            "task_id": local_task_id or local_job_id,
+            "start_time": None,
+        }
+
+    if not any(job["id"] == "web_scrape" for job in jobs):
+        jobs.append({
+            "id": "web_scrape",
+            "name": "Web Page Scraper",
+            "next_run": None,
+            "next_run_time": None,
+            "trigger": "manual",
+            "status": "active",
+            "manual": True,
+        })
+
     for job in jobs:
         active_run = active_runs.get(job["id"])
         job["running"] = active_run is not None
@@ -205,45 +270,79 @@ async def resume_job_endpoint(job_id: str) -> dict[str, Any]:
 @app.post("/jobs/{job_id}/stop")
 async def stop_job_endpoint(job_id: str) -> dict[str, Any]:
     """Stop an actively running scraping job."""
-    if job_id not in {"rss_feeds", "all"}:
+    if job_id not in {"rss_feeds", "web_scrape", "all"}:
         raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
 
     from scraper.celery_client import celery_app, forget_task_result
     from scraper.db import get_collection
 
-    query_job_ids = ["rss_feeds"] if job_id == "all" else [job_id]
-    runs = list(
-        get_collection("scraper_runs").find(
-            {"job_id": {"$in": query_job_ids}, "status": "running"},
-            sort=[("start_time", -1)],
+    query_job_ids = ["rss_feeds", "web_scrape"] if job_id == "all" else [job_id]
+    local_job_ids = ["rss_feeds", "web_scrape", "all"] if job_id == "all" else [job_id]
+    stopped_local_tasks = []
+    for local_job_id in local_job_ids:
+        local_task = active_tasks.pop(local_job_id, None)
+        if local_task and not local_task.done():
+            local_task.cancel()
+            stopped_local_tasks.append(local_job_id)
+
+    try:
+        runs = list(
+            get_collection("scraper_runs").find(
+                {"job_id": {"$in": query_job_ids}, "status": "running"},
+                sort=[("start_time", -1)],
+            )
         )
-    )
-    task_ids = _collect_celery_task_ids(RSS_TASK_NAME)
+    except Exception as e:
+        logger.warning(f"Unable to load active scrape runs while stopping {job_id}: {e}")
+        runs = []
+
+    task_names = {
+        "rss_feeds": [RSS_TASK_NAME],
+        "web_scrape": [WEB_TASK_NAME],
+        "all": [RSS_TASK_NAME, WEB_TASK_NAME, ALL_TASK_NAME],
+    }[job_id]
+    task_ids = set()
+    for task_name in task_names:
+        try:
+            task_ids.update(_collect_celery_task_ids(task_name))
+        except Exception as e:
+            logger.warning(f"Unable to inspect Celery tasks while stopping {job_id}: {e}")
     task_ids.update(str(run["task_id"]) for run in runs if run.get("task_id"))
 
     for task_id in task_ids:
-        celery_app.control.revoke(task_id, terminate=True, signal="SIGTERM")
-        forget_task_result(task_id)
+        try:
+            celery_app.control.revoke(task_id, terminate=True, signal="SIGTERM")
+            forget_task_result(task_id)
+        except Exception as e:
+            logger.warning(f"Unable to revoke Celery task {task_id}: {e}")
 
-    purged_messages = _purge_celery_queue(RSS_QUEUE_NAME)
+    try:
+        purged_messages = _purge_celery_queue(RSS_QUEUE_NAME)
+    except Exception as e:
+        logger.warning(f"Unable to purge Celery queue while stopping {job_id}: {e}")
+        purged_messages = 0
 
     stopped_runs = []
     for run in runs:
-        finish_run_by_id(run["_id"], "cancelled", "Run stopped from worker dashboard.")
-        stopped_runs.append(str(run["_id"]))
+        try:
+            finish_run_by_id(run["_id"], "cancelled", "Run stopped from worker dashboard.")
+            stopped_runs.append(str(run["_id"]))
+        except Exception as e:
+            logger.warning(f"Unable to mark run {run.get('_id')} cancelled: {e}")
 
-    stopped = bool(task_ids or purged_messages or stopped_runs)
+    stopped = bool(task_ids or purged_messages or stopped_runs or stopped_local_tasks)
     if not stopped:
-        return {"success": True, "stopped": False, "message": "No active or queued RSS scrape was found."}
+        return {"success": True, "stopped": False, "message": "No active or queued scrape was found."}
 
     logger.warning(
-        f"Stopped RSS scrape job={job_id} runs={stopped_runs} tasks={sorted(task_ids)} purged={purged_messages}"
+        f"Stopped scrape job={job_id} runs={stopped_runs} tasks={sorted(task_ids)} local={stopped_local_tasks} purged={purged_messages}"
     )
     return {
         "success": True,
         "stopped": True,
         "run_ids": stopped_runs,
         "task_ids": sorted(task_ids),
+        "local_task_ids": stopped_local_tasks,
         "purged_messages": purged_messages,
     }
 
@@ -403,11 +502,13 @@ async def trigger_job_endpoint(job_id: str) -> dict[str, Any]:
 
     Valid job IDs:
     - rss_feeds: RSS feed scraping
-    - all: Run all RSS feeds
+    - web_scrape: Web page scraping
+    - all: Run all configured sources
     """
     job_map = {
         "rss_feeds": run_rss_scrape_task,
-        "all": run_rss_scrape_task,
+        "web_scrape": run_web_scrape_task,
+        "all": run_all_scrapers_task,
     }
 
     if job_id not in job_map:
@@ -419,15 +520,14 @@ async def trigger_job_endpoint(job_id: str) -> dict[str, Any]:
     logger.info(f"Manually triggering job: {job_id}")
 
     try:
-        if job_id in {"rss_feeds", "all"}:
-            from scraper.db import get_collection
-
-            active_run = get_collection("scraper_runs").find_one(
-                {"job_id": "rss_feeds", "status": "running"},
-                {"_id": 1},
-            )
-            if active_run or _collect_celery_task_ids(RSS_TASK_NAME):
-                raise HTTPException(status_code=409, detail="RSS scrape is already running or queued.")
+        if job_id in SCRAPE_JOB_NAMES:
+            task_id = _start_local_scrape_task(job_id)
+            return {
+                "status": "running",
+                "job_id": job_id,
+                "task_id": task_id,
+                "message": "Scraper job is running in the worker API process."
+            }
 
         task = job_map[job_id].delay()
         return {
@@ -461,38 +561,49 @@ async def list_sources() -> dict[str, Any]:
             }
             for s in sources.rss
         ],
-        "web": [],
+        "web": [
+            {
+                "name": s.name,
+                "url": s.url,
+                "category": s.category,
+                "enabled": s.enabled,
+                "use_playwright": s.use_playwright,
+            }
+            for s in sources.web
+        ],
         "totals": {
             "rss": len([s for s in sources.rss if s.enabled]),
-            "web": 0,
+            "web": len([s for s in sources.web if s.enabled]),
         },
     }
 
 
 class SourceInput(BaseModel):
-    type: str  # "rss"
+    type: str  # "rss" or "web"
     name: str
     url: str
     category: str
     enabled: bool = True
+    use_playwright: bool = True
 
 
 class SourceEditInput(BaseModel):
-    type: str  # "rss"
+    type: str  # "rss" or "web"
     old_name: str
     name: str
     url: str
     category: str
     enabled: bool = True
+    use_playwright: bool = True
 
 
 class SourceToggleInput(BaseModel):
-    type: str  # "rss"
+    type: str  # "rss" or "web"
     name: str
 
 
 class SourceDeleteInput(BaseModel):
-    type: str  # "rss"
+    type: str  # "rss" or "web"
     name: str
 
 
@@ -502,7 +613,7 @@ async def add_source_endpoint(input_data: SourceInput) -> dict[str, Any]:
     config = load_sources()
     
     # Check for duplicate name
-    all_names = [s.name for s in config.rss]
+    all_names = [s.name for s in config.rss] + [s.name for s in config.web]
     if input_data.name in all_names:
         raise HTTPException(status_code=400, detail=f"Source with name '{input_data.name}' already exists.")
         
@@ -514,8 +625,17 @@ async def add_source_endpoint(input_data: SourceInput) -> dict[str, Any]:
             enabled=input_data.enabled
         )
         config.rss.append(new_src)
+    elif input_data.type == "web":
+        new_src = WebSource(
+            name=input_data.name,
+            url=input_data.url,
+            category=input_data.category,
+            enabled=input_data.enabled,
+            use_playwright=input_data.use_playwright,
+        )
+        config.web.append(new_src)
     else:
-        raise HTTPException(status_code=400, detail="Invalid source type. Must be 'rss'.")
+        raise HTTPException(status_code=400, detail="Invalid source type. Must be 'rss' or 'web'.")
         
     save_sources(config)
     return {"success": True, "message": f"Successfully added source '{input_data.name}'"}
@@ -536,6 +656,18 @@ async def edit_source_endpoint(input_data: SourceEditInput) -> dict[str, Any]:
                     url=input_data.url,
                     category=input_data.category,
                     enabled=input_data.enabled
+                )
+                found = True
+                break
+    elif input_data.type == "web":
+        for i, s in enumerate(config.web):
+            if s.name == input_data.old_name:
+                config.web[i] = WebSource(
+                    name=input_data.name,
+                    url=input_data.url,
+                    category=input_data.category,
+                    enabled=input_data.enabled,
+                    use_playwright=input_data.use_playwright,
                 )
                 found = True
                 break
@@ -561,6 +693,13 @@ async def toggle_source_endpoint(input_data: SourceToggleInput) -> dict[str, Any
                 new_state = s.enabled
                 found = True
                 break
+    elif input_data.type == "web":
+        for s in config.web:
+            if s.name == input_data.name:
+                s.enabled = not s.enabled
+                new_state = s.enabled
+                found = True
+                break
                 
     if not found:
         raise HTTPException(status_code=404, detail=f"Source '{input_data.name}' not found.")
@@ -580,6 +719,12 @@ async def delete_source_endpoint(input_data: SourceDeleteInput) -> dict[str, Any
         for s in config.rss:
             if s.name == input_data.name:
                 config.rss.remove(s)
+                found = True
+                break
+    elif input_data.type == "web":
+        for s in config.web:
+            if s.name == input_data.name:
+                config.web.remove(s)
                 found = True
                 break
                 
@@ -627,6 +772,22 @@ async def get_stats() -> dict[str, Any]:
                 "type": "rss",
                 "category": r.category,
                 "enabled": r.enabled,
+                "last_scraped_at": status_info.get("last_scraped_at"),
+                "last_duration_seconds": status_info.get("last_duration_seconds"),
+                "last_status": status_info.get("last_status", "never run"),
+                "last_items_scraped": status_info.get("last_items_scraped", 0),
+                "last_items_saved": status_info.get("last_items_saved", 0),
+                "last_error": status_info.get("last_error", "")
+            })
+        for w in sources_config.web:
+            status_info = db_sources.get(w.url, {})
+            combined_sources.append({
+                "name": w.name,
+                "url": w.url,
+                "type": "web",
+                "category": w.category,
+                "enabled": w.enabled,
+                "use_playwright": w.use_playwright,
                 "last_scraped_at": status_info.get("last_scraped_at"),
                 "last_duration_seconds": status_info.get("last_duration_seconds"),
                 "last_status": status_info.get("last_status", "never run"),

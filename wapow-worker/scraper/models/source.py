@@ -10,6 +10,7 @@ class SourceType(str, Enum):
     """Type of content source."""
 
     RSS = "rss"
+    WEB = "web"
 
 
 class BaseSource(BaseModel):
@@ -27,7 +28,16 @@ class RSSSource(BaseSource):
     url: str
 
 
+class WebSource(BaseSource):
+    """Single web page source configuration."""
+
+    type: SourceType = SourceType.WEB
+    url: str
+    use_playwright: bool = True
+
+
 class SourceConfig(BaseModel):
     """Complete source configuration loaded from YAML."""
 
     rss: list[RSSSource] = Field(default_factory=list)
+    web: list[WebSource] = Field(default_factory=list)

@@ -3,10 +3,10 @@ name: Deploy
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
-# Set secret DO_REGISTRY_NAME to your registry slug (e.g. wapow-do-registry)
 env:
-  REGISTRY_PREFIX: registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}
+  AWS_REGION: ${{ vars.AWS_REGION }}
 
 jobs:
   deploy:
@@ -14,54 +14,63 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Verify DO_REGISTRY_NAME secret
-        env:
-          DO_REGISTRY_NAME: ${{ secrets.DO_REGISTRY_NAME }}
-        run: |
-          if [ -z "$DO_REGISTRY_NAME" ]; then
-            echo "::error::Set repository secret DO_REGISTRY_NAME (DigitalOcean registry slug only)."
-            exit 1
-          fi
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: Login to DO Container Registry
-        run: echo "${{ secrets.DO_API_TOKEN }}" | docker login registry.digitalocean.com -u "${{ secrets.DO_API_TOKEN }}" --password-stdin
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
 
       - name: Build and push wapow-app
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t "${REGISTRY_PREFIX}/wapow-app:latest" -f wapow-app/Dockerfile wapow-app
-          docker push "${REGISTRY_PREFIX}/wapow-app:latest"
+          docker build -t "$ECR_REGISTRY/wapow-app:latest" -t "$ECR_REGISTRY/wapow-app:$IMAGE_TAG" -f wapow-app/Dockerfile wapow-app
+          docker push "$ECR_REGISTRY/wapow-app:latest"
+          docker push "$ECR_REGISTRY/wapow-app:$IMAGE_TAG"
 
       - name: Build and push wapow-collector
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t "${REGISTRY_PREFIX}/wapow-collector:latest" -f wapow-collector/Dockerfile wapow-collector
-          docker push "${REGISTRY_PREFIX}/wapow-collector:latest"
+          docker build -t "$ECR_REGISTRY/wapow-collector:latest" -t "$ECR_REGISTRY/wapow-collector:$IMAGE_TAG" -f wapow-collector/Dockerfile wapow-collector
+          docker push "$ECR_REGISTRY/wapow-collector:latest"
+          docker push "$ECR_REGISTRY/wapow-collector:$IMAGE_TAG"
 
       - name: Build and push wapow-worker
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t "${REGISTRY_PREFIX}/wapow-worker:latest" -f wapow-worker/Dockerfile wapow-worker
-          docker push "${REGISTRY_PREFIX}/wapow-worker:latest"
+          docker build -t "$ECR_REGISTRY/wapow-worker:latest" -t "$ECR_REGISTRY/wapow-worker:$IMAGE_TAG" -f wapow-worker/Dockerfile wapow-worker
+          docker push "$ECR_REGISTRY/wapow-worker:latest"
+          docker push "$ECR_REGISTRY/wapow-worker:$IMAGE_TAG"
 
-      # Remote shell does NOT inherit GitHub env — pass tokens and registry via envs
-      - name: Deploy to Droplet
+      - name: Deploy to EC2
         uses: appleboy/ssh-action@v1
         env:
-          DO_API_TOKEN: ${{ secrets.DO_API_TOKEN }}
-          REGISTRY_PREFIX: ${{ env.REGISTRY_PREFIX }}
-          # Optional: set secret DEPLOY_PATH to the clone dir on the Droplet (default /opt/wapow)
+          AWS_REGION: ${{ env.AWS_REGION }}
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
         with:
-          host: ${{ secrets.DROPLET_IP }}
-          username: root
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: DO_API_TOKEN,REGISTRY_PREFIX,DEPLOY_PATH
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          envs: AWS_REGION,ECR_REGISTRY,DEPLOY_PATH
           script: |
             set -euo pipefail
-            echo "$DO_API_TOKEN" | docker login registry.digitalocean.com -u "$DO_API_TOKEN" --password-stdin
-            docker pull "${REGISTRY_PREFIX}/wapow-app:latest"
-            docker pull "${REGISTRY_PREFIX}/wapow-collector:latest"
-            docker pull "${REGISTRY_PREFIX}/wapow-worker:latest"
-            cd "${DEPLOY_PATH:-/app}"
+            aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ECR_REGISTRY"
+            docker pull "$ECR_REGISTRY/wapow-app:latest"
+            docker pull "$ECR_REGISTRY/wapow-collector:latest"
+            docker pull "$ECR_REGISTRY/wapow-worker:latest"
+            cd "${DEPLOY_PATH:-/opt/tunedin}"
             if [ -d .git ]; then git pull --ff-only; fi
-            export REGISTRY_PREFIX="$REGISTRY_PREFIX"
+            export REGISTRY_PREFIX="$ECR_REGISTRY"
             docker compose -f docker-compose.prod.yml pull
             docker compose -f docker-compose.prod.yml up -d --remove-orphans

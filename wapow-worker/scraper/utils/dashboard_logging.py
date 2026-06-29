@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 import logging
 import os
+import time
 from typing import Any
 
 from bson import ObjectId
@@ -16,7 +17,12 @@ _HANDLER_NAME = "wapow-dashboard-mongo"
 class MongoLogHandler(logging.Handler):
     """Persist worker/API log records so dashboard SSE can stream across processes."""
 
+    _disabled_until = 0.0
+
     def emit(self, record: logging.LogRecord) -> None:
+        if time.monotonic() < self._disabled_until:
+            return
+
         try:
             from scraper.db import get_db
 
@@ -31,6 +37,7 @@ class MongoLogHandler(logging.Handler):
                 }
             )
         except Exception:
+            self._disabled_until = time.monotonic() + 30
             # Logging must never break scraper or Celery execution.
             pass
 

@@ -51,6 +51,8 @@ ARTICLE_CATEGORIES = [
     "technology",
     "travel",
     "wellbeing",
+    "arts-entertainment",
+    "business",
 ]
 ARTICLES_COLLECTION = "articles"
 VIDEO_COLLECTION = "videos"
