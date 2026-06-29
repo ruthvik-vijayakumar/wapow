@@ -18,6 +18,7 @@ def get_client() -> MongoClient:
             authSource="admin",
             retryWrites=True,
             w="majority",
+            serverSelectionTimeoutMS=settings.mongodb_server_selection_timeout_ms,
         )
     return _client
 

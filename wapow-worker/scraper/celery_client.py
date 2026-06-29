@@ -38,6 +38,8 @@ celery_app.conf.update(
     ),
     task_routes={
         "tasks.run_rss_scrape": {"queue": "rss"},
+        "tasks.run_web_scrape": {"queue": "rss"},
+        "tasks.run_all_scrapers": {"queue": "rss"},
         "tasks.convert_article_to_story": {"queue": "conversion"},
     },
     worker_prefetch_multiplier=1,
