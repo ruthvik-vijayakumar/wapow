@@ -1,0 +1,76 @@
+name: Deploy AWS
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push wapow-app
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t "$ECR_REGISTRY/wapow-app:latest" -t "$ECR_REGISTRY/wapow-app:$IMAGE_TAG" -f wapow-app/Dockerfile wapow-app
+          docker push "$ECR_REGISTRY/wapow-app:latest"
+          docker push "$ECR_REGISTRY/wapow-app:$IMAGE_TAG"
+
+      - name: Build and push wapow-collector
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t "$ECR_REGISTRY/wapow-collector:latest" -t "$ECR_REGISTRY/wapow-collector:$IMAGE_TAG" -f wapow-collector/Dockerfile wapow-collector
+          docker push "$ECR_REGISTRY/wapow-collector:latest"
+          docker push "$ECR_REGISTRY/wapow-collector:$IMAGE_TAG"
+
+      - name: Build and push wapow-worker
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t "$ECR_REGISTRY/wapow-worker:latest" -t "$ECR_REGISTRY/wapow-worker:$IMAGE_TAG" -f wapow-worker/Dockerfile wapow-worker
+          docker push "$ECR_REGISTRY/wapow-worker:latest"
+          docker push "$ECR_REGISTRY/wapow-worker:$IMAGE_TAG"
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1
+        env:
+          AWS_REGION: ${{ env.AWS_REGION }}
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          envs: AWS_REGION,ECR_REGISTRY,DEPLOY_PATH
+          script: |
+            set -euo pipefail
+            aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ECR_REGISTRY"
+            cd "${DEPLOY_PATH:-/opt/wapow}"
+            if [ -d .git ]; then git pull --ff-only; fi
+            export REGISTRY_PREFIX="$ECR_REGISTRY"
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
