@@ -71,7 +71,7 @@ jobs:
             docker pull "$ECR_REGISTRY/$ECR_NAMESPACE/wapow-app:latest"
             docker pull "$ECR_REGISTRY/$ECR_NAMESPACE/wapow-collector:latest"
             docker pull "$ECR_REGISTRY/$ECR_NAMESPACE/wapow-worker:latest"
-            cd "${DEPLOY_PATH:-/opt/tunedin}"
+            cd "${DEPLOY_PATH:-/opt/wapow}"
             if [ -d .git ]; then git pull --ff-only; fi
             export REGISTRY_PREFIX="$ECR_REGISTRY/$ECR_NAMESPACE"
             docker compose -f docker-compose.prod.yml pull
